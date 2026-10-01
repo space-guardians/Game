@@ -34,11 +34,13 @@ gh project item-list 1 --owner space-guardians --limit 500 --format json --jq '.
    ```bash
    gh project item-edit --project-id PVT_kwHOAjWXuM4BiAID --id <ITEM_ID> --field-id PVTSSF_lAHOAjWXuM4BiAIDzhg5s2I --single-select-option-id 47fc9ee4
    ```
-4. Créer la branche depuis `develop` à jour :
+4. Créer la branche dans un **worktree** dédié, depuis `develop` à jour, puis y basculer la session (outil `EnterWorktree` avec `path`) :
    ```bash
-   git fetch origin && git switch -c <type>/N-<slug> origin/develop
+   git fetch origin
+   git worktree add .claude/worktrees/<type>-N-<slug> -b <type>/N-<slug> origin/develop
    ```
-   Correctif urgent en production : `hotfix/N-<slug>` depuis `origin/main` (voir CLAUDE.md, section « Git »).
+   Correctif urgent en production : `hotfix/N-<slug>` depuis `origin/main` (voir CLAUDE.md, sections « Branches » et « Worktrees »).
+5. Démarrer l'environnement du worktree : `make up` (changer `HTTP_PORT`, `MERCURE_PORT`, `MAILPIT_PORT` si un autre environnement tourne déjà).
 
 ## Pendant le travail
 
@@ -70,5 +72,5 @@ Prévenir l'utilisateur de tout décalage en cascade.
 
 1. Toutes les cases cochées (ou retirées avec justification en commentaire).
 2. PR vers `develop` ouverte avec `Closes #N` (skill `pull-request`) : l'issue se ferme à la fusion dans `develop`.
-3. Après la fusion, vérifier que l'issue est fermée et passer le statut à **Done** (`98236657`) si l'automatisation du projet ne l'a pas fait. Supprimer la branche distante fusionnée (`git push origin --delete <branche>`).
+3. Après la fusion, vérifier que l'issue est fermée et passer le statut à **Done** (`98236657`) si l'automatisation du projet ne l'a pas fait. Nettoyer : branche distante (`git push origin --delete <branche>`), conteneurs du worktree (`docker compose down -v` depuis le worktree), puis sortie du worktree (`ExitWorktree`), `git worktree remove .claude/worktrees/<dossier>` et `git branch -D <branche>`.
 4. Issue seulement avancée (`Refs #N`) : laisser un commentaire résumant ce que la PR fusionnée a apporté et ce qui reste à faire.
