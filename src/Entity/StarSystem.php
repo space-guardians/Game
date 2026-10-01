@@ -25,7 +25,7 @@ final class StarSystem
     private ?int $id = null;
 
     /** @var Collection<int, Planet> */
-    #[ORM\OneToMany(targetEntity: Planet::class, mappedBy: 'system')]
+    #[ORM\OneToMany(targetEntity: Planet::class, mappedBy: 'system', fetch: 'EXTRA_LAZY')]
     #[ORM\OrderBy(['position.orbit' => 'ASC'])]
     private Collection $planets;
 
@@ -67,10 +67,26 @@ final class StarSystem
         return $this->position;
     }
 
+    public function getDistanceFromCenter(): float
+    {
+        return $this->position->distanceFromCenter();
+    }
+
+    /** Compté en base sans charger les planètes (collection EXTRA_LAZY) */
+    public function getPlanetCount(): int
+    {
+        return $this->planets->count();
+    }
+
     /** @return Collection<int, Planet> */
     public function getPlanets(): Collection
     {
         return $this->planets;
+    }
+
+    public function __toString(): string
+    {
+        return \sprintf('Système %d (galaxie %d)', $this->number, $this->galaxy->getNumber());
     }
 
     /** @internal Appelée par le constructeur de Planet pour garder les deux côtés de la relation synchronisés */

@@ -78,7 +78,12 @@ final class DashboardController extends AbstractDashboardController
 
     public function configureMenuItems(): iterable
     {
-        yield MenuItem::linkToDashboard('Tableau de bord', 'fa fa-gauge');
+        yield MenuItem::linkToDashboard('Tableau de bord');
+
+        yield MenuItem::section('Univers')->setPermission('ROLE_GAME_DESIGNER');
+        yield MenuItem::linkTo(GalaxyCrudController::class, 'Galaxies')->setPermission('ROLE_GAME_DESIGNER');
+        yield MenuItem::linkTo(StarSystemCrudController::class, 'Systèmes')->setPermission('ROLE_GAME_DESIGNER');
+        yield MenuItem::linkTo(PlanetCrudController::class, 'Planètes')->setPermission('ROLE_GAME_DESIGNER');
     }
 
     public function configureUserMenu(UserInterface $user): UserMenu

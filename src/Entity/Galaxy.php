@@ -8,6 +8,7 @@ use App\Repository\GalaxyRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Component\Validator\Constraints as Assert;
 
 /**
  * Galaxie de l'univers, centrée sur (0 ; 0). Sa taille n'est pas fixée : elle s'étend
@@ -25,7 +26,7 @@ final class Galaxy
     private ?int $id = null;
 
     /** @var Collection<int, StarSystem> */
-    #[ORM\OneToMany(targetEntity: StarSystem::class, mappedBy: 'galaxy')]
+    #[ORM\OneToMany(targetEntity: StarSystem::class, mappedBy: 'galaxy', fetch: 'EXTRA_LAZY')]
     #[ORM\OrderBy(['number' => 'ASC'])]
     private Collection $systems;
 
@@ -34,6 +35,8 @@ final class Galaxy
         #[ORM\Column]
         private int $number,
         #[ORM\Column(length: 100)]
+        #[Assert\NotBlank(message: 'Donnez un nom à la galaxie.')]
+        #[Assert\Length(max: 100)]
         private string $name,
     ) {
         if ($number < 1) {
@@ -56,6 +59,17 @@ final class Galaxy
     public function getName(): string
     {
         return $this->name;
+    }
+
+    /** Renommage depuis le panneau d'administration */
+    public function setName(string $name): void
+    {
+        $this->name = $name;
+    }
+
+    public function __toString(): string
+    {
+        return \sprintf('Galaxie %d — %s', $this->number, $this->name);
     }
 
     /** @return Collection<int, StarSystem> */
