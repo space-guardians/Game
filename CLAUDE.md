@@ -38,7 +38,8 @@ Tout passe par le `Makefile` (`make help`) :
 | `make cs-fix` / `make twig-cs-fix` / `make biome-fix` | Corrige le style PHP / Twig / JS-CSS |
 | `make stan` | PHPStan niveau 6 |
 | `make test`, `make test-unit`, `make coverage` | Tests PHPUnit |
-| `make fixtures` | Applique les migrations (`make db`) puis charge les données de développement |
+| `make fixtures` | Applique les migrations (`make db`) puis charge les données de développement (galaxie générée, graine 1) |
+| `docker compose exec php bin/console app:galaxy:generate` | Génère une galaxie ; `--seed` la rend reproductible (`--help` pour les options) |
 
 ## Code
 
