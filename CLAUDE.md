@@ -38,7 +38,7 @@ Tout passe par le `Makefile` (`make help`) :
 | `make cs-fix` / `make twig-cs-fix` / `make biome-fix` | Corrige le style PHP / Twig / JS-CSS |
 | `make stan` | PHPStan niveau 6 |
 | `make test`, `make test-unit`, `make coverage` | Tests PHPUnit |
-| `make fixtures` | Charge les données de développement |
+| `make fixtures` | Applique les migrations (`make db`) puis charge les données de développement |
 
 ## Code
 
