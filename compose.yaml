@@ -2,26 +2,37 @@
 # propres conteneurs. Ports publiés surchargeables pour en faire tourner plusieurs en parallèle :
 # HTTP_PORT, MERCURE_PORT, MAILPIT_PORT (environnement ou compose.override.yaml).
 
+# Configuration commune au serveur PHP-FPM et au worker Messenger
+x-php: &php
+  build:
+    context: .
+    target: dev
+  user: ${UID:-1000}:${GID:-1000}
+  volumes:
+    - ./:/app
+  environment:
+    XDEBUG_MODE: ${XDEBUG_MODE:-off}
+    # URL publiques dérivées des ports publiés (priment sur .env)
+    DEFAULT_URI: http://localhost:${HTTP_PORT:-8100}
+    MERCURE_PUBLIC_URL: http://localhost:${MERCURE_PORT:-3100}/.well-known/mercure
+  extra_hosts:
+    - host.docker.internal:host-gateway
+  depends_on:
+    database:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
 services:
   php:
-    build:
-      context: .
-      target: dev
-    user: ${UID:-1000}:${GID:-1000}
-    volumes:
-      - ./:/app
-    environment:
-      XDEBUG_MODE: ${XDEBUG_MODE:-off}
-      # URL publiques dérivées des ports publiés (priment sur .env)
-      DEFAULT_URI: http://localhost:${HTTP_PORT:-8100}
-      MERCURE_PUBLIC_URL: http://localhost:${MERCURE_PORT:-3100}/.well-known/mercure
-    extra_hosts:
-      - host.docker.internal:host-gateway
-    depends_on:
-      database:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
+    <<: *php
+
+  # Traite la file asynchrone (e-mails, puis événements de jeu). Redémarré toutes les heures pour
+  # recharger le code ; après une modification du code : docker compose restart worker
+  worker:
+    <<: *php
+    command: [bin/console, messenger:consume, async, --time-limit=3600, --memory-limit=256M]
+    restart: unless-stopped
 
   web:
     image: nginx:1.31-alpine

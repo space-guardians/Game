@@ -24,3 +24,10 @@ framework:
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': async
+
+when@test:
+    framework:
+        messenger:
+            transports:
+                # Les tests inspectent les messages (e-mails compris) sans worker
+                async: 'in-memory://'
