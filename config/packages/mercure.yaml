@@ -1,0 +1,17 @@
+mercure:
+    hubs:
+        default:
+            # URL interne (publication par le serveur) et URL publique (abonnement du navigateur)
+            url: '%env(MERCURE_URL)%'
+            public_url: '%env(MERCURE_PUBLIC_URL)%'
+            # Hub Mercure v1 : JWT au format RFC 9068 (iss, sub, client_id, aud, exp)
+            protocol_version: '1.0'
+            jwt:
+                secret: '%env(MERCURE_JWT_SECRET)%'
+                publish: '*'
+                claims:
+                    # Doit figurer dans MERCURE_TRUSTED_ISSUERS côté hub
+                    iss: '%env(MERCURE_JWT_ISSUER)%'
+                    sub: space-guardians
+                    client_id: space-guardians
+                    # « aud » vaut public_url par défaut : le hub épingle ce même resource_identifier

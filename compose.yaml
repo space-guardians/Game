@@ -12,6 +12,9 @@ services:
       - ./:/app
     environment:
       XDEBUG_MODE: ${XDEBUG_MODE:-off}
+      # URL publiques dérivées des ports publiés (priment sur .env)
+      DEFAULT_URI: http://localhost:${HTTP_PORT:-8100}
+      MERCURE_PUBLIC_URL: http://localhost:${MERCURE_PORT:-3100}/.well-known/mercure
     extra_hosts:
       - host.docker.internal:host-gateway
     depends_on:
@@ -59,9 +62,13 @@ services:
     image: dunglas/mercure:v1
     environment:
       SERVER_NAME: ':80'
-      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:-!ChangeThisMercureHubJWTSecretKey!}
-      MERCURE_EXTRA_DIRECTIVES: cors_origins http://localhost:${HTTP_PORT:-8100}
+      MERCURE_PUBLISHER_JWT_KEY: ${MERCURE_JWT_SECRET:?défini dans .env}
+      MERCURE_SUBSCRIBER_JWT_KEY: ${MERCURE_JWT_SECRET:?défini dans .env}
+      MERCURE_TRUSTED_ISSUERS: ${MERCURE_JWT_ISSUER:-http://localhost:8100}
+      # resource_identifier = URL publique : audience unique pour la publication interne et l'abonnement
+      MERCURE_EXTRA_DIRECTIVES: |
+        cors_origins http://localhost:${HTTP_PORT:-8100}
+        resource_identifier http://localhost:${MERCURE_PORT:-3100}/.well-known/mercure
     ports:
       - ${MERCURE_PORT:-3100}:80
     volumes:
