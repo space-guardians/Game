@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Admin\AdminRole;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -78,7 +79,12 @@ final class DashboardController extends AbstractDashboardController
 
     public function configureMenuItems(): iterable
     {
-        yield MenuItem::linkToDashboard('Tableau de bord', 'fa fa-gauge');
+        yield MenuItem::linkToDashboard('Tableau de bord');
+
+        yield MenuItem::section('Univers')->setPermission(AdminRole::GameDesigner->value);
+        yield MenuItem::linkTo(GalaxyCrudController::class, 'Galaxies')->setPermission(AdminRole::GameDesigner->value);
+        yield MenuItem::linkTo(StarSystemCrudController::class, 'Systèmes')->setPermission(AdminRole::GameDesigner->value);
+        yield MenuItem::linkTo(PlanetCrudController::class, 'Planètes')->setPermission(AdminRole::GameDesigner->value);
     }
 
     public function configureUserMenu(UserInterface $user): UserMenu

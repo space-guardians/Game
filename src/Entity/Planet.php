@@ -55,6 +55,12 @@ final class Planet
         return $this->temperature;
     }
 
+    /** Adresse entre crochets, comme partout dans l'interface (charte §3) */
+    public function __toString(): string
+    {
+        return '[' . $this->getAddress() . ']';
+    }
+
     public function getAddress(): PlanetAddress
     {
         return new PlanetAddress(

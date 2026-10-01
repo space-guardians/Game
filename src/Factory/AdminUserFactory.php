@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Factory;
 
+use App\Admin\AdminRole;
 use App\Entity\AdminUser;
 use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
@@ -32,7 +33,7 @@ final class AdminUserFactory extends PersistentObjectFactory
     {
         return [
             'email' => self::faker()->unique()->safeEmail(),
-            'role' => 'ROLE_ADMIN',
+            'role' => AdminRole::Admin,
             'createdAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeThisYear()),
             'password' => $this->passwordHasherFactory->getPasswordHasher(AdminUser::class)->hash(self::DEFAULT_PASSWORD),
         ];

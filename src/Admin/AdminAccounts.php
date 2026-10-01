@@ -26,9 +26,9 @@ final readonly class AdminAccounts
     ) {}
 
     /**
-     * @throws \InvalidArgumentException adresse, rôle ou mot de passe refusé, ou compte déjà existant
+     * @throws \InvalidArgumentException adresse ou mot de passe refusé, ou compte déjà existant
      */
-    public function create(string $email, string $role, string $plainPassword): AdminUser
+    public function create(string $email, AdminRole $role, string $plainPassword): AdminUser
     {
         $this->assertValid($email, [new Assert\NotBlank(), new Assert\Email(mode: Assert\Email::VALIDATION_MODE_STRICT)]);
         $this->assertValid($plainPassword, [

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Admin\AdminRole;
 use App\Repository\AdminUserRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
@@ -20,14 +21,6 @@ use Symfony\Component\Security\Core\User\UserInterface;
 #[UniqueEntity(fields: ['email'], message: 'Un compte d\'administration existe déjà avec cette adresse e-mail.')]
 final class AdminUser implements UserInterface, PasswordAuthenticatedUserInterface
 {
-    /** Rôles du panneau et leur libellé, du plus restreint au plus étendu ; chacun hérite du précédent (security.yaml) */
-    public const array ROLES = [
-        'ROLE_MODERATOR' => 'Modération',
-        'ROLE_GAME_DESIGNER' => 'Game design',
-        'ROLE_ADMIN' => 'Administration',
-        'ROLE_SUPER_ADMIN' => 'Super administration',
-    ];
-
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
@@ -42,14 +35,13 @@ final class AdminUser implements UserInterface, PasswordAuthenticatedUserInterfa
 
     public function __construct(
         string $email,
-        /** Rôle unique, parmi ROLES */
-        #[ORM\Column(length: 30)]
-        private string $role,
+        /** Rôle unique ; il inclut les droits des rôles inférieurs */
+        #[ORM\Column(length: 30, enumType: AdminRole::class)]
+        private AdminRole $role,
         #[ORM\Column]
         private readonly \DateTimeImmutable $createdAt,
     ) {
         $this->email = User::normalizeEmail($email);
-        $this->changeRole($role);
     }
 
     public function getId(): ?int
@@ -69,29 +61,20 @@ final class AdminUser implements UserInterface, PasswordAuthenticatedUserInterfa
         return $this->email;
     }
 
-    public function getRole(): string
+    public function getRole(): AdminRole
     {
         return $this->role;
     }
 
-    public function changeRole(string $role): void
+    public function changeRole(AdminRole $role): void
     {
-        if (!\array_key_exists($role, self::ROLES)) {
-            throw new \InvalidArgumentException(\sprintf('Rôle d\'administration inconnu : « %s » (attendu : %s).', $role, implode(', ', array_keys(self::ROLES))));
-        }
-
         $this->role = $role;
-    }
-
-    public function getRoleLabel(): string
-    {
-        return self::ROLES[$this->role];
     }
 
     /** @return list<string> */
     public function getRoles(): array
     {
-        return [$this->role];
+        return [$this->role->value];
     }
 
     public function getPassword(): string

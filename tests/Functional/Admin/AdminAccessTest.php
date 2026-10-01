@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Admin;
 
-use App\Entity\AdminUser;
+use App\Admin\AdminRole;
 use App\Factory\AdminUserFactory;
 use App\Factory\UserFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -52,7 +52,7 @@ final class AdminAccessTest extends WebTestCase
 
     public function testAdminLogsInThroughAdminLogin(): void
     {
-        AdminUserFactory::createOne(['email' => 'admin@space-guardians.local', 'role' => 'ROLE_SUPER_ADMIN']);
+        AdminUserFactory::createOne(['email' => 'admin@space-guardians.local', 'role' => AdminRole::SuperAdmin]);
 
         $this->login('Admin@Space-Guardians.local', AdminUserFactory::DEFAULT_PASSWORD);
 
@@ -72,24 +72,24 @@ final class AdminAccessTest extends WebTestCase
     }
 
     /**
-     * @return iterable<string, array{string}>
+     * @return iterable<string, array{AdminRole}>
      */
     public static function roles(): iterable
     {
-        foreach (array_keys(AdminUser::ROLES) as $role) {
-            yield $role => [$role];
+        foreach (AdminRole::cases() as $role) {
+            yield $role->value => [$role];
         }
     }
 
     #[DataProvider('roles')]
-    public function testEveryAdminRoleReachesDashboard(string $role): void
+    public function testEveryAdminRoleReachesDashboard(AdminRole $role): void
     {
         $this->client->loginUser(AdminUserFactory::createOne(['role' => $role]), 'admin');
 
         $this->client->request('GET', '/admin');
 
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('body', AdminUser::ROLES[$role]);
+        self::assertSelectorTextContains('body', $role->label());
     }
 
     public function testAdminLogsOut(): void

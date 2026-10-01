@@ -5,7 +5,7 @@
 {% block main %}
     <p>Bienvenue dans le panneau d’administration de Space Guardians.</p>
     <p>
-        Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong> ({{ app.user.roleLabel }}).
+        Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong> ({{ app.user.role.label }}).
     </p>
     <p>Les sections (univers, joueurs, IA, contenu de jeu, quêtes et événements, modération, exploitation) arrivent au fil des phases du projet.</p>
 {% endblock %}
