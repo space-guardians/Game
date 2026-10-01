@@ -66,7 +66,8 @@ Tout passe par le `Makefile` (`make help`) :
 - **Livraison** : PR `develop` → `staging`, puis `staging` → `main`, avec le label « Livraison » (skill `pull-request`).
 - **Correctif urgent** : `hotfix/<numéro>-<slug>` créée depuis `main`, PR vers `main`, puis la même branche en PR vers `staging` et `develop` pour ne pas perdre le correctif.
 - Fusion par **commit de fusion** uniquement (squash et rebase désactivés), pour garder les trois branches alignées.
-- Jamais de push direct sur `develop`, `staging` ou `main` (bloqué par le hook `.claude/hooks/garde-git.sh`, contrôlé en CI par `pr.yml`).
+- Jamais de push direct sur `develop`, `staging` ou `main` : bloqué par le hook `.claude/hooks/garde-git.sh` et par le ruleset GitHub « Branches protégées » (PR obligatoire, checks de CI verts, conversations résolues, pas de force push ni de suppression). Les administrateurs peuvent passer outre en cas d'urgence ; Claude ne le fait jamais.
+- Un nouveau job de CI devient obligatoire en ajoutant son nom aux checks requis du ruleset (`gh api repos/space-guardians/Game/rulesets`).
 - Les issues se ferment à la fusion dans `develop` (branche par défaut) via `Closes #N`.
 
 ### Commits et PR
