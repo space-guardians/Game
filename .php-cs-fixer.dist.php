@@ -9,7 +9,8 @@ use PhpCsFixer\Runner\Parallel\ParallelConfigFactory;
 $finder = (new Finder())
     ->in(__DIR__)
     ->exclude(['var', 'vendor'])
-    ->notPath(['config/bundles.php', 'config/reference.php']);
+    // Fichiers régénérés par Symfony (Flex, importmap:require) : leur format n'est pas le nôtre
+    ->notPath(['config/bundles.php', 'config/reference.php', 'importmap.php']);
 
 return (new Config())
     ->setParallelConfig(ParallelConfigFactory::detect())
