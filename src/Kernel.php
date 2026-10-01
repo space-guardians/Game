@@ -10,4 +10,13 @@ use Symfony\Component\HttpKernel\Kernel as BaseKernel;
 class Kernel extends BaseKernel
 {
     use MicroKernelTrait;
+
+    /**
+     * @return list<string> An array of allowed values for APP_ENV
+     */
+    // @phpstan-ignore method.unused (remplace la méthode privée de KernelTrait, qui l'appelle au démarrage)
+    private function getAllowedEnvs(): array
+    {
+        return ['prod', 'dev', 'test'];
+    }
 }
