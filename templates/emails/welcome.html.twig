@@ -1,0 +1,11 @@
+{% extends 'emails/_layout.html.twig' %}
+
+{% block heading %}Bienvenue parmi les Gardiens{% endblock %}
+
+{% block content %}
+    <p style="margin: 0 0 16px;">Votre compte <strong>{{ email.to[0].address }}</strong> est créé.</p>
+    <p style="margin: 0 0 24px;">Votre empire tourne désormais en continu, même quand vous n’êtes pas connecté : production, constructions et flottes avancent à leur rythme.</p>
+    <p style="margin: 0;">
+        <a href="{{ url('app_login') }}" style="display: inline-block; padding: 12px 20px; background: #F2B84B; color: #1A1206; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; text-decoration: none;">Reprendre le commandement</a>
+    </p>
+{% endblock %}

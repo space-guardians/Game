@@ -1,0 +1,12 @@
+{# Gabarit des e-mails : styles en ligne, couleurs de la charte #}
+<!DOCTYPE html>
+<html lang="fr">
+<body style="margin: 0; padding: 32px 16px; background: #070B14; color: #E8EEF9; font-family: 'IBM Plex Sans', Arial, sans-serif; font-size: 15px; line-height: 1.55;">
+    <div style="max-width: 560px; margin: 0 auto; padding: 32px; background: #0D1424; border: 1px solid #22304F;">
+        <p style="margin: 0 0 24px; font-weight: 700; letter-spacing: 0.22em;">SPACE <span style="color: #F2B84B; letter-spacing: 0.3em;">GUARDIANS</span></p>
+        <h1 style="margin: 0 0 16px; font-size: 24px; line-height: 1.2;">{% block heading %}{% endblock %}</h1>
+        {% block content %}{% endblock %}
+        <p style="margin: 32px 0 0; font-size: 12px; color: #8091B5;">Cet e-mail vous a été envoyé par Space Guardians. Un seul compte par joueur.</p>
+    </div>
+</body>
+</html>
