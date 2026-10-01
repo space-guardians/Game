@@ -5,8 +5,14 @@ on:
   pull_request:
     types: [opened, reopened, synchronize, edited, labeled, unlabeled, milestoned, demilestoned]
 
+# Un passage plus récent (ex. ajout d'un label) remplace le précédent
+concurrency:
+  group: pr-metadata-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   metadata:
@@ -15,6 +21,8 @@ jobs:
     env:
       BASE: ${{ github.event.pull_request.base.ref }}
       HEAD: ${{ github.event.pull_request.head.ref }}
+      GH_TOKEN: ${{ github.token }}
+      PR_API: repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}
     steps:
       - uses: actions/checkout@v7
       - name: Flux de branches
@@ -29,19 +37,23 @@ jobs:
             echo "::error::Une PR vers « $BASE » doit partir de ${allowed//[\^\$()]/} (ici : « $HEAD »). Les branches de travail partent de develop et y reviennent."
             exit 1
           fi
-      - name: Titre et issues liées
+      - name: État actuel de la PR
         env:
-          TITLE: ${{ github.event.pull_request.title }}
-          BODY: ${{ github.event.pull_request.body }}
+          ACTION: ${{ github.event.action }}
+        run: |
+          # « gh pr create » ajoute labels et jalon juste après l'ouverture : on les laisse arriver,
+          # puis on lit l'état courant plutôt que celui figé dans l'événement
+          if [ "$ACTION" = opened ]; then sleep 15; fi
+          gh api "$PR_API" > /tmp/pr.json
+      - name: Titre et issues liées
         run: |
           # Le titre décrit le commit de fusion : mêmes règles que les commits
-          printf '%s\n\n%s\n' "$TITLE" "$BODY" > /tmp/msg
+          jq -r '.title + "\n\n" + (.body // "")' /tmp/pr.json > /tmp/msg
           .githooks/commit-msg /tmp/msg
       - name: Labels et jalon
-        env:
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, '|') }}
-          MILESTONE: ${{ github.event.pull_request.milestone.title }}
         run: |
+          LABELS=$(jq -r '[.labels[].name] | join("|")' /tmp/pr.json)
+          MILESTONE=$(jq -r '.milestone.title // ""' /tmp/pr.json)
           status=0
           has() { grep -Eq "(^|\|)($1)(\||$)" <<< "$LABELS"; }
 

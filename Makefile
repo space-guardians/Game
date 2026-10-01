@@ -5,7 +5,7 @@ CONSOLE = $(PHP) bin/console
 BIOME   = docker run --rm -u "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$(CURDIR)":/app -w /app node:22-alpine npx --yes @biomejs/biome@2.5.15
 
 .DEFAULT_GOAL := help
-.PHONY: help hooks up down sh qa cs cs-fix twig-cs twig-cs-fix stan lint biome biome-fix \
+.PHONY: help hooks up down sh qa cs cs-fix twig-cs twig-cs-fix stan lint biome biome-fix db \
         test test-unit test-integration test-functional coverage db-test fixtures
 
 help: ## Liste les commandes
@@ -78,5 +78,8 @@ db-test: ## (Re)crée la base de test
 	$(CONSOLE) doctrine:migrations:migrate --env=test --no-interaction --allow-no-migration
 
 ## —— Données ———————————————————————————————————————————
-fixtures: ## Charge les fixtures de développement
+db: ## Applique les migrations à la base de développement
+	$(CONSOLE) doctrine:migrations:migrate --no-interaction --allow-no-migration
+
+fixtures: db ## Charge les fixtures de développement (migrations comprises)
 	$(CONSOLE) doctrine:fixtures:load --no-interaction
