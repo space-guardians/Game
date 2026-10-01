@@ -8,7 +8,7 @@ command = json.load(sys.stdin).get("tool_input", {}).get("command", "")
 # Le contenu des heredocs (messages de commit, corps de PR) n est pas une commande
 command = re.sub(r"<<-?\s*([\x27\"]?)(\w+)\1.*?\n.*?^\s*\2\s*$", "", command, flags=re.S | re.M)
 
-PROTECTED = {"develop", "staging", "main", "master"}
+PROTECTED = {"develop", "staging", "main"}
 
 def block(message):
     print(message, file=sys.stderr)

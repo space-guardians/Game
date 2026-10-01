@@ -62,6 +62,7 @@ Tout passe par le `Makefile` (`make help`) :
 | `staging` | Préproduction | `develop` (livraison), `hotfix/*` |
 | `main` | Production | `staging` (livraison), `hotfix/*` |
 
+- La production est `main` (convention actuelle de git et GitHub) ; il n'existe pas de branche `master`.
 - Branche de travail par issue, **créée depuis `develop`** et fusionnée dans `develop` : `<type>/<numéro>-<slug>`, ex. `feat/33-suite-ordres`.
 - **Livraison** : PR `develop` → `staging`, puis `staging` → `main`, avec le label « Livraison » (skill `pull-request`).
 - **Correctif urgent** : `hotfix/<numéro>-<slug>` créée depuis `main`, PR vers `main`, puis la même branche en PR vers `staging` et `develop` pour ne pas perdre le correctif.
