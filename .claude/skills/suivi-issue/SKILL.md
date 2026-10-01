@@ -44,7 +44,7 @@ gh project item-list 1 --owner space-guardians --limit 500 --format json --jq '.
   gh issue edit N --body-file /tmp/issue-N.md
   ```
 - **Périmètre qui change** : modifier la checklist de l'issue et laisser un commentaire court expliquant pourquoi (`gh issue comment N --body "…"`).
-- **Travail découvert hors périmètre** : ne pas l'absorber silencieusement. Créer une nouvelle issue (même format : checklist + `> Cf. §x`), dans le jalon de la phase concernée, avec les labels existants (`Développement`, `Administration`, `Configuration`), puis la relier :
+- **Travail découvert hors périmètre** : ne pas l'absorber silencieusement. Créer une nouvelle issue (même format : checklist + `> Cf. §x`), dans le jalon de la phase concernée, avec son ou ses labels de zone (`Développement`, `Administration`, `Configuration`) — plus `Correction` s'il s'agit d'un bug — puis la relier :
   ```bash
   ID=$(gh api repos/space-guardians/Game/issues/<BLOQUANTE> --jq .id)
   gh api -X POST repos/space-guardians/Game/issues/<BLOQUÉE>/dependencies/blocked_by -F issue_id=$ID

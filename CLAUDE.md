@@ -62,13 +62,13 @@ Tout passe par le `Makefile` (`make help`) :
   Refs #33
   ```
   Types : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Portées : `infra`, `ci`, `univers`, `compte`, `economie`, `recherche`, `flotte`, `combat`, `defense`, `espionnage`, `alliance`, `chat`, `messagerie`, `marche`, `notif`, `pve`, `admin`, `docs`.
-- **PR** : courtes et lisibles. Modèle `.github/pull_request_template.md` : issue(s) (`Closes #n`), 1 à 3 phrases, quelques points techniques. Titre au format Conventional Commits.
+- **PR** : courtes et lisibles. Modèle `.github/pull_request_template.md` : issue(s) (`Closes #n` / `Refs #n`), 1 à 3 phrases, quelques points techniques. Titre au format Conventional Commits. Chaque PR porte un label de type (Fonctionnalité, Correction, Documentation, Refactorisation, Performance, Tests, CI / Build, Maintenance), un label de zone (Développement, Administration, Configuration) et le jalon de son issue — vérifié par `.github/workflows/pr.yml`. Voir le skill `pull-request`.
 - **Issues** : tenues à jour en continu (statut dans le projet, cases cochées, dates). Voir le skill `suivi-issue`.
 
 ## Skills du projet
 
 - `suivi-issue` : démarrer, suivre et clôturer une issue (statut, cases, dates, nouvelles issues découvertes).
 - `commit` : rédiger et créer un commit conforme.
-- `pull-request` : ouvrir une PR conforme.
+- `pull-request` : ouvrir ou mettre à jour une PR conforme (issues liées, labels, jalon).
 - `qualite` : lancer et corriger les vérifications avant PR.
 - `tests` : écrire les tests au bon niveau avec Foundry.
