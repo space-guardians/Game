@@ -283,7 +283,7 @@ Approche recommandée :
 4. Un verrou (Symfony Lock) protège chaque planète/flotte pendant le traitement pour éviter les doubles résolutions.
 
 ### 5.3 Entités principales (modèle de données)
-`User`, `Empire`, `Galaxy`, `GalaxyShapeTemplate`, `System`, `Planet`, `AlliancePlanet`, `Building`, `AllianceBuilding` (scanner, porte de téléportation), `TeleportLink`, `BuildingQueueItem`, `Research`, `ResearchQueueItem`, `ShipType`, `ShipClass`, `ClassMatchup`, `Formation`, `FormationSlot`, `Fleet`, `FleetMovement` (position/heure de départ, destination, statut : en vol / stationnée / immobilisée), `FleetOrder` (carnet d'ordres, ordres suivants programmés), `Battle` (lieu, heure de résolution, statut), `BattleParticipant` (flotte, camp), `CombatReport`, `EspionageReport`, `Alliance`, `AllianceMember`, `AlliancePact` (deux empires, durée max 1 an, non résiliable), `Conversation` (joueur ↔ joueur, groupe, ou système), `ConversationParticipant` (dernier message lu, archivage, suppression de son côté), `Message` (auteur nul pour un message système), `PlayerIgnore`, `MessageReport` (signalement), `Notification`, `ScheduledEvent`, `Debris`, `QuestTemplate`, `ExplorationEventInstance`, `NpcBehaviorProfile`, `Merchant` (PNJ, position fixe, stockage illimité), `MerchantHolding` (ressources déposées par un joueur, en attente de retrait ou de contrepartie), `MarketListing` (vente de ressources, vente/échange de planète), `PlayerQuest` (contrats, dont les quêtes d'escorte différées).
+`User`, `Empire`, `Galaxy`, `GalaxyShapeTemplate`, `StarSystem` (système stellaire ; pas `System`, ambigu avec les messages système et mot-clé SQL), `Planet`, `AlliancePlanet`, `Building`, `AllianceBuilding` (scanner, porte de téléportation), `TeleportLink`, `BuildingQueueItem`, `Research`, `ResearchQueueItem`, `ShipType`, `ShipClass`, `ClassMatchup`, `Formation`, `FormationSlot`, `Fleet`, `FleetMovement` (position/heure de départ, destination, statut : en vol / stationnée / immobilisée), `FleetOrder` (carnet d'ordres, ordres suivants programmés), `Battle` (lieu, heure de résolution, statut), `BattleParticipant` (flotte, camp), `CombatReport`, `EspionageReport`, `Alliance`, `AllianceMember`, `AlliancePact` (deux empires, durée max 1 an, non résiliable), `Conversation` (joueur ↔ joueur, groupe, ou système), `ConversationParticipant` (dernier message lu, archivage, suppression de son côté), `Message` (auteur nul pour un message système), `PlayerIgnore`, `MessageReport` (signalement), `Notification`, `ScheduledEvent`, `Debris`, `QuestTemplate`, `ExplorationEventInstance`, `NpcBehaviorProfile`, `Merchant` (PNJ, position fixe, stockage illimité), `MerchantHolding` (ressources déposées par un joueur, en attente de retrait ou de contrepartie), `MarketListing` (vente de ressources, vente/échange de planète), `PlayerQuest` (contrats, dont les quêtes d'escorte différées).
 
 ### 5.4 Écrans principaux
 - Vue d'ensemble planète (ressources, files en cours, alertes)
@@ -342,7 +342,7 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - [ ] CI de base (PHPUnit, PHPStan/Psalm, PHP-CS-Fixer)
 
 ### Phase 1 — Génération de l'univers
-- [ ] Entités `Galaxy`, `System`, `Planet` avec coordonnées réelles (systèmes en coordonnées globales depuis le centre (0 ; 0), planètes en coordonnées locales à leur système, cf. §2.2)
+- [ ] Entités `Galaxy`, `StarSystem`, `Planet` avec coordonnées réelles (systèmes en coordonnées globales depuis le centre (0 ; 0), planètes en coordonnées locales à leur système, cf. §2.2)
 - [ ] Algorithme de génération procédurale : forme (spirale à *n* branches), fonction de densité, placement des systèmes avec distance minimale garantie (Poisson-disc sampling ou équivalent)
 - [ ] Génération des planètes par système (3 à 15, orbites concentriques)
 - [ ] Commande CLI de génération d'une galaxie, seed déterministe (rejouable pour les tests)
@@ -456,7 +456,7 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - Rythme des vitesses de jeu (vitesse univers : x1, x3, x8...) — impacte directement l'équilibrage.
 - Modèle économique éventuel (gratuit, cosmétiques, boost de confort type "file de construction supplémentaire").
 - Charte graphique précise (palette, identité visuelle "Gardiens").
-- Précision numérique des coordonnées (flottant vs entier) pour le calcul de la position d'une flotte en vol, et fréquence de rafraîchissement visuel d'une flotte en mouvement sur la carte.
+- Fréquence de rafraîchissement visuel d'une flotte en mouvement sur la carte. (Précision des coordonnées tranchée : flottants double précision, cf. #7.)
 - Liste précise des classes de vaisseaux et valeurs de la matrice de bonus/malus.
 - Poids exact de chaque angle d'attaque (face/arrière/flanc) dans la résolution de combat.
 - Nombre de planètes d'alliance autorisées par alliance, portée du scanner, nombre de portes de téléportation.
