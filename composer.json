@@ -1,10 +1,12 @@
 {
+    "name": "space-guardians/game",
+    "description": "Jeu de gestion spatiale multijoueur en temps réel",
     "type": "project",
     "license": "proprietary",
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {
-        "php": ">=8.2",
+        "php": ">=8.5",
         "ext-ctype": "*",
         "ext-iconv": "*",
         "doctrine/doctrine-bundle": "^3.3",
