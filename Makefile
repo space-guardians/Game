@@ -43,7 +43,9 @@ stan: ## Analyse statique PHPStan (niveau 6)
 	$(CONSOLE) cache:warmup --env=dev
 	$(PHP) vendor/bin/phpstan analyse --memory-limit=1G
 
-lint: ## Lint YAML, Twig, conteneur et mapping Doctrine
+lint: ## Composer, YAML, Twig, conteneur et mapping Doctrine
+	$(PHP) composer validate --strict
+	$(PHP) composer audit
 	$(CONSOLE) lint:yaml config --parse-tags
 	$(CONSOLE) lint:twig templates
 	$(CONSOLE) lint:container

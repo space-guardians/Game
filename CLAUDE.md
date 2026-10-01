@@ -5,10 +5,26 @@ Jeu de gestion spatiale multijoueur en temps réel (façon OGame), monolithe Sym
 - **Besoin fonctionnel** : [space-guardians-cahier-des-charges.md](space-guardians-cahier-des-charges.md) — source de vérité. Le citer par section (§4.6.1) plutôt que le paraphraser.
 - **Tâches** : issues GitHub de `space-guardians/Game`, liées par dépendances natives (« Blocked by »), rangées par jalon (phase).
 - **Planning** : projet GitHub « Space Guardians », vue roadmap « Lot » (champs Status, Date de début, Date de fin).
+- **Bonnes pratiques Symfony** (recette `framework-bundle`, adaptée au projet) : @AGENTS.md. En cas de conflit, ce fichier-ci prime.
 
 ## Stack
 
-PHP 8.5, Symfony 7.4, Doctrine ORM + PostgreSQL, Redis, Mercure, Symfony UX (Turbo, Stimulus, Live Components), Asset Mapper, Messenger, EasyAdmin. Environnement Docker Compose (service `php`).
+PHP 8.5, Symfony 8.1, Doctrine ORM + PostgreSQL, Redis, Mercure, Symfony UX (Turbo, Stimulus, Live Components), Asset Mapper, Messenger, EasyAdmin.
+
+## Environnement
+
+Docker Compose (`compose.yaml`, image PHP construite depuis le `Dockerfile`, cible `dev`). Les commandes PHP, Composer et console passent par le service `php` : `docker compose exec php bin/console …`, jamais sur l'hôte.
+
+| Service | Rôle | Accès depuis l'hôte (défaut) |
+|---|---|---|
+| `web` | nginx → PHP-FPM | http://localhost:8100 (`HTTP_PORT`) |
+| `php` | PHP-FPM 8.5, Composer, Xdebug (`XDEBUG_MODE=off` par défaut) | — |
+| `database` | PostgreSQL 18 | port aléatoire : `docker compose port database 5432` |
+| `redis` | Redis 8 | — |
+| `mercure` | Hub Mercure | http://localhost:3100 (`MERCURE_PORT`) |
+| `mailer` | Mailpit (SMTP + interface) | http://localhost:8125 (`MAILPIT_PORT`) |
+
+Le conteneur `php` tourne avec l'UID/GID de l'hôte (`UID`, `GID`, 1000 par défaut) : les fichiers générés t'appartiennent.
 
 ## Commandes
 
@@ -70,6 +86,21 @@ Tout passe par le `Makefile` (`make help`) :
 - Jamais de push direct sur `develop`, `staging` ou `main` : bloqué par le hook `.claude/hooks/garde-git.sh` et par le ruleset GitHub « Branches protégées » (PR obligatoire, checks de CI verts, conversations résolues, pas de force push ni de suppression). Les administrateurs peuvent passer outre en cas d'urgence ; Claude ne le fait jamais.
 - Un nouveau job de CI devient obligatoire en ajoutant son nom aux checks requis du ruleset (`gh api repos/space-guardians/Game/rulesets`).
 - Les issues se ferment à la fusion dans `develop` (branche par défaut) via `Closes #N`.
+
+### Worktrees
+
+Claude travaille chaque issue dans un **worktree** dédié, sans toucher au dépôt principal (où l'utilisateur peut avoir sa propre branche en cours) :
+
+```bash
+git fetch origin
+git worktree add .claude/worktrees/<type>-<N>-<slug> -b <type>/<N>-<slug> origin/develop
+```
+
+puis bascule la session dedans (outil `EnterWorktree` avec ce chemin). `.claude/worktrees/` est ignoré par git.
+
+- Le projet Compose prend le nom du dossier : chaque worktree a ses propres conteneurs, base et volumes. Démarrer avec `make up` depuis le worktree.
+- Deux environnements démarrés en même temps se disputent les ports publiés : changer `HTTP_PORT`, `MERCURE_PORT`, `MAILPIT_PORT` pour l'un d'eux (ex. `HTTP_PORT=8200 make up`).
+- Après la fusion : `docker compose down -v` dans le worktree, puis `git worktree remove .claude/worktrees/<dossier>` et suppression de la branche locale.
 
 ### Commits et PR
 

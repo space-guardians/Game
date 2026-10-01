@@ -258,7 +258,7 @@ Trois outils distincts, qui ne se recouvrent pas :
 ## 5. Architecture technique
 
 ### 5.1 Stack retenue
-- **Symfony 7.x** en monolithe.
+- **Symfony 8.1** en monolithe.
 - **Doctrine ORM** + **PostgreSQL** (préférée à MySQL pour la robustesse transactionnelle sous concurrence).
 - **Symfony UX** :
   - **Turbo** (Drive + Frames + Streams) pour la navigation et les mises à jour partielles sans JS custom.

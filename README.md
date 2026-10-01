@@ -19,3 +19,12 @@ make hooks   # active le contrôle des messages de commit
 make up      # démarre l'environnement Docker
 make help    # liste les commandes
 ```
+
+| Service | Adresse |
+|---|---|
+| Application | http://localhost:8100 |
+| Hub Mercure | http://localhost:3100 |
+| Mailpit (e-mails de dev) | http://localhost:8125 |
+| PostgreSQL | `docker compose port database 5432` |
+
+Ports modifiables avec `HTTP_PORT`, `MERCURE_PORT` et `MAILPIT_PORT` (ex. `HTTP_PORT=8200 make up`).
