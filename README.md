@@ -1,6 +1,6 @@
 # Space Guardians
 
-[![CI](https://github.com/space-guardians/Game/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/space-guardians/Game/actions/workflows/ci.yml)
+[![CI](https://github.com/space-guardians/Game/actions/workflows/ci.yml/badge.svg?branch=develop)](https://github.com/space-guardians/Game/actions/workflows/ci.yml)
 [![Tests](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/space-guardians/Game/badges/tests.json)](https://github.com/space-guardians/Game/actions/workflows/ci.yml)
 [![Couverture](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/space-guardians/Game/badges/coverage.json)](https://github.com/space-guardians/Game/actions/workflows/ci.yml)
 [![PHPStan](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/space-guardians/Game/badges/phpstan.json)](https://github.com/space-guardians/Game/actions/workflows/ci.yml)

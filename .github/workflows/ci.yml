@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master]
+    branches: [develop, staging, main]
   pull_request:
 
 concurrency:
@@ -219,11 +219,11 @@ jobs:
             var/reports/tests.json
             var/reports/coverage.json
 
-  # Publie les badges (tests, couverture, PHPStan) sur la branche « badges », lue par le README
+  # Publie les badges (tests, couverture, PHPStan) de develop sur la branche « badges », lue par le README
   badges:
     name: Badges
     needs: [detect, phpstan, tests]
-    if: always() && github.event_name == 'push' && needs.detect.outputs.php == 'true'
+    if: always() && github.ref == 'refs/heads/develop' && github.event_name == 'push' && needs.detect.outputs.php == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: write

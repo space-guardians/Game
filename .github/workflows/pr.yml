@@ -1,6 +1,6 @@
 name: PR
 
-# Vérifie les métadonnées de la PR (titre, issues liées, labels, jalon), sans relancer toute la CI
+# Vérifie le flux de branches et les métadonnées de la PR, sans relancer toute la CI
 on:
   pull_request:
     types: [opened, reopened, synchronize, edited, labeled, unlabeled, milestoned, demilestoned]
@@ -12,14 +12,29 @@ jobs:
   metadata:
     name: Métadonnées de la PR
     runs-on: ubuntu-latest
+    env:
+      BASE: ${{ github.event.pull_request.base.ref }}
+      HEAD: ${{ github.event.pull_request.head.ref }}
     steps:
       - uses: actions/checkout@v7
+      - name: Flux de branches
+        run: |
+          # develop → staging (préproduction) → main (production) ; hotfix/* peut viser staging et main
+          case "$BASE" in
+            main) allowed='^(staging|hotfix/.+)$' ;;
+            staging) allowed='^(develop|hotfix/.+)$' ;;
+            *) exit 0 ;;
+          esac
+          if ! [[ "$HEAD" =~ $allowed ]]; then
+            echo "::error::Une PR vers « $BASE » doit partir de ${allowed//[\^\$()]/} (ici : « $HEAD »). Les branches de travail partent de develop et y reviennent."
+            exit 1
+          fi
       - name: Titre et issues liées
         env:
           TITLE: ${{ github.event.pull_request.title }}
           BODY: ${{ github.event.pull_request.body }}
         run: |
-          # Le titre devient le message du commit de fusion : mêmes règles que les commits
+          # Le titre décrit le commit de fusion : mêmes règles que les commits
           printf '%s\n\n%s\n' "$TITLE" "$BODY" > /tmp/msg
           .githooks/commit-msg /tmp/msg
       - name: Labels et jalon
@@ -29,6 +44,13 @@ jobs:
         run: |
           status=0
           has() { grep -Eq "(^|\|)($1)(\||$)" <<< "$LABELS"; }
+
+          # PR de livraison : label « Livraison », pas de zone ni de jalon (elle regroupe plusieurs phases)
+          if [[ "$BASE/$HEAD" =~ ^(staging/develop|main/staging)$ ]]; then
+            has 'Livraison' || { echo "::error::Label « Livraison » manquant sur une PR de promotion."; exit 1; }
+            exit 0
+          fi
+
           has 'Fonctionnalité|Correction|Documentation|Refactorisation|Performance|Tests|CI / Build|Maintenance' \
             || { echo "::error::Label de type manquant (Fonctionnalité, Correction, Documentation, Refactorisation, Performance, Tests, CI / Build, Maintenance)."; status=1; }
           has 'Développement|Administration|Configuration' \
