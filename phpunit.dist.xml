@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         cacheDirectory="var/cache/phpunit"
+         colors="true"
+         executionOrder="depends,defects"
+         beStrictAboutOutputDuringTests="true"
+         failOnDeprecation="true"
+         failOnNotice="true"
+         failOnWarning="true"
+>
+    <php>
+        <ini name="display_errors" value="1"/>
+        <ini name="error_reporting" value="-1"/>
+        <server name="APP_ENV" value="test" force="true"/>
+        <server name="SHELL_VERBOSITY" value="-1"/>
+    </php>
+
+    <testsuites>
+        <!-- Logique pure, sans conteneur ni base de données -->
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <!-- Services réels, base de données (transaction annulée après chaque test) -->
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+        <!-- Requêtes HTTP sur le kernel (WebTestCase) -->
+        <testsuite name="functional">
+            <directory>tests/Functional</directory>
+        </testsuite>
+    </testsuites>
+
+    <source ignoreIndirectDeprecations="true" restrictNotices="true" restrictWarnings="true">
+        <include>
+            <directory>src</directory>
+        </include>
+        <exclude>
+            <file>src/Kernel.php</file>
+            <directory>src/DataFixtures</directory>
+            <directory>src/Factory</directory>
+            <directory>src/Story</directory>
+        </exclude>
+    </source>
+
+    <extensions>
+        <!-- Chaque test s'exécute dans une transaction annulée à la fin -->
+        <bootstrap class="DAMA\DoctrineTestBundle\PHPUnit\PHPUnitExtension"/>
+    </extensions>
+</phpunit>
