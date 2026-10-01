@@ -158,7 +158,7 @@ jobs:
       pull-requests: write
     services:
       postgres:
-        image: postgres:17-alpine
+        image: postgres:18-alpine
         env:
           POSTGRES_USER: app
           POSTGRES_PASSWORD: app
@@ -168,11 +168,11 @@ jobs:
           --health-cmd "pg_isready -U app"
           --health-interval 5s --health-timeout 5s --health-retries 10
       redis:
-        image: redis:7-alpine
+        image: redis:8-alpine
         ports: ['6379:6379']
     env:
       APP_ENV: test
-      DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app?serverVersion=17&charset=utf8
+      DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app?serverVersion=18&charset=utf8
       REDIS_URL: redis://127.0.0.1:6379
     steps:
       - uses: actions/checkout@v7

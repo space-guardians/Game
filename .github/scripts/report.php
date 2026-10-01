@@ -67,6 +67,7 @@ function coverage(string $input): array
     [$covered, $total] = $rows['Lignes'];
     $rate = $total > 0 ? 100 * $covered / $total : 0;
     $color = match (true) {
+        $total === 0 => 'lightgrey',
         $rate >= 80 => 'brightgreen',
         $rate >= 60 => 'yellow',
         default => 'red',
