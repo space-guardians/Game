@@ -1,0 +1,37 @@
+{# Thème de formulaire du jeu (charte graphique) : champ = libellé, saisie, aide, erreurs #}
+{% use 'form_div_layout.html.twig' %}
+
+{%- block form_row -%}
+    <div class="sg-field{{ not valid ? ' sg-field--error' }}">
+        {{- form_label(form, null, {label_attr: {class: 'sg-field__label'}}) -}}
+        {{- form_widget(form, {attr: attr|merge({class: ('sg-input ' ~ attr.class|default(''))|trim})}) -}}
+        {{- form_help(form) -}}
+        {{- form_errors(form) -}}
+    </div>
+{%- endblock form_row -%}
+
+{%- block checkbox_row -%}
+    <div class="sg-field{{ not valid ? ' sg-field--error' }}">
+        <label class="sg-check" for="{{ id }}">
+            {{- form_widget(form) -}}
+            <span>{{ label }}</span>
+        </label>
+        {{- form_errors(form) -}}
+    </div>
+{%- endblock checkbox_row -%}
+
+{%- block form_help -%}
+    {%- if help is not empty -%}
+        <span id="{{ id }}_help" class="sg-field__help">{{ help }}</span>
+    {%- endif -%}
+{%- endblock form_help -%}
+
+{%- block form_errors -%}
+    {%- if errors|length > 0 -%}
+        <ul class="sg-field__errors">
+            {%- for error in errors -%}
+                <li>{{ error.message }}</li>
+            {%- endfor -%}
+        </ul>
+    {%- endif -%}
+{%- endblock form_errors -%}

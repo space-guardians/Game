@@ -1,0 +1,6 @@
+{# Pastille de statut (charte §2.2) : tons neutral, gold, cyan, red, green, orange, violet #}
+{% props label, tone = 'neutral', dot = false %}
+<span {{ attributes.defaults({class: 'sg-chip sg-chip--' ~ tone}) }}>
+    {%- if dot %}<span class="sg-chip__dot" aria-hidden="true"></span>{% endif -%}
+    {{ label }}
+</span>

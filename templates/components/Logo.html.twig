@@ -1,0 +1,13 @@
+{# Logotype « Sentinelle » avec le nom (charte §6.3) #}
+{% props href = null %}
+<a href="{{ href ?? path('app_home') }}" {{ attributes.defaults({class: 'sg-logo'}) }}>
+    <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true">
+        <ellipse cx="32" cy="32" rx="28" ry="9" fill="none" stroke="#6FDCEE" stroke-width="3.5" transform="rotate(-18 32 32)"/>
+        <path d="M32 5L45 32L32 59L19 32Z" fill="#070B14" stroke="#F2B84B" stroke-width="4.5" stroke-linejoin="round"/>
+        <path d="M32 5V59M19 32H45" stroke="#F2B84B" stroke-width="2"/>
+    </svg>
+    <span class="sg-logo__name">
+        <span class="sg-logo__space">SPACE</span>
+        <span class="sg-logo__guardians">GUARDIANS</span>
+    </span>
+</a>

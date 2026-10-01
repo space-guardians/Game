@@ -1,0 +1,7 @@
+{# Alerte (charte §8) : attack, error, info, success. Les alertes d'attaque et d'erreur sont annoncées (role="alert"). #}
+{% props variant = 'info' %}
+{% set icons = {attack: 'alert', error: 'alert', info: 'info', success: 'shield'} %}
+<div {{ attributes.defaults({class: 'sg-alert sg-alert--' ~ variant, role: variant in ['attack', 'error'] ? 'alert' : 'status'}) }}>
+    <twig:Icon name="{{ icons[variant] }}"/>
+    <span>{% block content %}{% endblock %}</span>
+</div>

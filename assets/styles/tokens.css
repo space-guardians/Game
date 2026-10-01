@@ -1,0 +1,49 @@
+/* Jetons de la charte graphique (docs/charte-graphique.md §2 et §3) : toute couleur passe par ces variables. */
+:root {
+    /* Surfaces (du plus profond au plus proche) */
+    --sg-space: #070b14;
+    --sg-panel-deep: #0a101d;
+    --sg-panel: #0d1424;
+    --sg-panel-raised: #131c30;
+    --sg-track: #1a2540;
+    --sg-line: #22304f;
+    --sg-line-strong: #34466f;
+
+    /* Texte */
+    --sg-text: #e8eef9;
+    --sg-text-2: #a3b1cf;
+    --sg-text-3: #8091b5;
+    --sg-text-4: #6e7fa3;
+
+    /* Accents */
+    --sg-gold: #f2b84b;
+    --sg-gold-ink: #1a1206;
+    --sg-cyan: #6fdcee;
+    --sg-violet: #b9a3ff;
+
+    /* Ressources */
+    --sg-metal: #c3ccdd;
+    --sg-crystal: #7fb8ff;
+    --sg-deut: #4fe0c2;
+    --sg-energy: #ffd84d;
+    --sg-debris: #ffb168;
+
+    /* États */
+    --sg-danger: #ff8a8a;
+    --sg-danger-bg: #1f0c10;
+    --sg-danger-line: #8a2f38;
+    --sg-success: #6ee0a6;
+    --sg-success-bg: #0f2a1f;
+    --sg-success-line: #2a6a4c;
+    --sg-warning: #ffb168;
+    --sg-warning-bg: #2e1e10;
+    --sg-warning-line: #7a4e22;
+    --sg-info: #6fdcee;
+    --sg-info-bg: #0e2430;
+    --sg-info-line: #24606f;
+
+    /* Typographie */
+    --sg-font-display: "Chakra Petch", sans-serif;
+    --sg-font-body: "IBM Plex Sans", sans-serif;
+    --sg-font-mono: "JetBrains Mono", monospace;
+}

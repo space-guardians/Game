@@ -1,0 +1,32 @@
+{# Gabarit d'accueil (charte §4) : illustration galactique à gauche, formulaire de 560 px à droite #}
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="sg-welcome">
+        <section class="sg-welcome__universe" aria-label="Univers">
+            <twig:GalaxyBackdrop/>
+            <div class="sg-welcome__core" aria-hidden="true"></div>
+            <twig:Logo class="sg-welcome__brand"/>
+            <div class="sg-welcome__pitch">
+                <h1>{% block pitch_title %}{% endblock %}</h1>
+                <p>{% block pitch_text %}{% endblock %}</p>
+                {% block pitch_extra %}{% endblock %}
+            </div>
+        </section>
+
+        <section class="sg-welcome__panel" aria-labelledby="panel-title">
+            <div class="sg-welcome__heading">
+                <span class="sg-kicker">{% block kicker %}{% endblock %}</span>
+                <h2 id="panel-title">{% block panel_title %}{% endblock %}</h2>
+            </div>
+
+            {% for type, messages in app.flashes(['success', 'error']) %}
+                {% for message in messages %}
+                    <twig:AlertBanner variant="{{ type }}">{{ message }}</twig:AlertBanner>
+                {% endfor %}
+            {% endfor %}
+
+            {% block panel %}{% endblock %}
+        </section>
+    </div>
+{% endblock %}
