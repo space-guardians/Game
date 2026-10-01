@@ -23,6 +23,7 @@ make help    # liste les commandes
 | Service | Adresse |
 |---|---|
 | Application | http://localhost:8100 |
+| Panneau d'administration | http://localhost:8100/admin (compte créé par `bin/console app:admin:create`) |
 | Hub Mercure | http://localhost:3100 |
 | Mailpit (e-mails de dev) | http://localhost:8125 |
 | PostgreSQL | `docker compose port database 5432` |

@@ -41,6 +41,9 @@ Tout passe par le `Makefile` (`make help`) :
 | `make test`, `make test-unit`, `make coverage` | Tests PHPUnit |
 | `make fixtures` | Applique les migrations (`make db`) puis charge les données de développement (galaxie générée, graine 1) |
 | `docker compose exec php bin/console app:galaxy:generate` | Génère une galaxie ; `--seed` la rend reproductible (`--help` pour les options) |
+| `docker compose exec php bin/console app:admin:create <email> [--role=…]` | Crée un compte d'administration (mot de passe demandé en saisie masquée) |
+
+**Panneau d'administration** : http://localhost:8100/admin, avec des comptes `AdminUser` distincts des joueurs (pare-feu `admin`, rôles `ROLE_MODERATOR` < `ROLE_GAME_DESIGNER` < `ROLE_ADMIN` < `ROLE_SUPER_ADMIN`). Chaque écran déclare le rôle minimal requis (§5.6.2).
 
 ## Code
 

@@ -2,18 +2,45 @@ security:
     password_hashers:
         Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface: 'auto'
 
+    # Rôles d'administration (§5.6.2) : chacun hérite des droits du précédent
+    role_hierarchy:
+        ROLE_GAME_DESIGNER: ROLE_MODERATOR
+        ROLE_ADMIN: ROLE_GAME_DESIGNER
+        ROLE_SUPER_ADMIN: ROLE_ADMIN
+
     providers:
-        # Chargement par UserRepository::loadUserByIdentifier(), qui normalise l'adresse e-mail
+        # Chargement par loadUserByIdentifier() des repositories, qui normalise l'adresse e-mail
         players:
             entity:
                 class: App\Entity\User
+        admins:
+            entity:
+                class: App\Entity\AdminUser
 
     firewalls:
         dev:
             # Outils de développement et ressources statiques toujours accessibles
             pattern: ^/(_profiler|_wdt|assets|build)/
             security: false
-        # Joueurs. La zone /admin aura son propre pare-feu et ses propres comptes (§5.6.2, #104).
+        # Panneau d'administration : comptes et session distincts de ceux des joueurs (§5.6.2)
+        admin:
+            pattern: ^/admin
+            lazy: true
+            provider: admins
+            form_login:
+                login_path: admin_login
+                check_path: admin_login
+                username_parameter: email
+                password_parameter: password
+                enable_csrf: true
+                default_target_path: admin
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
+            logout:
+                path: admin_logout
+                target: admin_login
+        # Joueurs
         main:
             lazy: true
             provider: players
@@ -38,6 +65,8 @@ security:
 
     # Seule la première règle qui correspond s'applique
     access_control:
+        - { path: ^/admin/connexion$, roles: PUBLIC_ACCESS }
+        - { path: ^/admin, roles: ROLE_MODERATOR }
         - { path: ^/(connexion|inscription|mot-de-passe-oublie), roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }
 
