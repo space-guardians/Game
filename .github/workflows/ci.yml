@@ -170,10 +170,22 @@ jobs:
       redis:
         image: redis:8-alpine
         ports: ['6379:6379']
+      # Mêmes secret et émetteur que .env ; audience épinglée sur l'URL utilisée par les tests
+      mercure:
+        image: dunglas/mercure:v1
+        env:
+          SERVER_NAME: ':80'
+          MERCURE_PUBLISHER_JWT_KEY: rPwidilMwgqAjbLEgZ9jG2ZqpBLuHlNdPPoZvFUPQ9ApBkEU
+          MERCURE_SUBSCRIBER_JWT_KEY: rPwidilMwgqAjbLEgZ9jG2ZqpBLuHlNdPPoZvFUPQ9ApBkEU
+          MERCURE_TRUSTED_ISSUERS: http://localhost:8100
+          MERCURE_EXTRA_DIRECTIVES: resource_identifier http://127.0.0.1:3100/.well-known/mercure
+        ports: ['3100:80']
     env:
       APP_ENV: test
       DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app?serverVersion=18&charset=utf8
       REDIS_URL: redis://127.0.0.1:6379
+      MERCURE_URL: http://127.0.0.1:3100/.well-known/mercure
+      MERCURE_PUBLIC_URL: http://127.0.0.1:3100/.well-known/mercure
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@2.37.2
