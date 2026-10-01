@@ -17,4 +17,20 @@ final class GalaxyRepository extends ServiceEntityRepository
     {
         parent::__construct($registry, Galaxy::class);
     }
+
+    /** Numéro à donner à la prochaine galaxie ajoutée à l'univers */
+    public function nextNumber(): int
+    {
+        $highest = $this->createQueryBuilder('g')
+            ->select('MAX(g.number)')
+            ->getQuery()
+            ->getSingleScalarResult();
+
+        return (int) $highest + 1;
+    }
+
+    public function numberExists(int $number): bool
+    {
+        return $this->count(['number' => $number]) > 0;
+    }
 }
