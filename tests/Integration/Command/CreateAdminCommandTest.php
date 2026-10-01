@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Command;
 
+use App\Admin\AdminRole;
 use App\Entity\AdminUser;
 use App\Factory\AdminUserFactory;
 use App\Repository\AdminUserRepository;
@@ -27,7 +28,7 @@ final class CreateAdminCommandTest extends KernelTestCase
 
         $tester->assertCommandIsSuccessful();
         $admin = $this->admin('admin@space-guardians.local');
-        self::assertSame('ROLE_SUPER_ADMIN', $admin->getRole());
+        self::assertSame(AdminRole::SuperAdmin, $admin->getRole());
         self::assertTrue(self::getContainer()->get(UserPasswordHasherInterface::class)->isPasswordValid($admin, self::PASSWORD));
     }
 
@@ -36,7 +37,7 @@ final class CreateAdminCommandTest extends KernelTestCase
         $this->execute(['email' => 'moderation@space-guardians.local', '--role' => 'ROLE_MODERATOR'], [self::PASSWORD, self::PASSWORD])
             ->assertCommandIsSuccessful();
 
-        self::assertSame('ROLE_MODERATOR', $this->admin('moderation@space-guardians.local')->getRole());
+        self::assertSame(AdminRole::Moderator, $this->admin('moderation@space-guardians.local')->getRole());
     }
 
     /**

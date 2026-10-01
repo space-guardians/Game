@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Admin\AdminRole;
 use App\Entity\Galaxy;
 use Doctrine\Common\Collections\Collection;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
@@ -43,11 +44,11 @@ final class GalaxyCrudController extends AbstractCrudController
         return $actions
             ->disable(Action::NEW)
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
-            ->setPermission(Action::INDEX, 'ROLE_GAME_DESIGNER')
-            ->setPermission(Action::DETAIL, 'ROLE_GAME_DESIGNER')
-            ->setPermission(Action::EDIT, 'ROLE_ADMIN')
-            ->setPermission(Action::DELETE, 'ROLE_ADMIN')
-            ->setPermission(Action::BATCH_DELETE, 'ROLE_ADMIN');
+            ->setPermission(Action::INDEX, AdminRole::GameDesigner->value)
+            ->setPermission(Action::DETAIL, AdminRole::GameDesigner->value)
+            ->setPermission(Action::EDIT, AdminRole::Admin->value)
+            ->setPermission(Action::DELETE, AdminRole::Admin->value)
+            ->setPermission(Action::BATCH_DELETE, AdminRole::Admin->value);
     }
 
     public function configureFields(string $pageName): iterable

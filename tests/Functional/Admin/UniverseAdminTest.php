@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Admin;
 
+use App\Admin\AdminRole;
 use App\Entity\Galaxy;
 use App\Entity\GlobalPosition;
 use App\Entity\OrbitalPosition;
@@ -54,7 +55,7 @@ final class UniverseAdminTest extends WebTestCase
     #[DataProvider('universePages')]
     public function testModeratorCannotSeeUniverse(string $page): void
     {
-        $this->loginAs('ROLE_MODERATOR');
+        $this->loginAs(AdminRole::Moderator);
 
         $this->client->request('GET', $page);
 
@@ -63,7 +64,7 @@ final class UniverseAdminTest extends WebTestCase
 
     public function testModeratorMenuHasNoUniverseSection(): void
     {
-        $this->loginAs('ROLE_MODERATOR');
+        $this->loginAs(AdminRole::Moderator);
 
         $this->client->request('GET', '/admin');
 
@@ -73,7 +74,7 @@ final class UniverseAdminTest extends WebTestCase
 
     public function testGameDesignerBrowsesGalaxiesSystemsAndPlanets(): void
     {
-        $this->loginAs('ROLE_GAME_DESIGNER');
+        $this->loginAs(AdminRole::GameDesigner);
 
         $this->client->request('GET', '/admin/galaxies');
         self::assertResponseIsSuccessful();
@@ -93,7 +94,7 @@ final class UniverseAdminTest extends WebTestCase
 
     public function testGameDesignerCannotRenameGalaxy(): void
     {
-        $this->loginAs('ROLE_GAME_DESIGNER');
+        $this->loginAs(AdminRole::GameDesigner);
 
         $this->client->request('GET', '/admin/galaxies/' . $this->galaxy->getId() . '/edit');
 
@@ -114,7 +115,7 @@ final class UniverseAdminTest extends WebTestCase
     #[DataProvider('forbiddenActions')]
     public function testNobodyCreatesUniverseByHand(string $page): void
     {
-        $this->loginAs('ROLE_SUPER_ADMIN');
+        $this->loginAs(AdminRole::SuperAdmin);
 
         $this->client->request('GET', $page);
 
@@ -123,7 +124,7 @@ final class UniverseAdminTest extends WebTestCase
 
     public function testAdminRenamesGalaxy(): void
     {
-        $this->loginAs('ROLE_ADMIN');
+        $this->loginAs(AdminRole::Admin);
 
         $this->client->request('GET', '/admin/galaxies/' . $this->galaxy->getId() . '/edit');
         $this->client->submitForm('Sauvegarder les modifications', ['Galaxy[name]' => 'Bras d’Orion']);
@@ -135,7 +136,7 @@ final class UniverseAdminTest extends WebTestCase
 
     public function testAdminDeletesGalaxyWithItsSystemsAndPlanets(): void
     {
-        $this->loginAs('ROLE_ADMIN');
+        $this->loginAs(AdminRole::Admin);
         $crawler = $this->client->request('GET', '/admin/galaxies');
         $deleteUrl = (string) $crawler->filter('[data-action-name="delete"]')->first()->attr('href');
         // Jeton du formulaire de confirmation de suppression
@@ -149,7 +150,7 @@ final class UniverseAdminTest extends WebTestCase
         self::assertSame(0, self::getContainer()->get(PlanetRepository::class)->count([]));
     }
 
-    private function loginAs(string $role): void
+    private function loginAs(AdminRole $role): void
     {
         $this->client->loginUser(AdminUserFactory::createOne(['role' => $role]), 'admin');
     }

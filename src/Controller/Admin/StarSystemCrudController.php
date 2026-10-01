@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Admin\AdminRole;
 use App\Entity\StarSystem;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -48,8 +49,8 @@ final class StarSystemCrudController extends AbstractCrudController
         return $actions
             ->disable(Action::NEW, Action::EDIT, Action::DELETE, Action::BATCH_DELETE)
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
-            ->setPermission(Action::INDEX, 'ROLE_GAME_DESIGNER')
-            ->setPermission(Action::DETAIL, 'ROLE_GAME_DESIGNER');
+            ->setPermission(Action::INDEX, AdminRole::GameDesigner->value)
+            ->setPermission(Action::DETAIL, AdminRole::GameDesigner->value);
     }
 
     public function configureFilters(Filters $filters): Filters

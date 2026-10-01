@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Admin\AdminAccounts;
-use App\Entity\AdminUser;
+use App\Admin\AdminRole;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
@@ -27,8 +27,15 @@ final readonly class CreateAdminCommand
         #[Argument('Adresse e-mail du compte')]
         string $email,
         #[Option('Rôle : ROLE_MODERATOR, ROLE_GAME_DESIGNER, ROLE_ADMIN ou ROLE_SUPER_ADMIN')]
-        string $role = 'ROLE_SUPER_ADMIN',
+        string $role = AdminRole::SuperAdmin->value,
     ): int {
+        $adminRole = AdminRole::tryFrom($role);
+        if (null === $adminRole) {
+            $io->error(\sprintf('Rôle d\'administration inconnu : « %s » (attendu : %s).', $role, AdminRole::valuesList()));
+
+            return Command::INVALID;
+        }
+
         $password = (string) $io->askHidden('Mot de passe (12 caractères minimum, difficile à deviner)');
         if ($password !== (string) $io->askHidden('Confirmation du mot de passe')) {
             $io->error('Les deux mots de passe ne correspondent pas.');
@@ -37,14 +44,14 @@ final readonly class CreateAdminCommand
         }
 
         try {
-            $admin = $this->adminAccounts->create($email, $role, $password);
+            $admin = $this->adminAccounts->create($email, $adminRole, $password);
         } catch (\InvalidArgumentException $exception) {
             $io->error($exception->getMessage());
 
             return Command::INVALID;
         }
 
-        $io->success(\sprintf('Compte d\'administration « %s » créé (%s).', $admin->getEmail(), AdminUser::ROLES[$admin->getRole()]));
+        $io->success(\sprintf('Compte d\'administration « %s » créé (%s).', $admin->getEmail(), $admin->getRole()->label()));
 
         return Command::SUCCESS;
     }
