@@ -1,0 +1,38 @@
+name: PR
+
+# Vérifie les métadonnées de la PR (titre, issues liées, labels, jalon), sans relancer toute la CI
+on:
+  pull_request:
+    types: [opened, reopened, synchronize, edited, labeled, unlabeled, milestoned, demilestoned]
+
+permissions:
+  contents: read
+
+jobs:
+  metadata:
+    name: Métadonnées de la PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Titre et issues liées
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Le titre devient le message du commit de fusion : mêmes règles que les commits
+          printf '%s\n\n%s\n' "$TITLE" "$BODY" > /tmp/msg
+          .githooks/commit-msg /tmp/msg
+      - name: Labels et jalon
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, '|') }}
+          MILESTONE: ${{ github.event.pull_request.milestone.title }}
+        run: |
+          status=0
+          has() { grep -Eq "(^|\|)($1)(\||$)" <<< "$LABELS"; }
+          has 'Fonctionnalité|Correction|Documentation|Refactorisation|Performance|Tests|CI / Build|Maintenance' \
+            || { echo "::error::Label de type manquant (Fonctionnalité, Correction, Documentation, Refactorisation, Performance, Tests, CI / Build, Maintenance)."; status=1; }
+          has 'Développement|Administration|Configuration' \
+            || { echo "::error::Label de zone manquant (Développement, Administration, Configuration)."; status=1; }
+          [ -n "$MILESTONE" ] \
+            || { echo "::error::Jalon manquant : reprendre celui de l'issue principale."; status=1; }
+          exit $status
