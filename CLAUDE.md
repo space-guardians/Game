@@ -5,10 +5,11 @@ Jeu de gestion spatiale multijoueur en temps réel (façon OGame), monolithe Sym
 - **Besoin fonctionnel** : [space-guardians-cahier-des-charges.md](space-guardians-cahier-des-charges.md) — source de vérité. Le citer par section (§4.6.1) plutôt que le paraphraser.
 - **Tâches** : issues GitHub de `space-guardians/Game`, liées par dépendances natives (« Blocked by »), rangées par jalon (phase).
 - **Planning** : projet GitHub « Space Guardians », vue roadmap « Lot » (champs Status, Date de début, Date de fin).
+- **Bonnes pratiques Symfony** (recette `framework-bundle`, adaptée au projet) : @AGENTS.md. En cas de conflit, ce fichier-ci prime.
 
 ## Stack
 
-PHP 8.5, Symfony 7.4, Doctrine ORM + PostgreSQL, Redis, Mercure, Symfony UX (Turbo, Stimulus, Live Components), Asset Mapper, Messenger, EasyAdmin.
+PHP 8.5, Symfony 8.1, Doctrine ORM + PostgreSQL, Redis, Mercure, Symfony UX (Turbo, Stimulus, Live Components), Asset Mapper, Messenger, EasyAdmin.
 
 ## Environnement
 
