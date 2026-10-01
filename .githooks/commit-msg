@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# Vérifie qu'un message de commit respecte Conventional Commits et référence une issue.
+# Usage : .githooks/commit-msg <fichier-du-message>   (hook git, ou appelé par la CI)
+set -euo pipefail
+
+file="$1"
+# Ignore les lignes de commentaire ajoutées par git
+message="$(grep -v '^#' "$file" || true)"
+subject="$(printf '%s\n' "$message" | sed -n '1p')"
+
+# Commits générés par git : on laisse passer
+if [[ "$subject" =~ ^(Merge|Revert\ \"|fixup!|squash!|amend!) ]]; then
+    exit 0
+fi
+
+errors=()
+
+types='feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert'
+if ! [[ "$subject" =~ ^($types)(\([a-z0-9-]+\))?!?:\ [^[:space:]].*$ ]]; then
+    errors+=("Le titre doit suivre « type(portée): description » — types : ${types//|/, }.")
+fi
+
+if ((${#subject} > 72)); then
+    errors+=("Le titre fait ${#subject} caractères (72 maximum).")
+fi
+
+if [[ "$subject" =~ \.$ ]]; then
+    errors+=("Le titre ne doit pas se terminer par un point.")
+fi
+
+if ! printf '%s\n' "$message" | grep -Eiq '^(Refs|Closes|Fixes|Resolves|Part of):? #[0-9]+'; then
+    errors+=("Ajouter un pied de message liant l'issue, ex. « Refs #12 » ou « Closes #12 ».")
+fi
+
+if ((${#errors[@]})); then
+    echo "Message de commit invalide :" >&2
+    echo "  > $subject" >&2
+    for e in "${errors[@]}"; do
+        echo "  - $e" >&2
+    done
+    echo "Voir CLAUDE.md, section « Commits »." >&2
+    exit 1
+fi
