@@ -234,7 +234,7 @@ Chaque composant de maquette correspond à un futur **Twig Component** (`templat
 | `EntityCard` | bâtiment, vaisseau, défense | `ready`, `building`, `short` (ressources insuffisantes), `locked` (prérequis) ; quantité ; classe ; statistiques | Twig Component |
 | `TechNode` | nœud de l'arbre de recherche | `acquired` (or), `available` (cyan), `researching` (cyan + barre), `locked` (pointillé) ; sélectionné | Twig Component, positions calculées côté serveur |
 | `FleetRow` | flotte et carnet d'ordres | `vol`, `stationnee`, `immobilisee`, `bataille` ; étapes faites / en cours / à venir / bloquées ; jauges trajet et carburant | Live Component |
-| `AlertBanner` | alerte pleine largeur | `attack`, `info`, `success` ; compte à rebours ; deux actions | Turbo Stream via Mercure |
+| `AlertBanner` | alerte pleine largeur | `attack`, `error` (erreur de formulaire ou d'action, mêmes couleurs que `attack`), `info`, `success` ; compte à rebours ; deux actions | Turbo Stream via Mercure ; Twig Component `templates/components/AlertBanner.html.twig` |
 
 Règles communes :
 - Un écran n'invente pas de variante locale : si un besoin manque, on fait évoluer le composant et ce tableau.

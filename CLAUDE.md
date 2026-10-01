@@ -23,6 +23,7 @@ Docker Compose (`compose.yaml`, image PHP construite depuis le `Dockerfile`, cib
 | `redis` | Redis 8 | — |
 | `mercure` | Hub Mercure | http://localhost:3100 (`MERCURE_PORT`) |
 | `mailer` | Mailpit (SMTP + interface) | http://localhost:8125 (`MAILPIT_PORT`) |
+| `worker` | Consomme la file Messenger `async` (e-mails…) ; `docker compose restart worker` après une modification du code | — |
 
 **Mercure** : hub v1, protocole 1.0. Les JWT suivent la RFC 9068 (`iss`, `sub`, `client_id`, `aud`, `exp`) ; l'émetteur `MERCURE_JWT_ISSUER` doit figurer dans `MERCURE_TRUSTED_ISSUERS` du hub, et l'audience est l'URL publique, épinglée par `resource_identifier`. Un abonnement utilise le paramètre `match` (plus `topic`). En test, `MockHub` partout sauf `tests/Integration/MercureHubTest.php`, qui valide la configuration contre le vrai hub.
 
@@ -54,6 +55,8 @@ Tout passe par le `Makefile` (`make help`) :
 - Chaque entité de configuration de jeu a son écran EasyAdmin dans la même PR (§5.6).
 
 ### Twig, JS, CSS
+- Interface conforme à la [charte graphique](docs/charte-graphique.md) : couleurs et polices uniquement via les jetons `--sg-*` (`assets/styles/tokens.css`), composants de la charte en Twig Components (`templates/components/` : `Btn`, `Chip`, `AlertBanner`, `Icon`, `Logo`…), formulaires via le thème `templates/form/theme.html.twig`.
+- Textes de l'interface rédigés directement en français (langue par défaut `fr`).
 - Twig : pas de logique métier ; style vérifié par Twig-CS-Fixer et `lint:twig`.
 - Interactions : Live Components ou contrôleurs Stimulus (`assets/controllers`). Pas de framework JS.
 - JS / CSS / JSON : **Biome** (lint + format, `biome.json`).
