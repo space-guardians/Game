@@ -253,6 +253,11 @@ Trois outils distincts, qui ne se recouvrent pas :
 
 *Remarque : les quêtes d'escorte introduisent une vraie complexité (secret partiel de trajectoire, validation de "sans perte") — elles sont volontairement repoussées à une phase ultérieure de la roadmap plutôt qu'intégrées au MVP du marché (cf. §6, Phase 10).*
 
+### 4.16 Événements de jeu
+- Événements limités dans le temps, créés et planifiés par l'équipe depuis le panneau d'administration (cf. §5.6), pour animer l'univers : bonus temporaires (production, vitesse de recherche ou de construction, butin d'exploration), apparition d'une civilisation ou d'une cible PvE spéciale, quêtes PvE propres à l'événement.
+- Un événement a une période (début, fin), une portée (tout l'univers, une galaxie, une zone) et des effets ; il démarre et s'arrête automatiquement via les événements planifiés (cf. §5.2).
+- Les joueurs sont prévenus par une annonce (message système) et voient les événements en cours (bannière, fin en compte à rebours).
+
 ---
 
 ## 5. Architecture technique
@@ -300,17 +305,40 @@ Approche recommandée :
 - Paramètres du compte / mode vacances
 
 ### 5.5 Génération procédurale & rendu de la carte
-- **Génération** : la galaxie (forme, placement des systèmes et planètes) est produite par une commande CLI Symfony dédiée, avec une **seed déterministe** (rejouable à l'identique, utile pour les tests et le débogage). Le gabarit de forme (spirale à *n* branches, paramètres de densité) est défini depuis le back-office pour permettre de générer de nouvelles galaxies sans toucher au code.
+- **Génération** : la galaxie (forme, placement des systèmes et planètes) est produite depuis le panneau d'administration (cf. §5.6) ou par une commande CLI Symfony dédiée, qui partagent le même service, avec une **seed déterministe** (rejouable à l'identique, utile pour les tests et le débogage). Le gabarit de forme (spirale à *n* branches, paramètres de densité) est défini depuis le back-office pour permettre de générer de nouvelles galaxies sans toucher au code.
 - **Rendu de la carte — point d'attention** : la préférence générale du projet est une interface HTML/CSS classique (cartes, listes, boutons), portée par Turbo/Live Components. La carte galactique zoomable (~1000 systèmes, potentiellement plusieurs milliers de planètes, zoom/dézoom fluide avec agrégation dynamique) est le seul écran qui sort de ce cadre : afficher/mettre à jour un tel volume d'éléments comme des fragments HTML classiques serait trop lourd, et le zoom continu ne se prête pas au cycle requête/réponse de Turbo Streams.
   - Recommandation : un rendu **SVG ou Canvas piloté par un contrôleur Stimulus dédié**, alimenté par un endpoint JSON (coordonnées et métadonnées des systèmes/planètes visibles dans le viewport courant). Le reste de l'application (écrans de gestion, formulaires, flotte, alliance...) garde l'approche HTML/CSS + Live Components.
   - Le choix précis de librairie (ex. PixiJS pour du canvas performant, D3.js pour du SVG + zoom/pan, ou une carte type Leaflet détournée avec un CRS personnalisé) reste à trancher lors de l'implémentation de cet écran (cf. §7).
 - **Cas différent : l'arbre de recherche** (§4.4) reste, lui, dans le cadre HTML/CSS classique — quelques dizaines de nœuds au maximum, positions calculables côté serveur, pas besoin de zoom continu ni de librairie graphique dédiée (du SVG simple généré en Twig, ou une grille CSS avec des connecteurs, suffit).
 
-### 5.6 Back-office d'administration
-- Basé sur **EasyAdminBundle**, généré directement à partir des entités Doctrine.
-- Permet de créer/modifier sans redéploiement de code : bâtiments et leurs coûts/effets, technologies et prérequis, types et classes de vaisseaux, matrice de bonus/malus, types de défenses, gabarits de quêtes/événements d'exploration, gabarits de forme de galaxie, civilisations NPC (composition, fréquence de raid/recalcul), paramètres globaux (vitesse d'univers, etc.).
-- Accès restreint par rôle Symfony Security (`ROLE_ADMIN`), séparé des comptes joueurs.
-- Livré **progressivement** : un écran d'admin est ajouté dès qu'une entité de configuration de jeu est introduite dans une phase (plutôt qu'en bloc à la fin), pour permettre de peupler les données de test au fur et à mesure du développement.
+### 5.6 Panneau d'administration
+Interface web d'administration du jeu, basée sur **EasyAdminBundle** (écrans générés à partir des entités Doctrine, complétés d'écrans sur mesure : tableaux de bord, formulaires d'action, graphiques). Toute opération d'exploitation courante doit y être possible sans ligne de commande ; les commandes CLI (ex. génération de galaxie) restent disponibles pour l'automatisation et les tests, et partagent les mêmes services.
+
+Livré **progressivement** : un écran d'admin est ajouté dès qu'une entité de configuration de jeu est introduite dans une phase (plutôt qu'en bloc à la fin), pour permettre de peupler les données de test au fur et à mesure du développement.
+
+#### 5.6.1 Sections
+| Section | Contenu |
+|---|---|
+| **Tableau de bord** | Indicateurs clés : joueurs inscrits/actifs, nouvelles inscriptions, flottes en vol, batailles programmées, événements en cours, alertes d'exploitation |
+| **Univers** | Galaxies, systèmes, planètes ; **génération d'une galaxie depuis un formulaire** (gabarit de forme, graine, nombre de systèmes), exécutée en arrière-plan avec suivi de l'avancement ; gabarits de forme ; marchands |
+| **Joueurs** | Liste et recherche ; fiche empire (planètes, ressources, bâtiments, recherches, flottes, score, alliance, journal d'activité) ; **suivi de la progression** dans le temps (graphiques de score, d'économie, de flotte) ; actions de modération (avertissement, mode vacances forcé, bannissement) |
+| **IA (civilisations non-joueuses)** | Suivi de l'avancée des civilisations mineures et « boss » comme pour les joueurs (planètes, flottes, ressources, progression), historique des raids lancés et subis ; administration des civilisations mineures (cf. §4.14) |
+| **Contenu de jeu** | Bâtiments, technologies et prérequis, types et classes de vaisseaux, matrice de bonus/malus, défenses ; paramètres globaux (vitesse d'univers, etc.) |
+| **Quêtes & événements** | **Éditeur de quêtes PvE** (gabarits, conditions, choix, récompenses, chaînage, aperçu et test avant publication) ; **événements de jeu** planifiés (cf. §4.16) |
+| **Communication & modération** | Annonces (messages système, cf. §4.12.2), signalements du chat et de la messagerie, sanctions |
+| **Exploitation** | Supervision des files Messenger et des événements planifiés (échecs, relance), journal d'audit des actions d'administration |
+
+#### 5.6.2 Rôles et sécurité
+- **Accès séparé des comptes joueurs** : comptes d'administration distincts (un administrateur qui joue utilise un autre compte), zone `/admin` derrière son propre pare-feu Symfony Security.
+- **Rôles hiérarchiques**, chaque section n'étant visible qu'avec le rôle requis :
+  - `ROLE_MODERATOR` : joueurs (lecture), communication & modération ;
+  - `ROLE_GAME_DESIGNER` : contenu de jeu, quêtes & événements, IA ;
+  - `ROLE_ADMIN` : tout, sauf la gestion des comptes d'administration ;
+  - `ROLE_SUPER_ADMIN` : gestion des comptes d'administration et de leurs rôles.
+- **Authentification renforcée** : double authentification (TOTP) obligatoire, limitation des tentatives de connexion (RateLimiter), expiration de session après inactivité.
+- **Journal d'audit** : toute action d'écriture (création, modification, suppression, génération, sanction) est enregistrée avec son auteur, sa date et les valeurs avant/après ; consultable, non modifiable.
+- **Actions sensibles** (suppression d'une galaxie, bannissement, génération) : confirmation explicite, et exécution en arrière-plan pour les traitements longs.
+- Protections standard : CSRF sur toutes les actions, aucune donnée d'administration exposée à l'interface joueur.
 
 ### 5.7 Chat en ligne & messagerie
 Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messenger) : aucun serveur WebSocket ni service tiers supplémentaire.
@@ -347,12 +375,14 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - [ ] Génération des planètes par système (3 à 15, orbites concentriques)
 - [ ] Commande CLI de génération d'une galaxie, seed déterministe (rejouable pour les tests)
 - [ ] Back-office : gabarits de forme de galaxie (EasyAdmin, cf. §5.6)
+- [ ] Panneau d'administration : génération d'une galaxie depuis un formulaire (arrière-plan, suivi de l'avancement)
 
 ### Phase 2 — Comptes & Empire
 - [ ] Entité `User` + authentification Symfony Security (inscription, connexion, mot de passe oublié)
 - [ ] Entité `Empire` + planète mère assignée à l'inscription, selon le profil choisi (agressif → proche du centre, producteur → périphérie)
 - [ ] Page "Vue d'ensemble" de la planète active (statique dans un premier temps)
 - [ ] Installer EasyAdminBundle + configurer l'accès `ROLE_ADMIN` (socle du back-office, alimenté phase par phase)
+- [ ] Sécurité du panneau d'administration : comptes séparés, rôles hiérarchiques, double authentification, journal d'audit (cf. §5.6.2)
 
 ### Phase 3 — Économie (MVP jouable en solo)
 - [ ] Modèle de ressources + calcul de production "à la volée" (temps écoulé × taux horaire)
@@ -361,6 +391,7 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - [ ] Annulation d'une construction en cours, remboursement au prorata du temps restant (plafonné au stockage)
 - [ ] Live Component pour afficher la file de construction et le compte à rebours en direct
 - [ ] Premier flux Mercure : notification de fin de construction en direct
+- [ ] Panneau d'administration : tableau de bord, fiches joueurs, supervision des files Messenger et des événements planifiés
 
 ### Phase 4 — Recherche
 - [ ] Arbre technologique + prérequis
@@ -382,6 +413,7 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - [ ] Action "Stationner" (reste sur place ; c'est l'action à ajouter explicitement en fin de suite d'ordres pour faire revenir une flotte à son point de départ, suggérée par défaut par l'interface — cf. §4.6)
 - [ ] Panne de carburant en vol (immobilisation) + action "Ravitaillement" pour livrer du deutérium à une flotte immobilisée (soi-même ou un allié)
 - [ ] Action "Exploration" (ne peut pas cibler de planète) avec système de quêtes/événements : probabilité d'apparition, conditions (technologies, vaisseaux envoyés, ressources transportées), et chaînage de quêtes (`QuestTemplate` en back-office)
+- [ ] Panneau d'administration : éditeur de quêtes PvE (chaînage, conditions, récompenses, aperçu et test avant publication)
 - [ ] Limite du nombre de colonies selon technologie
 
 ### Phase 7 — Combat
@@ -415,6 +447,7 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - [ ] Bâtiment "Scanner d'alliance" : détection de flottes dans un rayon + alertes temps réel
 - [ ] Bâtiment "Porte de téléportation" : liaison entre deux portes, transit "intouchable"
 - [ ] Classement individuel et par alliance, vue globale et par catégorie
+- [ ] Panneau d'administration : suivi de la progression des empires dans le temps (historique, graphiques)
 
 ### Phase 10 — Marché
 - [ ] Entités `Merchant` (PNJ, position fixe, insensible aux attaques), `MerchantHolding`, `MarketListing`
@@ -425,6 +458,7 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 
 ### Phase 11 — Notifications & polish temps réel
 - [ ] Centralisation des notifications (badge en direct, historique)
+- [ ] Événements de jeu planifiés (bonus temporaires, cibles PvE spéciales, cf. §4.16) et leur administration
 - [ ] Alerte "attaque entrante" avec compte à rebours live
 - [ ] Optimisation des topics Mercure (un topic par planète/empire/alliance)
 
@@ -435,6 +469,7 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - [ ] Civilisations "boss" : job périodique de recalcul de flotte indexé sur le classement militaire (top 10)
 - [ ] Comportement strictement défensif des boss (aucune attaque initiée, riposte uniquement)
 - [ ] Back-office : écran de monitoring des boss (flotte courante, statut, historique des raids subis)
+- [ ] Panneau d'administration : suivi de l'avancée de toutes les IA (planètes, flottes, ressources, progression, raids)
 - [ ] Butin/récompenses spécifiques PvE + back-office de paramétrage (composition, fréquence, seuils)
 
 ### Phase 13 — Fair-play, admin, équilibrage
@@ -473,4 +508,5 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 - Portée pratique du carnet d'ordres (nombre d'étapes maximum, possibilité d'annuler une étape à venir, comportement si une étape précédente échoue).
 - Fusion des formations lors d'une bataille à plusieurs flottes (§4.7) : quand plusieurs joueurs rejoignent un même camp, chacun avec sa propre formation et sa propre trajectoire d'arrivée, comment agréger le tout pour un calcul d'angle d'attaque et de formation cohérent ? (ex. formation "de camp" reconstituée à partir des flottes participantes, ou angle calculé par flotte individuellement puis dégâts sommés) — nécessite un choix de modèle avant l'implémentation du moteur de combat.
 - Chat en ligne : taille et durée de vie du tampon de messages récents, durée d'inactivité avant expiration d'un groupe, nombre maximum de participants par groupe de chat et par conversation de groupe, canal public unique ou un canal par galaxie si la population le justifie.
+- Événements de jeu (§4.16) : catalogue des types d'effets au lancement, cumul de plusieurs événements simultanés, fréquence.
 - Conception détaillée des quêtes d'escorte (différées, cf. §4.15) : mécanisme exact de dissimulation de la destination/heure d'arrivée aux autres joueurs, et modalités de validation "sans perte".
