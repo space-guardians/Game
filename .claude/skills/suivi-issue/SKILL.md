@@ -34,7 +34,11 @@ gh project item-list 1 --owner space-guardians --limit 500 --format json --jq '.
    ```bash
    gh project item-edit --project-id PVT_kwHOAjWXuM4BiAID --id <ITEM_ID> --field-id PVTSSF_lAHOAjWXuM4BiAIDzhg5s2I --single-select-option-id 47fc9ee4
    ```
-4. Créer la branche depuis `master` à jour : `git switch -c <type>/N-<slug>`.
+4. Créer la branche depuis `develop` à jour :
+   ```bash
+   git fetch origin && git switch -c <type>/N-<slug> origin/develop
+   ```
+   Correctif urgent en production : `hotfix/N-<slug>` depuis `origin/main` (voir CLAUDE.md, section « Git »).
 
 ## Pendant le travail
 
@@ -65,5 +69,6 @@ Prévenir l'utilisateur de tout décalage en cascade.
 ## Terminer
 
 1. Toutes les cases cochées (ou retirées avec justification en commentaire).
-2. PR ouverte avec `Closes #N` (skill `pull-request`) : l'issue se ferme à la fusion.
-3. Après la fusion, vérifier que l'issue est fermée et passer le statut à **Done** (`98236657`) si l'automatisation du projet ne l'a pas fait.
+2. PR vers `develop` ouverte avec `Closes #N` (skill `pull-request`) : l'issue se ferme à la fusion dans `develop`.
+3. Après la fusion, vérifier que l'issue est fermée et passer le statut à **Done** (`98236657`) si l'automatisation du projet ne l'a pas fait. Supprimer la branche distante fusionnée (`git push origin --delete <branche>`).
+4. Issue seulement avancée (`Refs #N`) : laisser un commentaire résumant ce que la PR fusionnée a apporté et ce qui reste à faire.
