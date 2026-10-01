@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Space Guardians">
+  <ellipse cx="32" cy="32" rx="28" ry="9" fill="none" stroke="currentColor" stroke-width="2.5" transform="rotate(-18 32 32)"/>
+  <path d="M32 5L45 32L32 59L19 32Z" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linejoin="round"/>
+  <path d="M32 5V59M19 32H45" stroke="currentColor" stroke-width="1.5"/>
+</svg>

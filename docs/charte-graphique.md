@@ -5,6 +5,7 @@ Référence visuelle du jeu. Toute nouvelle interface doit s'y conformer ; toute
 - Maquettes de référence (canevas Design) : https://claude.ai/artifact/8Xenwki1vgP9njaAxhqqnB
   - Page **Écrans** : un artboard par écran du §5.4 du cahier des charges, plus Inscription, Connexion et l'événement d'exploration.
   - Page **Composants** : la bibliothèque partagée et la planche « Fondations ».
+  - Page **Identité — logos** : les six pistes étudiées ; la « D · Sentinelle » est retenue (§6).
 
 ---
 
@@ -167,7 +168,46 @@ Autres motifs :
 
 ---
 
-## 6. Iconographie
+## 6. Logo : « Sentinelle »
+
+Un obélisque-balise en losange, traversé par une orbite inclinée : la sentinelle dressée devant le sanctuaire. Il reprend le losange des titres de section ; l'or porte l'héritage Gardien, le cyan de l'orbite le mouvement en temps réel.
+
+### 6.1 Fichiers de référence
+
+Sources dans [`docs/identite/`](identite/), grille 64 × 64. Toute déclinaison part de ces fichiers.
+
+| Fichier | Usage |
+|---|---|
+| [`logo.svg`](identite/logo.svg) | version de référence, à partir de 48 px |
+| [`logo-petit.svg`](identite/logo-petit.svg) | traits renforcés, de 24 à 48 px (barre du haut : 30 px) |
+| [`logo-mono.svg`](identite/logo-mono.svg) | une couleur via `currentColor` : `--sg-gold-ink` sur fond or, `--sg-text` sur photo |
+| [`favicon-32.svg`](identite/favicon-32.svg) | favicon 32 px et icône d'application : losange plein, orbite épaissie |
+| [`favicon-16.svg`](identite/favicon-16.svg) | favicon 16 px : losange plein seul |
+
+### 6.2 Construction
+
+- Losange : sommets (32 ; 5), (45 ; 32), (32 ; 59), (19 ; 32) ; contour or 3,5, jointures arrondies ; rempli de la couleur du fond pour masquer l'orbite derrière lui.
+- Croix intérieure : axes vertical et horizontal, or 1,5.
+- Orbite : ellipse 28 × 9 centrée, inclinée de −18°, cyan 2,5.
+- Version petite taille : épaisseurs 4,5 / 2 / 3,5.
+
+### 6.3 Avec le nom
+
+- Logotype sur deux lignes, aligné à gauche du symbole, écart égal à 30 % de la hauteur du symbole :
+  - `SPACE` : Chakra Petch 700, interlettrage 0.22em, `--sg-text` ;
+  - `GUARDIANS` : Chakra Petch 600, environ 55 % de la taille de `SPACE`, interlettrage 0.44–0.5em, `--sg-gold`.
+- Version horizontale uniquement ; pas de nom sous le symbole.
+
+### 6.4 Règles
+
+- Zone de protection autour du symbole : la moitié de sa largeur.
+- Taille minimale : 16 px (favicon), 24 px pour le symbole complet avec orbite.
+- Fonds autorisés : `--sg-space`, `--sg-panel-deep`, `--sg-panel` en couleur ; or `--sg-gold` en version monochrome.
+- Interdits : changer les couleurs, supprimer l'orbite au-delà de 16 px, l'incliner, ajouter ombre, dégradé ou contour, le poser sur un fond clair en couleur.
+
+---
+
+## 7. Iconographie
 
 - Icônes au trait, grille 24 × 24, trait de 1,6 px (1,8 px sous 16 px), extrémités et jointures arrondies, `fill: none`, couleur `currentColor`.
 - Tailles : 14 (inline dans le texte), 16 (boutons), 18–20 (navigation, barre du haut), 56 (illustration de carte, trait 1,1 px).
@@ -177,7 +217,7 @@ Autres motifs :
 
 ---
 
-## 7. Composants
+## 8. Composants
 
 Chaque composant de maquette correspond à un futur **Twig Component** (`templates/components/`) ; ceux qui ont un état serveur deviennent des **Live Components**.
 
@@ -204,7 +244,7 @@ Règles communes :
 
 ---
 
-## 8. Patrons d'écran
+## 9. Patrons d'écran
 
 | Patron | Écrans | Règle |
 |---|---|---|
@@ -216,7 +256,7 @@ Règles communes :
 
 ---
 
-## 9. Accessibilité
+## 10. Accessibilité
 
 - Contraste du texte ≥ 4.5:1 (≥ 3:1 au-delà de 24 px). Les couleurs de §2.1 sont validées sur `--sg-panel` ; ne pas éclaircir les fonds.
 - Cibles tactiles ≥ 44 px (36 px toléré pour les actions secondaires des listes denses).
@@ -226,9 +266,8 @@ Règles communes :
 
 ---
 
-## 10. Points ouverts
+## 11. Points ouverts
 
-- Identité définitive du logo (emblème bouclier + étoile provisoire).
 - Illustrations des vaisseaux et bâtiments (aujourd'hui : pictogrammes au trait).
 - Version mobile dédiée (aujourd'hui : mise en page fluide seulement).
 - Thème clair : non prévu.
