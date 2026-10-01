@@ -1,0 +1,12 @@
+/* Panneau d'administration : complète le thème EasyAdmin (DashboardController::configureDashboard) */
+
+.sg-admin-brand {
+    font-weight: 700;
+    letter-spacing: 0.22em;
+}
+
+.sg-admin-brand b {
+    font-weight: 600;
+    letter-spacing: 0.3em;
+    color: #f2b84b;
+}
