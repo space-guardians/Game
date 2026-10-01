@@ -1,0 +1,14 @@
+{# Bouton (charte §8) : variantes primary, secondary, ghost, danger ; tailles md, sm. Lien si « href » est fourni. #}
+{% props label, variant = 'primary', size = 'md', icon = null, full = false, href = null, type = 'button' %}
+{% set classes = 'sg-btn sg-cut-8 sg-btn--' ~ variant ~ (size == 'sm' ? ' sg-btn--sm') ~ (full ? ' sg-btn--full') %}
+{% if href %}
+    <a href="{{ href }}" {{ attributes.defaults({class: classes}) }}>
+        {{- label -}}
+        {% if icon %}<twig:Icon name="{{ icon }}"/>{% endif %}
+    </a>
+{% else %}
+    <button type="{{ type }}" {{ attributes.defaults({class: classes}) }}>
+        {{- label -}}
+        {% if icon %}<twig:Icon name="{{ icon }}"/>{% endif %}
+    </button>
+{% endif %}

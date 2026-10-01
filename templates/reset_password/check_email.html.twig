@@ -1,0 +1,18 @@
+{% extends 'layout/welcome.html.twig' %}
+
+{% block title %}Vérifiez vos e-mails — Space Guardians{% endblock %}
+
+{% block pitch_title %}Transmission envoyée.{% endblock %}
+{% block pitch_text %}Le lien de réinitialisation est en route vers votre boîte de réception.{% endblock %}
+
+{% block kicker %}Passerelle de commandement{% endblock %}
+{% block panel_title %}Vérifiez vos e-mails{% endblock %}
+
+{% block panel %}
+    <twig:AlertBanner variant="info">
+        Si un compte correspond à cette adresse, vous allez recevoir un lien de réinitialisation.
+        Il expire dans {{ resetToken.expirationMessageKey|trans(resetToken.expirationMessageData, 'ResetPasswordBundle') }}.
+    </twig:AlertBanner>
+    <p class="sg-welcome__alt">Rien reçu ? Vérifiez vos courriers indésirables, ou <a href="{{ path('app_forgot_password_request') }}">refaites une demande</a>.</p>
+    <twig:Btn href="{{ path('app_login') }}" label="Retour à la connexion" variant="ghost" full/>
+{% endblock %}

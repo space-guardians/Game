@@ -1,0 +1,18 @@
+{% extends 'layout/welcome.html.twig' %}
+
+{% block title %}Nouveau mot de passe — Space Guardians{% endblock %}
+
+{% block pitch_title %}Nouveaux codes d’accès.{% endblock %}
+{% block pitch_text %}Choisissez un mot de passe d’au moins 12 caractères, difficile à deviner.{% endblock %}
+
+{% block kicker %}Passerelle de commandement{% endblock %}
+{% block panel_title %}Nouveau mot de passe{% endblock %}
+
+{% block panel %}
+    {{ form_start(form, {attr: {class: 'sg-form', novalidate: 'novalidate'}}) }}
+        <div class="sg-fields">
+            {{ form_row(form.plainPassword) }}
+        </div>
+        <twig:Btn type="submit" label="Enregistrer" icon="lock" full/>
+    {{ form_end(form) }}
+{% endblock %}

@@ -1,0 +1,13 @@
+{# Icône au trait (charte §7) : grille 24 × 24, couleur du texte #}
+{% props name, size = 16 %}
+{% set paths = {
+    arrow: 'M5 12h14M13 6l6 6-6 6',
+    alert: 'M12 3l10 18H2L12 3zM12 10v5M12 18v.5',
+    info: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18zM12 11v6M12 7.5v.5',
+    shield: 'M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z',
+    check: 'M5 12l5 5 9-10',
+    mail: 'M3 6h18v12H3zM3 7l9 6 9-6',
+    lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+    logout: 'M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10',
+} %}
+<svg width="{{ size }}" height="{{ size }}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{ paths[name] }}"/></svg>

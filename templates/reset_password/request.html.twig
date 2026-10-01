@@ -1,0 +1,20 @@
+{% extends 'layout/welcome.html.twig' %}
+
+{% block title %}Mot de passe oublié — Space Guardians{% endblock %}
+
+{% block pitch_title %}Même un Gardien égare ses codes d’accès.{% endblock %}
+{% block pitch_text %}Indiquez l’adresse de votre compte : nous vous envoyons un lien pour choisir un nouveau mot de passe.{% endblock %}
+
+{% block kicker %}Passerelle de commandement{% endblock %}
+{% block panel_title %}Mot de passe oublié{% endblock %}
+
+{% block panel %}
+    {{ form_start(form, {attr: {class: 'sg-form', novalidate: 'novalidate'}}) }}
+        <div class="sg-fields">
+            {{ form_row(form.email) }}
+        </div>
+        <twig:Btn type="submit" label="Recevoir le lien" icon="mail" full/>
+    {{ form_end(form) }}
+
+    <p class="sg-welcome__alt"><a href="{{ path('app_login') }}">Retour à la connexion</a></p>
+{% endblock %}

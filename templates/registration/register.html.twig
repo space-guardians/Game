@@ -1,0 +1,22 @@
+{% extends 'layout/welcome.html.twig' %}
+
+{% block title %}Inscription — Space Guardians{% endblock %}
+
+{% block pitch_title %}Les sanctuaires ont besoin de nouveaux Gardiens.{% endblock %}
+{% block pitch_text %}Héritez d’un ancien ordre, développez votre planète mère et protégez le deutérium primordial dans un univers qui tourne même quand vous dormez.{% endblock %}
+
+{% block kicker %}Nouveau Gardien{% endblock %}
+{% block panel_title %}Fonder votre empire{% endblock %}
+
+{% block panel %}
+    {{ form_start(form, {attr: {class: 'sg-form', novalidate: 'novalidate'}}) }}
+        <div class="sg-fields">
+            {{ form_row(form.email) }}
+            {{ form_row(form.plainPassword) }}
+        </div>
+        {{ form_row(form.acceptRules) }}
+        <twig:Btn type="submit" label="Fonder mon empire" icon="arrow" full/>
+    {{ form_end(form) }}
+
+    <p class="sg-welcome__alt">Déjà Gardien ? <a href="{{ path('app_login') }}">Se connecter</a></p>
+{% endblock %}
