@@ -1,6 +1,6 @@
 ---
 name: pull-request
-description: Ouvrir ou mettre à jour une pull request conforme aux conventions de Space Guardians — courte, liée à ses issues, avec labels et jalon. À utiliser quand le travail d'une branche est prêt à être revu, ou quand le périmètre d'une PR change.
+description: Ouvrir ou mettre à jour une pull request conforme aux conventions de Space Guardians — courte, liée à ses issues, avec labels et jalon — y compris les PR de livraison develop → staging → main. À utiliser quand le travail d'une branche est prêt à être revu, quand le périmètre d'une PR change, ou pour livrer en préproduction / production.
 ---
 
 # Pull request
@@ -8,7 +8,7 @@ description: Ouvrir ou mettre à jour une pull request conforme aux conventions 
 ## Prérequis
 
 1. `make qa` passe en local (skill `qualite`).
-2. Les commits sont conformes (skill `commit`) et la branche est à jour avec `master` (`git fetch && git rebase origin/master`).
+2. Les commits sont conformes (skill `commit`) et la branche est à jour avec `develop` (`git fetch && git rebase origin/develop`).
 3. La checklist de l'issue est à jour (skill `suivi-issue`).
 
 ## Contenu
@@ -41,7 +41,7 @@ Le workflow `.github/workflows/pr.yml` refuse une PR sans issue liée, sans labe
 
 ### Issues
 
-Chercher toutes les issues que la PR fait avancer : celle de la branche, les `Refs #N` des commits (`git log origin/master..HEAD`), et les issues voisines dont une case est cochée par ce travail.
+Chercher toutes les issues que la PR fait avancer : celle de la branche, les `Refs #N` des commits (`git log origin/develop..HEAD`), et les issues voisines dont une case est cochée par ce travail.
 
 - Issue **terminée** par la PR → `Closes #N` : GitHub l'associe à la PR (encart « Development ») et la ferme à la fusion.
 - Issue **seulement avancée** → `Refs #N` : la PR apparaît dans l'historique de l'issue, sans la fermer.
@@ -81,7 +81,7 @@ Le jalon de l'issue principale (celle de la branche). Si la PR ferme des issues 
 
 ```bash
 git push -u origin HEAD
-gh pr create --base master --title "<titre>" --body-file /tmp/pr.md \
+gh pr create --base develop --title "<titre>" --body-file /tmp/pr.md \
   --label "Fonctionnalité" --label "Développement" --milestone "Phase 3 - Économie"
 ```
 
@@ -95,3 +95,24 @@ gh api -X PATCH repos/space-guardians/Game/pulls/<PR> -f body="$(cat /tmp/pr.md)
 ```
 
 Ensuite, suivre la CI (`gh pr checks --watch`) et corriger ce qui échoue avant de demander la relecture. Si le périmètre de la PR change en cours de relecture, remettre à jour issues, labels et jalon.
+
+## PR de livraison
+
+Promotion `develop` → `staging` (préproduction), puis `staging` → `main` (production). Seulement à la demande de l'utilisateur.
+
+- **Titre** : `chore(release): livraison en préproduction du AAAA-MM-JJ` (ou `en production`).
+- **Corps** : une ligne `Refs #N` par issue livrée (fermée depuis la livraison précédente), puis la liste des PR incluses :
+  ```bash
+  git log --merges --format='- %s' origin/staging..origin/develop   # ou origin/main..origin/staging
+  ```
+- **Label** : `Livraison` uniquement ; pas de label de zone ni de jalon (la livraison couvre plusieurs phases).
+- Fusion par commit de fusion, comme toutes les PR.
+
+```bash
+gh pr create --base staging --head develop --title "chore(release): livraison en préproduction du 2026-11-17" \
+  --body-file /tmp/release.md --label "Livraison"
+```
+
+## Correctif urgent (`hotfix/*`)
+
+PR de `hotfix/N-<slug>` vers `main` (labels et jalon comme une PR normale, `Closes #N`), puis deux PR de la même branche vers `staging` et `develop` (`Refs #N`) pour que le correctif ne soit pas écrasé par la livraison suivante.

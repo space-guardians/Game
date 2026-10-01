@@ -271,6 +271,7 @@ Trois outils distincts, qui ne se recouvrent pas :
 - **Redis** : cache applicatif, sessions, verrous (Symfony Lock) pour éviter les races sur les ressources en cas d'actions concurrentes, et état éphémère du chat (tampon de messages récents, groupes de chat), cf. §5.7.
 - **EasyAdminBundle** pour le back-office (cf. §5.6) : génère l'administration directement à partir des entités Doctrine, sans application séparée.
 - **PHPUnit** pour les tests unitaires/fonctionnels, **Symfony Panther** pour les tests bout-en-bout sur les pages critiques.
+- **Flux Git** : `develop` (intégration) → `staging` (préproduction) → `main` (production) ; les branches de travail partent de `develop`.
 
 ### 5.2 Gestion des échéances (le cœur "temps réel")
 Il n'y a pas besoin de 60 fps ici : le vrai sujet est la fiabilité de la planification à échéance (ex. "dans 2h14min") et la notification instantanée au bon moment.
@@ -446,7 +447,8 @@ Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messen
 ### Phase 14 — Qualité & mise en production
 - [ ] Suite de tests fonctionnels (Panther) sur les parcours critiques (construction, combat, colonisation)
 - [ ] Montée en charge : vérification des verrous, indexation DB, cache Redis
-- [ ] Déploiement (CI/CD, migrations Doctrine, monitoring, sauvegardes)
+- [ ] Hébergement et exploitation (environnements, secrets, migrations Doctrine, monitoring, sauvegardes)
+- [ ] Déploiement automatique : `staging` → préproduction, `main` → production (avec approbation manuelle), migrations, tests de fumée, retour arrière
 
 ---
 

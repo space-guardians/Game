@@ -9,7 +9,7 @@ description: Créer un ou plusieurs commits conformes aux conventions de Space G
 
 1. `git status` et `git diff` : relire ce qui part. Pas de fichier parasite (`*:Zone.Identifier`, `var/`, rapports, `.env.local`).
 2. Corriger le style des fichiers modifiés : `make cs-fix`, `make twig-cs-fix`, `make biome-fix` selon les fichiers touchés.
-3. Identifier l'issue concernée (branche `<type>/<N>-<slug>`). Sans issue identifiable, demander à l'utilisateur plutôt qu'inventer un numéro.
+3. Vérifier qu'on est sur une branche de travail (`<type>/<N>-<slug>`, créée depuis `develop`) et jamais sur `develop`, `staging` ou `main`. Identifier l'issue concernée à partir du nom de la branche. Sans issue identifiable, demander à l'utilisateur plutôt qu'inventer un numéro.
 
 ## Découpage
 
@@ -26,7 +26,7 @@ Refs #<N>
 ```
 
 - Types : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. `!` après la portée pour un changement cassant.
-- Portées : `infra`, `ci`, `univers`, `compte`, `economie`, `recherche`, `flotte`, `combat`, `defense`, `espionnage`, `alliance`, `chat`, `messagerie`, `marche`, `notif`, `pve`, `admin`, `docs`.
+- Portées : `infra`, `ci`, `univers`, `compte`, `economie`, `recherche`, `flotte`, `combat`, `defense`, `espionnage`, `alliance`, `chat`, `messagerie`, `marche`, `notif`, `pve`, `admin`, `docs`, `release` (PR de livraison).
 - Titre ≤ 72 caractères, en minuscules après le `:`.
 - Pied : `Refs #N` (plusieurs issues : une ligne chacune). La fermeture des issues se fait par la PR (`Closes #N`), pas par les commits.
 

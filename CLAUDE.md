@@ -54,14 +54,30 @@ Tout passe par le `Makefile` (`make help`) :
 
 ## Git
 
-- Branche par issue depuis `master` : `<type>/<numéro>-<slug>`, ex. `feat/33-suite-ordres`.
+### Branches
+
+| Branche | Rôle | Reçoit des PR de |
+|---|---|---|
+| `develop` | Intégration, branche par défaut | branches de travail |
+| `staging` | Préproduction | `develop` (livraison), `hotfix/*` |
+| `main` | Production | `staging` (livraison), `hotfix/*` |
+
+- Branche de travail par issue, **créée depuis `develop`** et fusionnée dans `develop` : `<type>/<numéro>-<slug>`, ex. `feat/33-suite-ordres`.
+- **Livraison** : PR `develop` → `staging`, puis `staging` → `main`, avec le label « Livraison » (skill `pull-request`).
+- **Correctif urgent** : `hotfix/<numéro>-<slug>` créée depuis `main`, PR vers `main`, puis la même branche en PR vers `staging` et `develop` pour ne pas perdre le correctif.
+- Fusion par **commit de fusion** uniquement (squash et rebase désactivés), pour garder les trois branches alignées.
+- Jamais de push direct sur `develop`, `staging` ou `main` (bloqué par le hook `.claude/hooks/garde-git.sh`, contrôlé en CI par `pr.yml`).
+- Les issues se ferment à la fusion dans `develop` (branche par défaut) via `Closes #N`.
+
+### Commits et PR
+
 - **Commits** : Conventional Commits, description en français, pied liant l'issue. Vérifié par `.githooks/commit-msg` (activé par `make hooks`) et en CI.
   ```
   feat(flotte): ajoute l'enchaînement des ordres de flotte
 
   Refs #33
   ```
-  Types : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Portées : `infra`, `ci`, `univers`, `compte`, `economie`, `recherche`, `flotte`, `combat`, `defense`, `espionnage`, `alliance`, `chat`, `messagerie`, `marche`, `notif`, `pve`, `admin`, `docs`.
+  Types : `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`. Portées : `infra`, `ci`, `univers`, `compte`, `economie`, `recherche`, `flotte`, `combat`, `defense`, `espionnage`, `alliance`, `chat`, `messagerie`, `marche`, `notif`, `pve`, `admin`, `docs`, `release`.
 - **PR** : courtes et lisibles. Modèle `.github/pull_request_template.md` : issue(s) (`Closes #n` / `Refs #n`), 1 à 3 phrases, quelques points techniques. Titre au format Conventional Commits. Chaque PR porte un label de type (Fonctionnalité, Correction, Documentation, Refactorisation, Performance, Tests, CI / Build, Maintenance), un label de zone (Développement, Administration, Configuration) et le jalon de son issue — vérifié par `.github/workflows/pr.yml`. Voir le skill `pull-request`.
 - **Issues** : tenues à jour en continu (statut dans le projet, cases cochées, dates). Voir le skill `suivi-issue`.
 
@@ -69,6 +85,6 @@ Tout passe par le `Makefile` (`make help`) :
 
 - `suivi-issue` : démarrer, suivre et clôturer une issue (statut, cases, dates, nouvelles issues découvertes).
 - `commit` : rédiger et créer un commit conforme.
-- `pull-request` : ouvrir ou mettre à jour une PR conforme (issues liées, labels, jalon).
+- `pull-request` : ouvrir ou mettre à jour une PR conforme (issues liées, labels, jalon), y compris les PR de livraison.
 - `qualite` : lancer et corriger les vérifications avant PR.
 - `tests` : écrire les tests au bon niveau avec Foundry.
