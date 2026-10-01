@@ -1,0 +1,247 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Aligner avec l'image PHP du Docker Compose
+  PHP_VERSION: '8.5'
+  PHP_EXTENSIONS: intl, pdo_pgsql, redis
+
+permissions:
+  contents: read
+
+jobs:
+  # Les jobs PHP ne s'exécutent qu'une fois le projet Symfony initialisé (#1)
+  detect:
+    name: Détection
+    runs-on: ubuntu-latest
+    outputs:
+      php: ${{ steps.files.outputs.php }}
+      docker: ${{ steps.files.outputs.docker }}
+      same_repo: ${{ steps.files.outputs.same_repo }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: files
+        env:
+          HEAD_REPO: ${{ github.event.pull_request.head.repo.full_name }}
+        run: |
+          {
+            echo "php=$([ -f composer.json ] && echo true || echo false)"
+            echo "docker=$([ -n "$(git ls-files '*Dockerfile*')" ] && echo true || echo false)"
+            echo "same_repo=$([ -z "$HEAD_REPO" ] || [ "$HEAD_REPO" = "$GITHUB_REPOSITORY" ] && echo true || echo false)"
+          } >> "$GITHUB_OUTPUT"
+
+  commits:
+    name: Conventional Commits
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Vérification des messages de commit
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          status=0
+          for sha in $(git rev-list --no-merges "$BASE..$HEAD"); do
+            git log -1 --format=%B "$sha" > /tmp/msg
+            .githooks/commit-msg /tmp/msg || status=1
+          done
+          exit $status
+
+  actionlint:
+    name: Workflows GitHub
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
+  biome:
+    name: JS / CSS (Biome)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - run: npx --yes @biomejs/biome@2.5.15 ci --reporter=github --no-errors-on-unmatched .
+
+  hadolint:
+    name: Dockerfile (Hadolint)
+    needs: detect
+    if: needs.detect.outputs.docker == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: hadolint/hadolint-action@v3.5.0
+        with:
+          recursive: true
+
+  lint:
+    name: Style et lint Symfony
+    needs: detect
+    if: needs.detect.outputs.php == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+          tools: cs2pr
+      - uses: ramsey/composer-install@4.0.0
+      - run: composer validate --strict
+      - run: composer audit
+      - name: PHP-CS-Fixer (PER-CS 3.1)
+        run: vendor/bin/php-cs-fixer check --diff --format=checkstyle | cs2pr
+      - name: Twig-CS-Fixer
+        run: vendor/bin/twig-cs-fixer lint --report=github
+      - run: bin/console lint:yaml config --parse-tags
+      - run: bin/console lint:twig templates
+      - run: bin/console lint:container
+      - run: bin/console doctrine:schema:validate --skip-sync
+
+  phpstan:
+    name: PHPStan
+    needs: detect
+    if: needs.detect.outputs.php == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: none
+      - uses: ramsey/composer-install@4.0.0
+      - name: Conteneur Symfony (pour phpstan-symfony)
+        run: bin/console cache:warmup --env=dev
+      - name: Analyse
+        run: vendor/bin/phpstan analyse --no-progress --error-format=json > var/phpstan.json || true
+      - name: Rapport
+        run: php .github/scripts/report.php phpstan var/phpstan.json var/reports
+      - name: Résumé
+        if: always()
+        run: cat var/reports/phpstan.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Commentaire de PR
+        if: always() && github.event_name == 'pull_request' && needs.detect.outputs.same_repo == 'true'
+        uses: marocchino/sticky-pull-request-comment@v3.0.5
+        with:
+          header: phpstan
+          path: var/reports/phpstan.md
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: badge-phpstan
+          path: var/reports/phpstan.json
+
+  tests:
+    name: PHPUnit
+    needs: detect
+    if: needs.detect.outputs.php == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: app
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+    env:
+      APP_ENV: test
+      DATABASE_URL: postgresql://app:app@127.0.0.1:5432/app?serverVersion=17&charset=utf8
+      REDIS_URL: redis://127.0.0.1:6379
+    steps:
+      - uses: actions/checkout@v7
+      - uses: shivammathur/setup-php@2.37.2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: ${{ env.PHP_EXTENSIONS }}
+          coverage: pcov
+      - uses: ramsey/composer-install@4.0.0
+      - name: Base de données de test
+        run: |
+          bin/console doctrine:database:create --if-not-exists
+          bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration
+      - name: Tests et couverture
+        run: >-
+          vendor/bin/phpunit
+          --log-junit var/reports/junit.xml
+          --coverage-clover var/reports/clover.xml
+          --coverage-text
+      - name: Rapports
+        if: always()
+        run: |
+          php .github/scripts/report.php tests var/reports/junit.xml var/reports
+          php .github/scripts/report.php coverage var/reports/clover.xml var/reports
+          cat var/reports/tests.md var/reports/coverage.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Résultats des tests sur la PR
+        if: always() && needs.detect.outputs.same_repo == 'true'
+        uses: EnricoMi/publish-unit-test-result-action@v2.24.0
+        with:
+          files: var/reports/junit.xml
+          check_name: Résultats des tests
+          comment_mode: ${{ github.event_name == 'pull_request' && 'always' || 'off' }}
+      - name: Couverture sur la PR
+        if: always() && github.event_name == 'pull_request' && needs.detect.outputs.same_repo == 'true'
+        uses: marocchino/sticky-pull-request-comment@v3.0.5
+        with:
+          header: coverage
+          path: var/reports/coverage.md
+      - uses: actions/upload-artifact@v7.0.1
+        if: always()
+        with:
+          name: badge-tests
+          path: |
+            var/reports/tests.json
+            var/reports/coverage.json
+
+  # Publie les badges (tests, couverture, PHPStan) sur la branche « badges », lue par le README
+  badges:
+    name: Badges
+    needs: [detect, phpstan, tests]
+    if: always() && github.event_name == 'push' && needs.detect.outputs.php == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8.0.1
+        with:
+          pattern: badge-*
+          merge-multiple: true
+          path: new-badges
+      - name: Publication sur la branche badges
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init -q badges && cd badges
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
+          if git fetch -q --depth 1 origin badges; then git checkout -q badges; else git checkout -q --orphan badges; fi
+          cp ../new-badges/*.json .
+          git add -- *.json
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -q -m "chore(ci): met à jour les badges" || exit 0
+          git push -q origin badges

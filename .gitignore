@@ -1,0 +1,13 @@
+# Les blocs propres à Symfony sont ajoutés par Flex à l'installation des paquets.
+
+# Système / éditeurs
+*:Zone.Identifier
+.DS_Store
+/.idea/
+/.vscode/
+
+# Claude Code : réglages personnels
+/.claude/settings.local.json
+
+# Rapports de tests et d'analyse
+/var/reports/
