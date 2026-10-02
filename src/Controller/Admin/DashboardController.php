@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Admin\AdminRole;
+use App\Admin\AdminTwoFactor;
+use App\Entity\AdminUser;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;
@@ -15,6 +17,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Option\GrayScale;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Theme;
 use EasyCorp\Bundle\EasyAdminBundle\Config\UserMenu;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
+use Scheb\TwoFactorBundle\Controller\FormController;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
@@ -61,6 +66,56 @@ final class DashboardController extends AbstractDashboardController
         throw new \LogicException('La déconnexion est gérée par le pare-feu.');
     }
 
+    /** Saisie du code TOTP après le mot de passe (formulaire du bundle scheb/2fa, dans le thème du panneau) */
+    #[AdminRoute(path: '/double-authentification', name: '2fa_login')]
+    public function twoFactorForm(
+        Request $request,
+        #[Autowire(service: 'scheb_two_factor.form_controller')]
+        FormController $twoFactorForm,
+    ): Response {
+        return $twoFactorForm->form($request);
+    }
+
+    /** Interceptée par le pare-feu « admin » : vérification du code TOTP */
+    #[AdminRoute(path: '/double-authentification/verification', name: '2fa_check')]
+    public function twoFactorCheck(): never
+    {
+        throw new \LogicException('La vérification du code est gérée par le pare-feu.');
+    }
+
+    /**
+     * Activation obligatoire de la double authentification (AdminSessionSubscriber y redirige tant qu'elle
+     * n'est pas faite) : QR code à scanner, puis premier code pour confirmer.
+     */
+    #[AdminRoute(path: '/double-authentification/activation', name: '2fa_setup')]
+    public function twoFactorSetup(Request $request, AdminTwoFactor $twoFactor): Response
+    {
+        $admin = $this->getUser();
+        \assert($admin instanceof AdminUser);
+        if ($admin->isTotpAuthenticationEnabled()) {
+            return $this->redirectToRoute('admin');
+        }
+
+        $error = null;
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('admin_2fa_setup', (string) $request->request->get('_token'))) {
+                $error = 'La page a expiré : recommencez.';
+            } elseif ($twoFactor->confirmEnrollment($admin, (string) $request->request->get('code'))) {
+                $this->addFlash('success', 'Double authentification activée.');
+
+                return $this->redirectToRoute('admin');
+            } else {
+                $error = 'Code incorrect : saisissez le code à 6 chiffres affiché par votre application.';
+            }
+        }
+
+        return $this->render('admin/security/two_factor_setup.html.twig', [
+            ...$twoFactor->prepareEnrollment($admin),
+            // « error » est réservé au gabarit de connexion d'EasyAdmin (erreur d'authentification)
+            'setup_error' => $error,
+        ], new Response(status: null === $error ? 200 : 422));
+    }
+
     public function configureDashboard(): Dashboard
     {
         return Dashboard::new()
@@ -86,6 +141,9 @@ final class DashboardController extends AbstractDashboardController
         yield MenuItem::linkTo(StarSystemCrudController::class, 'Systèmes')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(PlanetCrudController::class, 'Planètes')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(GalaxyShapeTemplateCrudController::class, 'Gabarits de forme')->setPermission(AdminRole::GameDesigner->value);
+
+        yield MenuItem::section('Exploitation')->setPermission(AdminRole::SuperAdmin->value);
+        yield MenuItem::linkTo(AdminUserCrudController::class, 'Comptes d’administration')->setPermission(AdminRole::SuperAdmin->value);
     }
 
     public function configureUserMenu(UserInterface $user): UserMenu

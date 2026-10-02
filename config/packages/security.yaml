@@ -37,6 +37,12 @@ security:
             login_throttling:
                 max_attempts: 5
                 interval: '15 minutes'
+            # Code TOTP demandé après le mot de passe (comptes ayant activé la double authentification)
+            two_factor:
+                auth_form_path: admin_2fa_login
+                check_path: admin_2fa_check
+                default_target_path: admin
+                enable_csrf: true
             logout:
                 path: admin_logout
                 target: admin_login
@@ -66,6 +72,8 @@ security:
     # Seule la première règle qui correspond s'applique
     access_control:
         - { path: ^/admin/connexion$, roles: PUBLIC_ACCESS }
+        - { path: ^/admin/deconnexion$, roles: PUBLIC_ACCESS }
+        - { path: ^/admin/double-authentification(/verification)?$, roles: IS_AUTHENTICATED_2FA_IN_PROGRESS }
         - { path: ^/admin, roles: ROLE_MODERATOR }
         - { path: ^/(connexion|inscription|mot-de-passe-oublie), roles: PUBLIC_ACCESS }
         - { path: ^/, roles: ROLE_USER }

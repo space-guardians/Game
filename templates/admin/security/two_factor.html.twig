@@ -1,0 +1,28 @@
+{# Saisie du code de double authentification, dans le gabarit de connexion du panneau #}
+{% extends '@EasyAdmin/page/login.html.twig' %}
+
+{% block login_form_wrapper %}
+    {% if authenticationError %}
+        <div class="w-100 alert alert-danger rounded mb-3" role="alert">
+            {{ authenticationError|trans(authenticationErrorData, 'SchebTwoFactorBundle') }}
+        </div>
+    {% endif %}
+
+    <form method="post" action="{{ checkPathUrl ? checkPathUrl : path(checkPathRoute) }}">
+        {% if isCsrfProtectionEnabled %}
+            <input type="hidden" name="{{ csrfParameterName }}" value="{{ csrf_token(csrfTokenId) }}">
+        {% endif %}
+
+        <div class="form-group">
+            <label class="form-control-label required" for="code">Code de double authentification</label>
+            <div class="form-widget">
+                <input type="text" id="code" name="{{ authCodeParameterName }}" class="form-control" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required autofocus>
+            </div>
+            <div class="form-text">Code à 6 chiffres affiché par votre application d’authentification.</div>
+        </div>
+
+        <twig:ea:Button type="submit" variant="primary" size="lg" isBlock>Vérifier</twig:ea:Button>
+    </form>
+
+    <p class="mt-3"><a href="{{ logoutPath }}">Annuler et se déconnecter</a></p>
+{% endblock %}

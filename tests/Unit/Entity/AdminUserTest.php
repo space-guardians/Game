@@ -23,7 +23,7 @@ final class AdminUserTest extends TestCase
     {
         $admin = new AdminUser('admin@space-guardians.local', AdminRole::Moderator, new \DateTimeImmutable());
 
-        $admin->changeRole(AdminRole::SuperAdmin);
+        $admin->setRole(AdminRole::SuperAdmin);
 
         self::assertSame(['ROLE_SUPER_ADMIN'], $admin->getRoles());
     }
@@ -34,5 +34,37 @@ final class AdminUserTest extends TestCase
         $admin->setPassword('$2y$13$hachage-complet-du-mot-de-passe');
 
         self::assertStringNotContainsString('hachage-complet-du-mot-de-passe', serialize($admin));
+    }
+
+    public function testTwoFactorIsEnabledOnlyOnceConfirmed(): void
+    {
+        $admin = new AdminUser('admin@space-guardians.local', AdminRole::Admin, new \DateTimeImmutable());
+        self::assertFalse($admin->isTotpAuthenticationEnabled());
+        self::assertNull($admin->getTotpAuthenticationConfiguration());
+
+        $admin->startTotpEnrollment('JBSWY3DPEHPK3PXP');
+        self::assertTrue($admin->hasPendingTotpSecret());
+        self::assertFalse($admin->isTotpAuthenticationEnabled());
+        self::assertSame('JBSWY3DPEHPK3PXP', $admin->getTotpAuthenticationConfiguration()?->getSecret());
+
+        $admin->confirmTotp();
+        self::assertTrue($admin->isTotpAuthenticationEnabled());
+        self::assertFalse($admin->hasPendingTotpSecret());
+
+        $admin->resetTwoFactor();
+        self::assertFalse($admin->isTotpAuthenticationEnabled());
+        self::assertNull($admin->getTotpAuthenticationConfiguration());
+    }
+
+    public function testDoesNotStoreTotpSecretNorTypedPasswordInSession(): void
+    {
+        $admin = new AdminUser('admin@space-guardians.local', AdminRole::Admin, new \DateTimeImmutable());
+        $admin->startTotpEnrollment('JBSWY3DPEHPK3PXP');
+        $admin->setPlainPassword('Mot-de-passe-saisi-42');
+
+        $serialized = serialize($admin);
+
+        self::assertStringNotContainsString('JBSWY3DPEHPK3PXP', $serialized);
+        self::assertStringNotContainsString('Mot-de-passe-saisi-42', $serialized);
     }
 }
