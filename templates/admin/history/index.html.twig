@@ -1,0 +1,30 @@
+{# Entités historisées et volume de leur historique #}
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block page_title 'Historique des données' %}
+{% block content_title 'Historique des données' %}
+
+{% block main %}
+    <p>Qui a créé, modifié ou supprimé quoi, et quand. Les valeurs secrètes (mots de passe, double authentification) ne sont jamais enregistrées.</p>
+
+    <table class="table datagrid">
+        <thead>
+            <tr>
+                <th scope="col">Entité</th>
+                <th scope="col" class="text-end">Entrées</th>
+                <th scope="col">Dernière modification</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for row in entities %}
+                <tr>
+                    <td><a href="{{ path('admin_entity_history_list', {entity: row.entity.key}) }}">{{ row.entity.label }}</a></td>
+                    <td class="text-end">{{ row.count|format_number }}</td>
+                    <td>{{ row.last ? row.last|date('d/m/Y H:i:s') : '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="3">Aucune entité historisée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

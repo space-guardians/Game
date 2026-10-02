@@ -24,6 +24,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 #[AdminRoute(path: '/galaxies', name: 'galaxy')]
 final class GalaxyCrudController extends AbstractCrudController
 {
+    use HistoryActionTrait;
+
     public static function getEntityFqcn(): string
     {
         return Galaxy::class;
@@ -41,7 +43,7 @@ final class GalaxyCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $actions
+        return $this->addHistoryAction($actions, 'galaxy')
             ->disable(Action::NEW)
             ->add(Crud::PAGE_INDEX, Action::DETAIL)
             ->setPermission(Action::INDEX, AdminRole::GameDesigner->value)

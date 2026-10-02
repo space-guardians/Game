@@ -1,0 +1,92 @@
+{# Historique filtrable d'une entité #}
+{% extends '@EasyAdmin/page/content.html.twig' %}
+{% import 'admin/history/_macros.html.twig' as history %}
+
+{% block page_title %}Historique — {{ audited.label }}{% endblock %}
+{% block content_title %}Historique — {{ audited.label }}{% endblock %}
+
+{% block main %}
+    <p><a href="{{ path('admin_entity_history_index') }}">← Toutes les entités</a></p>
+
+    <form method="get" class="sg-admin-history-filters">
+        <div class="form-group">
+            <label class="form-control-label" for="type">Opération</label>
+            <select id="type" name="type" class="form-select">
+                <option value="">Toutes</option>
+                {% for value, label in types %}
+                    <option value="{{ value }}" {{ filters.type and filters.type.value == value ? 'selected' }}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-control-label" for="origine">Origine</label>
+            <select id="origine" name="origine" class="form-select">
+                <option value="">Toutes</option>
+                {% for origin in origins %}
+                    <option value="{{ origin.value }}" {{ filters.origin == origin ? 'selected' }}>{{ origin.label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="form-group">
+            <label class="form-control-label" for="auteur">Auteur</label>
+            <input type="search" id="auteur" name="auteur" class="form-control" value="{{ filters.author }}">
+        </div>
+        <div class="form-group">
+            <label class="form-control-label" for="objet">Identifiant</label>
+            <input type="text" id="objet" name="objet" class="form-control" inputmode="numeric" value="{{ filters.objectId }}">
+        </div>
+        <div class="form-group">
+            <label class="form-control-label" for="du">Du</label>
+            <input type="date" id="du" name="du" class="form-control" value="{{ filters.from ? filters.from|date('Y-m-d') }}">
+        </div>
+        <div class="form-group">
+            <label class="form-control-label" for="au">Au</label>
+            <input type="date" id="au" name="au" class="form-control" value="{{ filters.to ? filters.to|date('Y-m-d') }}">
+        </div>
+        <div class="form-group sg-admin-history-actions">
+            <button type="submit" class="btn btn-primary">Filtrer</button>
+            <a class="btn btn-secondary" href="{{ path('admin_entity_history_list', {entity: audited.key}) }}">Réinitialiser</a>
+        </div>
+    </form>
+
+    <p class="text-muted">{{ result.total|format_number }} entrée{{ result.total > 1 ? 's' }}</p>
+
+    <table class="table datagrid">
+        <thead>
+            <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Opération</th>
+                <th scope="col">Identifiant</th>
+                <th scope="col">Champs</th>
+                <th scope="col">Auteur</th>
+                <th scope="col"><span class="visually-hidden">Détail</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for entry in result.entries %}
+                <tr>
+                    <td>{{ entry.createdAt|date('d/m/Y H:i:s') }}</td>
+                    <td>{{ types[entry.type] ?? entry.type }}</td>
+                    <td><a href="{{ path('admin_entity_history_list', {entity: audited.key, objet: entry.objectId}) }}" title="Historique de cet objet">#{{ entry.objectId }}</a></td>
+                    <td>{{ entry.type in ['insert', 'update'] ? entry.diffs|keys|join(', ') : '—' }}</td>
+                    <td>{{ history.author(entry) }}</td>
+                    <td><a href="{{ path('admin_entity_history_entry', {entity: audited.key, id: entry.id}) }}">Détail</a></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6">Aucune modification ne correspond.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% if result.pages > 1 %}
+        <nav aria-label="Pagination" class="sg-admin-history-pages">
+            {% if result.page > 1 %}
+                <a class="btn btn-secondary" href="{{ path('admin_entity_history_list', filters.toQuery|merge({entity: audited.key, page: result.page - 1})) }}">Précédente</a>
+            {% endif %}
+            <span>Page {{ result.page }} / {{ result.pages }}</span>
+            {% if result.page < result.pages %}
+                <a class="btn btn-secondary" href="{{ path('admin_entity_history_list', filters.toQuery|merge({entity: audited.key, page: result.page + 1})) }}">Suivante</a>
+            {% endif %}
+        </nav>
+    {% endif %}
+{% endblock %}

@@ -326,7 +326,7 @@ Livré **progressivement** : un écran d'admin est ajouté dès qu'une entité d
 | **Contenu de jeu** | Bâtiments, technologies et prérequis, types et classes de vaisseaux, matrice de bonus/malus, défenses ; paramètres globaux (vitesse d'univers, etc.) |
 | **Quêtes & événements** | **Éditeur de quêtes PvE** (gabarits, conditions, choix, récompenses, chaînage, aperçu et test avant publication) ; **événements de jeu** planifiés (cf. §4.16) |
 | **Communication & modération** | Annonces (messages système, cf. §4.12.2), signalements du chat et de la messagerie, sanctions |
-| **Exploitation** | Supervision des files Messenger et des événements planifiés (échecs, relance), journal d'audit des actions d'administration |
+| **Exploitation** | Supervision des files Messenger et des événements planifiés (échecs, relance), journal des actions d'administration (§5.6.2), **historique des modifications des données** (§5.6.3) |
 
 #### 5.6.2 Rôles et sécurité
 - **Accès séparé des comptes joueurs** : comptes d'administration distincts (un administrateur qui joue utilise un autre compte), zone `/admin` derrière son propre pare-feu Symfony Security.
@@ -336,9 +336,17 @@ Livré **progressivement** : un écran d'admin est ajouté dès qu'une entité d
   - `ROLE_ADMIN` : tout, sauf la gestion des comptes d'administration ;
   - `ROLE_SUPER_ADMIN` : gestion des comptes d'administration et de leurs rôles.
 - **Authentification renforcée** : double authentification (TOTP) obligatoire, limitation des tentatives de connexion (RateLimiter), expiration de session après inactivité.
-- **Journal d'audit** : toute action d'écriture (création, modification, suppression, génération, sanction) est enregistrée avec son auteur, sa date et les valeurs avant/après ; consultable, non modifiable.
+- **Journal des actions d'administration** : les actions métier qui ne se résument pas à une modification de données ou s'exécutent en arrière-plan (génération d'une galaxie, sanction…) sont enregistrées avec leur auteur, leur date et leurs paramètres ; consultable, non modifiable. Les créations, modifications et suppressions de données relèvent de l'historique (§5.6.3).
 - **Actions sensibles** (suppression d'une galaxie, bannissement, génération) : confirmation explicite, et exécution en arrière-plan pour les traitements longs.
 - Protections standard : CSRF sur toutes les actions, aucune donnée d'administration exposée à l'interface joueur.
+
+#### 5.6.3 Historique des modifications des données
+Pour toute entité pertinente, on doit pouvoir savoir **qui** l'a créée, modifiée ou supprimée, **quand**, et avec **quelles valeurs avant/après**.
+- **Périmètre** : comptes (joueurs, administration), configuration du jeu (galaxies, gabarits de forme, contenu de jeu, quêtes, événements), puis les données de jeu dont l'évolution doit pouvoir être retracée (propriété des planètes, alliances, marché, sanctions…). Ne sont pas auditées les données techniques (jetons de réinitialisation, sessions) ni les structures produites en masse et figées par la génération (systèmes, positions). Chaque entité introduite par une phase déclare si elle est auditée.
+- **Contenu d'une entrée** : opération (création, modification, suppression, ajout ou retrait dans une relation), identifiant et libellé de l'objet, valeurs avant/après des champs modifiés, auteur (joueur, administrateur ou système, avec le pare-feu d'origine et l'adresse IP), date, et identifiant de transaction pour regrouper les modifications faites ensemble. Les secrets (mots de passe, secrets de double authentification) ne sont jamais enregistrés.
+- **Technologie** : `damienharper/auditor-bundle` : écouteur Doctrine qui écrit dans une table `<entité>_audit` par entité, dans la même transaction que la modification ; entités déclarées par attribut (`#[Auditable]`, champs exclus par `#[Ignore]`). Sa visionneuse intégrée n'est pas utilisée.
+- **Consultation** dans le panneau (`ROLE_ADMIN`) : liste des entités auditées, historique filtrable par opération, auteur, identifiant d'objet et période, détail d'une entrée (valeurs avant/après, autres modifications de la même transaction), et accès à l'historique d'un objet depuis sa fiche. Lecture seule.
+- **Rétention** : purge des entrées anciennes par la commande du bundle (`audit:clean`), planifiée lors de la mise en exploitation ; durée à fixer.
 
 ### 5.7 Chat en ligne & messagerie
 Le chat et la messagerie réutilisent la stack existante (Mercure, Redis, Messenger) : aucun serveur WebSocket ni service tiers supplémentaire.

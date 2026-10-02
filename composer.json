@@ -9,6 +9,7 @@
         "php": ">=8.5",
         "ext-ctype": "*",
         "ext-iconv": "*",
+        "damienharper/auditor-bundle": "^7.2",
         "doctrine/doctrine-bundle": "^3.3",
         "doctrine/doctrine-migrations-bundle": "^4.0",
         "doctrine/orm": "^3.7",

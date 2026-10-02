@@ -11,11 +11,9 @@ use Psr\Clock\ClockInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 
 /**
- * Journal d'audit de l'administration (§5.6.2).
- *
- * Les créations, modifications et suppressions faites depuis le panneau sont enregistrées automatiquement
- * (AdminAuditListener). record() sert aux actions qui ne se résument pas à une écriture d'entité, ou qui
- * s'exécutent hors de la requête de l'administrateur : génération en arrière-plan, sanction…
+ * Journal des actions d'administration (§5.6.2) : actions métier qui ne se résument pas à une écriture d'entité,
+ * ou qui s'exécutent hors de la requête de l'administrateur (génération en arrière-plan, sanction…).
+ * Les créations, modifications et suppressions d'entités sont historisées par l'auditeur (§5.6.3).
  */
 final readonly class AdminAudit
 {
@@ -78,29 +76,6 @@ final readonly class AdminAudit
         $user = $this->security->getUser();
 
         return $user instanceof AdminUser ? $user : null;
-    }
-
-    /**
-     * Valeurs des champs d'une entité, pour l'état « avant » d'une suppression ou « après » d'une création.
-     *
-     * @return array<string, mixed>
-     */
-    public function snapshot(object $entity): array
-    {
-        $metadata = $this->entityManager->getClassMetadata($entity::class);
-        $values = [];
-        foreach ($metadata->getFieldNames() as $field) {
-            if (!$metadata->isIdentifier($field)) {
-                $values[$field] = $metadata->getFieldValue($entity, $field);
-            }
-        }
-        foreach ($metadata->getAssociationNames() as $association) {
-            if ($metadata->isSingleValuedAssociation($association)) {
-                $values[$association] = $metadata->getFieldValue($entity, $association);
-            }
-        }
-
-        return $values;
     }
 
     /** Valeur enregistrable en JSON et lisible dans l'écran du journal */
