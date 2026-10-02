@@ -10,10 +10,12 @@ use App\Factory\UserFactory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 use Zenstruck\Foundry\Test\Factories;
 
 final class AdminAccessTest extends WebTestCase
 {
+    use ClockSensitiveTrait;
     use Factories;
 
     private KernelBrowser $client;
@@ -52,9 +54,14 @@ final class AdminAccessTest extends WebTestCase
 
     public function testAdminLogsInThroughAdminLogin(): void
     {
+        $clock = self::mockTime('2026-10-02 09:00:00');
         AdminUserFactory::createOne(['email' => 'admin@space-guardians.local', 'role' => AdminRole::SuperAdmin]);
 
         $this->login('Admin@Space-Guardians.local', AdminUserFactory::DEFAULT_PASSWORD);
+        $this->client->followRedirect();
+        self::assertResponseRedirects('http://localhost/admin/double-authentification');
+        $this->client->followRedirect();
+        $this->client->submitForm('Vérifier', ['_auth_code' => AdminUserFactory::totpCode($clock->now())]);
 
         self::assertResponseRedirects('/admin');
         $this->client->followRedirect();

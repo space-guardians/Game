@@ -1,0 +1,11 @@
+# Double authentification des comptes d'administration (§5.6.2) ; les joueurs n'en ont pas
+scheb_two_factor:
+    security_tokens:
+        - Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken
+        - Symfony\Component\Security\Http\Authenticator\Token\PostAuthenticationToken
+    totp:
+        enabled: true
+        issuer: Space Guardians
+        # Tolère 15 s de décalage d'horloge (OTPHP exige une tolérance inférieure à la période de 30 s)
+        leeway: 15
+        template: admin/security/two_factor.html.twig

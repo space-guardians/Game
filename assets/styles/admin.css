@@ -16,6 +16,13 @@
     margin-top: 24px;
 }
 
+/* Clé TOTP à saisir à la main : lisible et sécable */
+.sg-admin-secret {
+    font-family: "JetBrains Mono", monospace;
+    letter-spacing: 0.08em;
+    word-break: break-all;
+}
+
 .sg-admin-preview svg {
     display: block;
     width: 100%;
