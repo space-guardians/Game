@@ -142,7 +142,8 @@ final class DashboardController extends AbstractDashboardController
         yield MenuItem::linkTo(PlanetCrudController::class, 'Planètes')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(GalaxyShapeTemplateCrudController::class, 'Gabarits de forme')->setPermission(AdminRole::GameDesigner->value);
 
-        yield MenuItem::section('Exploitation')->setPermission(AdminRole::SuperAdmin->value);
+        yield MenuItem::section('Exploitation')->setPermission(AdminRole::Admin->value);
+        yield MenuItem::linkTo(AdminAuditLogCrudController::class, 'Journal d’audit')->setPermission(AdminRole::Admin->value);
         yield MenuItem::linkTo(AdminUserCrudController::class, 'Comptes d’administration')->setPermission(AdminRole::SuperAdmin->value);
     }
 
