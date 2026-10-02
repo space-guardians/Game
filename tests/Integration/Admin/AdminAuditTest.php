@@ -5,11 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Admin;
 
 use App\Admin\AdminAudit;
-use App\Admin\AdminRole;
 use App\Admin\AuditAction;
-use App\Entity\AdminAuditLog;
-use App\Entity\AdminUser;
-use App\Entity\Galaxy;
 use App\Factory\AdminUserFactory;
 use App\Factory\GalaxyFactory;
 use App\Repository\AdminAuditLogRepository;
@@ -20,98 +16,45 @@ use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 use Symfony\Component\Security\Core\Authentication\Token\UsernamePasswordToken;
 use Zenstruck\Foundry\Test\Factories;
 
+/**
+ * Journal des actions d'administration (§5.6.2).
+ */
 final class AdminAuditTest extends KernelTestCase
 {
     use ClockSensitiveTrait;
     use Factories;
 
-    private EntityManagerInterface $entityManager;
-
     protected function setUp(): void
     {
         self::bootKernel();
         self::mockTime('2026-10-02 21:00:00');
-        $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
     }
 
-    public function testWritesWithoutAdminAreNotLogged(): void
+    public function testRecordsActionOfLoggedInAdmin(): void
     {
-        $this->entityManager->persist(new Galaxy(7, 'Orion'));
-        $this->entityManager->flush();
+        $admin = AdminUserFactory::createOne(['email' => 'admin@space-guardians.local']);
+        self::getContainer()->get('security.token_storage')->setToken(new UsernamePasswordToken($admin, 'admin', $admin->getRoles()));
+        $galaxy = GalaxyFactory::createOne(['number' => 2, 'name' => 'Orion']);
 
-        self::assertSame(0, $this->logs()->count([]));
-    }
+        $this->audit()->record(AuditAction::Generate, $galaxy, ['seed' => [null, 42]]);
 
-    public function testLogsCreationWithAuthorAndValues(): void
-    {
-        $admin = $this->loginAs('createur@space-guardians.local');
-        $galaxy = new Galaxy(7, 'Orion');
-
-        $this->entityManager->persist($galaxy);
-        $this->entityManager->flush();
-
-        $entry = $this->onlyEntryFor($galaxy);
-        self::assertSame(AuditAction::Create, $entry->getAction());
-        self::assertSame($admin->getId(), $entry->getActorId());
-        self::assertSame('createur@space-guardians.local', $entry->getActorEmail());
-        self::assertSame('Galaxie 7 — Orion', $entry->getSubjectLabel());
-        self::assertEquals(new \DateTimeImmutable('2026-10-02 21:00:00'), $entry->getOccurredAt());
-        self::assertSame([null, 'Orion'], $entry->getChanges()['name']);
-        self::assertSame([null, 7], $entry->getChanges()['number']);
-    }
-
-    public function testLogsOnlyChangedFieldsOnUpdate(): void
-    {
-        $galaxy = GalaxyFactory::createOne(['name' => 'Orion']);
-        $this->loginAs();
-
-        $galaxy->setName('Andromède');
-        $this->entityManager->flush();
-
-        $entry = $this->onlyEntryFor($galaxy);
-        self::assertSame(AuditAction::Update, $entry->getAction());
-        self::assertSame(['name' => ['Orion', 'Andromède']], $entry->getChanges());
-    }
-
-    public function testKeepsValuesOfDeletedEntity(): void
-    {
-        $galaxy = GalaxyFactory::createOne(['number' => 3, 'name' => 'Orion']);
-        $id = (string) $galaxy->getId();
-        $this->loginAs();
-
-        $this->entityManager->remove($galaxy);
-        $this->entityManager->flush();
-
-        $entries = $this->logs()->findBySubject('Galaxy', $id);
+        $entries = self::getContainer()->get(AdminAuditLogRepository::class)->findBySubject('Galaxy', (string) $galaxy->getId());
         self::assertCount(1, $entries);
-        self::assertSame(AuditAction::Delete, $entries[0]->getAction());
-        self::assertSame('Galaxie 3 — Orion', $entries[0]->getSubjectLabel());
-        self::assertSame(['Orion', null], $entries[0]->getChanges()['name']);
-    }
-
-    public function testNeverCopiesSecrets(): void
-    {
-        $other = AdminUserFactory::createOne(['role' => AdminRole::Moderator]);
-        $this->loginAs();
-
-        $other->resetTwoFactor();
-        $other->setPassword('$2y$13$nouvelle-empreinte');
-        $this->entityManager->flush();
-
-        $changes = $this->onlyEntryFor($other)->getChanges();
-        self::assertSame(['••••••', null], $changes['totpSecret']);
-        self::assertSame(['••••••', '••••••'], $changes['password']);
-        self::assertSame([true, false], $changes['totpConfirmed']);
+        self::assertSame(AuditAction::Generate, $entries[0]->getAction());
+        self::assertSame($admin->getId(), $entries[0]->getActorId());
+        self::assertSame('admin@space-guardians.local', $entries[0]->getActorEmail());
+        self::assertSame('Galaxie 2 — Orion', $entries[0]->getSubjectLabel());
+        self::assertEquals(new \DateTimeImmutable('2026-10-02 21:00:00'), $entries[0]->getOccurredAt());
+        self::assertSame(['seed' => [null, 42]], $entries[0]->getChanges());
     }
 
     public function testRecordsActionOfBackgroundTaskForGivenAuthor(): void
     {
         $admin = AdminUserFactory::createOne(['email' => 'designer@space-guardians.local']);
         $galaxy = GalaxyFactory::createOne();
-        $audit = self::getContainer()->get(AdminAudit::class);
 
-        $entry = $audit->record(AuditAction::Generate, $galaxy, ['systems' => [null, 1000]], $admin);
-        $anonymous = $audit->record(AuditAction::Generate, $galaxy);
+        $entry = $this->audit()->record(AuditAction::Generate, $galaxy, ['systems' => [null, 1000]], $admin);
+        $anonymous = $this->audit()->record(AuditAction::Generate, $galaxy);
 
         self::assertSame('designer@space-guardians.local', $entry->getActorEmail());
         self::assertSame(['systems' => [null, 1000]], $entry->getChanges());
@@ -119,40 +62,31 @@ final class AdminAuditTest extends KernelTestCase
         self::assertNull($anonymous->getActorId());
     }
 
+    public function testNeverCopiesSecrets(): void
+    {
+        $entry = $this->audit()->record(AuditAction::Sanction, GalaxyFactory::createOne(), [
+            'password' => ['ancien', 'nouveau'],
+            'totpSecret' => ['SECRET', null],
+        ]);
+
+        self::assertSame(['password' => ['••••••', '••••••'], 'totpSecret' => ['••••••', null]], $entry->getChanges());
+    }
+
     public function testDatabaseRefusesToAlterEntries(): void
     {
-        $entry = self::getContainer()->get(AdminAudit::class)->record(AuditAction::Sanction, GalaxyFactory::createOne());
+        $entry = $this->audit()->record(AuditAction::Sanction, GalaxyFactory::createOne());
 
         $this->expectException(DbalException::class);
         $this->expectExceptionMessage('Le journal d\'audit n\'est pas modifiable.');
 
-        $this->entityManager->getConnection()->executeStatement(
+        self::getContainer()->get(EntityManagerInterface::class)->getConnection()->executeStatement(
             'UPDATE admin_audit_log SET actor_email = ? WHERE id = ?',
             ['quelquun@ailleurs.example', $entry->getId()],
         );
     }
 
-    private function loginAs(string $email = 'admin@space-guardians.local'): AdminUser
+    private function audit(): AdminAudit
     {
-        $admin = AdminUserFactory::createOne(['email' => $email]);
-        self::getContainer()->get('security.token_storage')->setToken(new UsernamePasswordToken($admin, 'admin', $admin->getRoles()));
-        // La création du compte lui-même n'a pas été faite par un administrateur connecté
-        self::assertSame(0, $this->logs()->count([]));
-
-        return $admin;
-    }
-
-    private function onlyEntryFor(object $subject): AdminAuditLog
-    {
-        $metadata = $this->entityManager->getClassMetadata($subject::class);
-        $entries = $this->logs()->findBySubject($metadata->getReflectionClass()->getShortName(), (string) $metadata->getIdentifierValues($subject)['id']);
-        self::assertCount(1, $entries);
-
-        return $entries[0];
-    }
-
-    private function logs(): AdminAuditLogRepository
-    {
-        return self::getContainer()->get(AdminAuditLogRepository::class);
+        return self::getContainer()->get(AdminAudit::class);
     }
 }

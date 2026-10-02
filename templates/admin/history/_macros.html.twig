@@ -1,0 +1,20 @@
+{# Rendu des valeurs enregistrées par l'auditeur : scalaires, objets liés (résumé avec libellé), listes #}
+{% macro value(value) %}
+    {%- if value is null -%}
+        <span class="text-muted">—</span>
+    {%- elseif value is same as(true) -%}
+        oui
+    {%- elseif value is same as(false) -%}
+        non
+    {%- elseif value is iterable and value.label is defined -%}
+        <code>{{ value.label }}</code>
+    {%- elseif value is iterable -%}
+        <code>{{ value|json_encode(constant('JSON_UNESCAPED_UNICODE')) }}</code>
+    {%- else -%}
+        <code>{{ value }}</code>
+    {%- endif -%}
+{% endmacro %}
+
+{% macro author(entry) %}
+    {{ entry.username ?? 'Système' }} <span class="badge badge-secondary">{{ audit_origin(entry.userFirewall).label }}</span>
+{% endmacro %}

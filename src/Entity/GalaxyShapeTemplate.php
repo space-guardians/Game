@@ -6,6 +6,7 @@ namespace App\Entity;
 
 use App\Repository\GalaxyShapeTemplateRepository;
 use App\Universe\Generation\SpiralGalaxyShape;
+use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Validator\Constraints as Assert;
@@ -19,6 +20,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: GalaxyShapeTemplateRepository::class)]
 #[ORM\UniqueConstraint(name: 'galaxy_shape_template_name_unique', fields: ['name'])]
 #[UniqueEntity(fields: ['name'], message: 'Un gabarit porte déjà ce nom.')]
+#[Auditable]
 final class GalaxyShapeTemplate
 {
     #[ORM\Id]

@@ -6,6 +6,8 @@ namespace App\Entity;
 
 use App\Admin\AdminRole;
 use App\Repository\AdminUserRepository;
+use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
+use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Ignore;
 use Doctrine\ORM\Mapping as ORM;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfiguration;
 use Scheb\TwoFactorBundle\Model\Totp\TotpConfigurationInterface;
@@ -24,6 +26,7 @@ use Symfony\Component\Validator\Constraints as Assert;
 #[ORM\Entity(repositoryClass: AdminUserRepository::class)]
 #[ORM\UniqueConstraint(name: 'admin_user_email_unique', fields: ['email'])]
 #[UniqueEntity(fields: ['email'], message: 'Un compte d\'administration existe déjà avec cette adresse e-mail.')]
+#[Auditable]
 final class AdminUser implements UserInterface, PasswordAuthenticatedUserInterface, TwoFactorInterface
 {
     #[ORM\Id]
@@ -37,6 +40,7 @@ final class AdminUser implements UserInterface, PasswordAuthenticatedUserInterfa
     private string $email;
 
     /** Empreinte du mot de passe (vide le temps de la hacher, juste après la création) */
+    #[Ignore]
     #[ORM\Column]
     private string $password = '';
 
@@ -47,6 +51,7 @@ final class AdminUser implements UserInterface, PasswordAuthenticatedUserInterfa
     private ?string $plainPassword = null;
 
     /** Secret TOTP ; tant que totpConfirmed est faux, l'activation est en cours */
+    #[Ignore]
     #[ORM\Column(length: 64, nullable: true)]
     private ?string $totpSecret = null;
 

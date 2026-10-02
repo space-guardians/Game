@@ -22,11 +22,12 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 
 /**
- * Journal d'audit, en consultation seule (§5.6.2) : aucune action d'écriture, et la table refuse les mises à jour.
+ * Journal des actions d'administration (génération, sanction…), en consultation seule (§5.6.2) : aucune action
+ * d'écriture, et la table refuse les mises à jour. Les modifications de données sont dans l'historique (§5.6.3).
  *
  * @extends AbstractCrudController<AdminAuditLog>
  */
-#[AdminRoute(path: '/journal-audit', name: 'audit_log')]
+#[AdminRoute(path: '/journal-actions', name: 'audit_log')]
 final class AdminAuditLogCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
@@ -38,7 +39,7 @@ final class AdminAuditLogCrudController extends AbstractCrudController
     {
         return $crud
             ->setEntityLabelInSingular('Entrée du journal')
-            ->setEntityLabelInPlural('Journal d’audit')
+            ->setEntityLabelInPlural('Journal des actions')
             ->setPageTitle(Crud::PAGE_DETAIL, static fn(AdminAuditLog $entry): string => (string) $entry)
             ->setDefaultSort(['occurredAt' => 'DESC', 'id' => 'DESC'])
             ->setSearchFields(['actorEmail', 'subjectLabel'])

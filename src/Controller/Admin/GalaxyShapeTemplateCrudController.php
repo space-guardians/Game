@@ -26,6 +26,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 #[AdminRoute(path: '/gabarits-de-forme', name: 'galaxy_shape_template')]
 final class GalaxyShapeTemplateCrudController extends AbstractCrudController
 {
+    use HistoryActionTrait;
+
     public function __construct(
         private readonly GalaxyPreview $galaxyPreview,
     ) {}
@@ -58,7 +60,7 @@ final class GalaxyShapeTemplateCrudController extends AbstractCrudController
             $actions->setPermission($action, AdminRole::GameDesigner->value);
         }
 
-        return $actions;
+        return $this->addHistoryAction($actions, 'galaxy_shape_template');
     }
 
     public function configureFields(string $pageName): iterable

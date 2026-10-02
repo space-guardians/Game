@@ -1,0 +1,11 @@
+# Historique des modifications des données (§5.6.3). Les entités auditées le déclarent elles-mêmes avec
+# #[Auditable] ; les champs secrets portent #[Ignore].
+# Référence : https://damienharper.github.io/auditor-docs/docs/auditor-bundle/configuration/reference.html
+dh_auditor:
+    enabled: true
+    timezone: UTC
+    providers:
+        doctrine:
+            table_suffix: '_audit'
+            # Visionneuse intégrée désactivée : l'historique se consulte dans le panneau d'administration
+            viewer: false

@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Repository\GalaxyRepository;
+use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
+use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Ignore;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
@@ -18,6 +20,7 @@ use Symfony\Component\Validator\Constraints as Assert;
  */
 #[ORM\Entity(repositoryClass: GalaxyRepository::class)]
 #[ORM\UniqueConstraint(name: 'galaxy_number_unique', fields: ['number'])]
+#[Auditable]
 final class Galaxy
 {
     #[ORM\Id]
@@ -25,7 +28,8 @@ final class Galaxy
     #[ORM\Column]
     private ?int $id = null;
 
-    /** @var Collection<int, StarSystem> */
+    /** @var Collection<int, StarSystem> Non historisée : la génération y rattache des milliers de systèmes */
+    #[Ignore]
     #[ORM\OneToMany(targetEntity: StarSystem::class, mappedBy: 'galaxy', fetch: 'EXTRA_LAZY')]
     #[ORM\OrderBy(['number' => 'ASC'])]
     private Collection $systems;
