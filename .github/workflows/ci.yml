@@ -13,6 +13,8 @@ env:
   # Aligner avec l'image PHP du Docker Compose
   PHP_VERSION: '8.5'
   PHP_EXTENSIONS: intl, pdo_pgsql, redis
+  # Même réglage que docker/php/conf.d/app.ini : flottants convertis en texte sans perte
+  PHP_INI_VALUES: precision=-1
 
 permissions:
   contents: read
@@ -96,6 +98,7 @@ jobs:
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: ${{ env.PHP_EXTENSIONS }}
+          ini-values: ${{ env.PHP_INI_VALUES }}
           coverage: none
           tools: cs2pr
       - uses: ramsey/composer-install@4.0.0
@@ -124,6 +127,7 @@ jobs:
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: ${{ env.PHP_EXTENSIONS }}
+          ini-values: ${{ env.PHP_INI_VALUES }}
           coverage: none
       - uses: ramsey/composer-install@4.0.0
       - name: Conteneur Symfony (pour phpstan-symfony)
@@ -192,6 +196,7 @@ jobs:
         with:
           php-version: ${{ env.PHP_VERSION }}
           extensions: ${{ env.PHP_EXTENSIONS }}
+          ini-values: ${{ env.PHP_INI_VALUES }}
           coverage: pcov
       - uses: ramsey/composer-install@4.0.0
       - name: Base de données de test
