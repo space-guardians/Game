@@ -1,0 +1,35 @@
+{# Valeurs avant / après d'une entrée du journal d'audit #}
+{% macro value(value) %}
+    {%- if value is null -%}
+        <span class="text-muted">—</span>
+    {%- elseif value is same as(true) -%}
+        oui
+    {%- elseif value is same as(false) -%}
+        non
+    {%- else -%}
+        <code>{{ value }}</code>
+    {%- endif -%}
+{% endmacro %}
+
+{% if field.value is empty %}
+    <span class="text-muted">Aucune valeur enregistrée</span>
+{% else %}
+    <table class="table table-sm sg-admin-audit-changes">
+        <thead>
+            <tr>
+                <th scope="col">Champ</th>
+                <th scope="col">Avant</th>
+                <th scope="col">Après</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for name, change in field.value %}
+                <tr>
+                    <th scope="row">{{ name }}</th>
+                    <td>{{ _self.value(change[0]) }}</td>
+                    <td>{{ _self.value(change[1]) }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}

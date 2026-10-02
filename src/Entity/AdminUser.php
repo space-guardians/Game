@@ -128,6 +128,11 @@ final class AdminUser implements UserInterface, PasswordAuthenticatedUserInterfa
         $this->plainPassword = null;
     }
 
+    public function __toString(): string
+    {
+        return $this->email;
+    }
+
     public function getCreatedAt(): \DateTimeImmutable
     {
         return $this->createdAt;

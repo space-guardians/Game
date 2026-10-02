@@ -47,6 +47,8 @@ Tout passe par le `Makefile` (`make help`) :
 
 Sécurité du panneau : double authentification TOTP obligatoire (scheb/2fa ; tant qu'elle n'est pas activée, seule `/admin/double-authentification/activation` est accessible), déconnexion après 30 min d'inactivité (`app.admin_idle_timeout`), comptes gérés par la super administration (`/admin/comptes`). En test, `AdminUserFactory` crée des comptes à 2FA activée (`totpCode($clock->now())` donne le code, `withoutTwoFactor()` pour un compte à activer).
 
+Journal d'audit (`/admin/journal-audit`, rôle `Admin`) : toute création, modification ou suppression d'entité faite par un compte d'administration connecté est enregistrée automatiquement (`AdminAuditListener`). Une action exécutée hors de sa requête (message Messenger, génération…) ou qui n'est pas une simple écriture (sanction) appelle `AdminAudit::record()` en passant l'auteur. Tout nouveau champ secret s'ajoute à `AdminAudit::SENSITIVE_FIELDS` pour ne jamais être recopié. La table refuse les `UPDATE` (trigger).
+
 ## Code
 
 ### PHP
