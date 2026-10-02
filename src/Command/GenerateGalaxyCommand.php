@@ -6,6 +6,7 @@ namespace App\Command;
 
 use App\Entity\Galaxy;
 use App\Repository\GalaxyRepository;
+use App\Repository\GalaxyShapeTemplateRepository;
 use App\Universe\Generation\GalaxyGenerator;
 use App\Universe\Generation\SpiralGalaxyShape;
 use App\Universe\Generation\SystemPlacer;
@@ -27,6 +28,7 @@ final readonly class GenerateGalaxyCommand
     public function __construct(
         private GalaxyGenerator $generator,
         private GalaxyRepository $galaxies,
+        private GalaxyShapeTemplateRepository $templates,
         private EntityManagerInterface $entityManager,
     ) {}
 
@@ -40,14 +42,26 @@ final readonly class GenerateGalaxyCommand
         ?int $seed = null,
         #[Option('Nombre de systèmes stellaires')]
         int $systems = 1000,
-        #[Option('Nombre de branches de la spirale')]
+        #[Option('Nombre de branches de la spirale (forme par défaut)')]
         int $arms = 4,
+        #[Option('Nom d\'un gabarit de forme du panneau d\'administration (remplace --arms)')]
+        ?string $template = null,
     ): int {
         $number ??= $this->galaxies->nextNumber();
         if ($this->galaxies->numberExists($number)) {
             $io->error(\sprintf('La galaxie n°%d existe déjà.', $number));
 
             return Command::FAILURE;
+        }
+
+        $shapeTemplate = null;
+        if (null !== $template) {
+            $shapeTemplate = $this->templates->findOneByName($template);
+            if (null === $shapeTemplate) {
+                $io->error(\sprintf('Gabarit de forme inconnu : « %s ».', $template));
+
+                return Command::FAILURE;
+            }
         }
 
         $seed ??= random_int(1, 2_147_483_647);
@@ -58,7 +72,7 @@ final readonly class GenerateGalaxyCommand
                 $number,
                 $name ?? \sprintf('Galaxie %d', $number),
                 $seed,
-                new SpiralGalaxyShape(arms: $arms),
+                $shapeTemplate?->toShape() ?? new SpiralGalaxyShape(arms: $arms),
                 $systems,
                 SystemPlacer::DEFAULT_MIN_DISTANCE,
             );
@@ -78,7 +92,14 @@ final readonly class GenerateGalaxyCommand
             ['Rayon' => \sprintf('%.0f', $this->radius($galaxy))],
             ['Durée' => \sprintf('%.1f s', (hrtime(true) - $start) / 1e9)],
         );
-        $io->note(\sprintf('Pour régénérer la même galaxie : --seed=%d --systems=%d --arms=%d', $seed, $systems, $arms));
+        $io->note(\sprintf(
+            'Pour régénérer la même galaxie : --seed=%d --systems=%d %s',
+            $seed,
+            $systems,
+            null !== $shapeTemplate
+                ? \sprintf('--template="%s" (tant que le gabarit n\'est pas modifié)', $shapeTemplate->getName())
+                : '--arms=' . $arms,
+        ));
 
         return Command::SUCCESS;
     }

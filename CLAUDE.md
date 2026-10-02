@@ -40,7 +40,7 @@ Tout passe par le `Makefile` (`make help`) :
 | `make stan` | PHPStan niveau 6 |
 | `make test`, `make test-unit`, `make coverage` | Tests PHPUnit |
 | `make fixtures` | Applique les migrations (`make db`) puis charge les données de développement (galaxie générée, graine 1) |
-| `docker compose exec php bin/console app:galaxy:generate` | Génère une galaxie ; `--seed` la rend reproductible (`--help` pour les options) |
+| `docker compose exec php bin/console app:galaxy:generate` | Génère une galaxie ; `--seed` la rend reproductible, `--template="<nom>"` utilise un gabarit de forme du panneau (`--help` pour les options) |
 | `docker compose exec php bin/console app:admin:create <email> [--role=…]` | Crée un compte d'administration (mot de passe demandé en saisie masquée) |
 
 **Panneau d'administration** : http://localhost:8100/admin, avec des comptes `AdminUser` distincts des joueurs (pare-feu `admin`). Les rôles sont l'enum `App\Admin\AdminRole` (`Moderator` < `GameDesigner` < `Admin` < `SuperAdmin`, valeurs `ROLE_…`) ; jamais de chaîne `'ROLE_…'` en dur, et la `role_hierarchy` de `security.yaml` suit l'ordre de l'enum (vérifié par un test). Chaque écran déclare le rôle minimal requis (§5.6.2) **sur toutes ses actions**, consultation comprise : `Actions::setPermission(Action::INDEX / DETAIL / EDIT…, AdminRole::GameDesigner->value)` et `MenuItem::setPermission()`. `Crud::setEntityPermission()` ne fait que filtrer les lignes affichées, il n'interdit pas la page. Un test fonctionnel vérifie le refus (403) pour le rôle juste en dessous.

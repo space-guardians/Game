@@ -1,0 +1,15 @@
+{% extends '@EasyAdmin/crud/detail.html.twig' %}
+
+{% block main %}
+    {{ parent() }}
+
+    <section class="sg-admin-preview" aria-labelledby="preview-title">
+        <h2 id="preview-title">Aperçu</h2>
+        <p>700 systèmes placés par l’algorithme de génération, avec une graine fixe.</p>
+        <svg viewBox="-100 -100 200 200" role="img" aria-label="Aperçu de la forme de galaxie">
+            {% for star in preview_stars %}
+                <circle cx="{{ star.x }}" cy="{{ star.y }}" r="{{ star.r }}" fill="{{ star.color }}"/>
+            {% endfor %}
+        </svg>
+    </section>
+{% endblock %}

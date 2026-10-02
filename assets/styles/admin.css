@@ -10,3 +10,16 @@
     letter-spacing: 0.3em;
     color: #f2b84b;
 }
+
+/* Aperçu d'un gabarit de forme de galaxie */
+.sg-admin-preview {
+    margin-top: 24px;
+}
+
+.sg-admin-preview svg {
+    display: block;
+    width: 100%;
+    max-width: 560px;
+    aspect-ratio: 1;
+    background: radial-gradient(circle at 50% 50%, #1b1a2e 0%, #0b1020 30%, #060912 65%);
+}

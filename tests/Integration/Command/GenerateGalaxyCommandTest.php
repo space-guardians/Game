@@ -7,7 +7,12 @@ namespace App\Tests\Integration\Command;
 use App\Entity\Galaxy;
 use App\Entity\StarSystem;
 use App\Factory\GalaxyFactory;
+use App\Factory\GalaxyShapeTemplateFactory;
 use App\Repository\GalaxyRepository;
+use App\Universe\Generation\GalaxyGenerator;
+use App\Universe\Generation\PlanetGenerator;
+use App\Universe\Generation\SpiralGalaxyShape;
+use App\Universe\Generation\SystemPlacer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Console\Application;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -66,6 +71,27 @@ final class GenerateGalaxyCommandTest extends KernelTestCase
 
         self::assertSame(Command::INVALID, $tester->getStatusCode());
         self::assertSame(0, self::getContainer()->get(GalaxyRepository::class)->count([]));
+    }
+
+    public function testGeneratesFromShapeTemplate(): void
+    {
+        $shape = new SpiralGalaxyShape(arms: 2, armTightness: 3.5);
+        GalaxyShapeTemplateFactory::createOne(['name' => 'Deux bras', 'arms' => 2, 'armTightness' => 3.5]);
+
+        $tester = $this->execute(['--number' => '1', '--seed' => '9', '--systems' => '30', '--template' => 'Deux bras']);
+
+        $tester->assertCommandIsSuccessful();
+        self::assertStringContainsString('--template="Deux bras"', $tester->getDisplay());
+        $expected = (new GalaxyGenerator(new SystemPlacer(), new PlanetGenerator()))->generate(1, 'Attendue', 9, $shape, 30);
+        self::assertSame($this->positions($expected), $this->positions($this->reload(1)));
+    }
+
+    public function testRefusesUnknownShapeTemplate(): void
+    {
+        $tester = $this->execute(['--template' => 'Inexistant', '--systems' => '10']);
+
+        self::assertSame(Command::FAILURE, $tester->getStatusCode());
+        self::assertStringContainsString('Gabarit de forme inconnu : « Inexistant ».', $tester->getDisplay());
     }
 
     /**

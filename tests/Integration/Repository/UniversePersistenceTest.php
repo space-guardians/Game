@@ -46,6 +46,21 @@ final class UniversePersistenceTest extends KernelTestCase
         self::assertSame(678.25, $planet->getSystem()->getPosition()->y);
     }
 
+    /** Non-régression : avec precision=14, PHP tronquait les flottants envoyés à PostgreSQL */
+    public function testStoresCoordinatesWithoutPrecisionLoss(): void
+    {
+        $x = -68.578319280034123;
+        $y = 1234.5678901234567;
+        $id = StarSystemFactory::createOne(['position' => new GlobalPosition($x, $y)])->getId();
+
+        self::getContainer()->get(EntityManagerInterface::class)->clear();
+        $system = StarSystemFactory::repository()->find($id);
+        self::assertNotNull($system);
+
+        self::assertSame($x, $system->getPosition()->x);
+        self::assertSame($y, $system->getPosition()->y);
+    }
+
     public function testAllowsSameSystemNumberInDifferentGalaxies(): void
     {
         StarSystemFactory::createOne(['number' => 1]);
