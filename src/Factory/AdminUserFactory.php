@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Factory;
 
-use App\Admin\AdminRole;
 use App\Entity\AdminUser;
+use App\Enum\Admin\AdminRole;
 use OTPHP\TOTP;
 use Symfony\Component\PasswordHasher\Hasher\PasswordHasherFactoryInterface;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;

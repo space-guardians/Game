@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Admin\AdminAudit;
-use App\Admin\AdminRole;
-use App\Admin\AdminTwoFactor;
-use App\Admin\AuditAction;
 use App\Entity\AdminUser;
+use App\Enum\Admin\AdminRole;
+use App\Enum\Admin\AuditAction;
+use App\Service\Admin\AdminAudit;
+use App\Service\Admin\AdminTwoFactor;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;

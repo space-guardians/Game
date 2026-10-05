@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Entity;
 
 use App\Entity\GalaxyShapeTemplate;
-use App\Universe\Generation\SpiralGalaxyShape;
+use App\Model\Universe\SpiralGalaxyShape;
 use PHPUnit\Framework\TestCase;
 
 final class GalaxyShapeTemplateTest extends TestCase

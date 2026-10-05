@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Admin\AdminRole;
-use App\Admin\History\AuditedEntity;
-use App\Admin\History\AuditOrigin;
-use App\Admin\History\EntityHistory;
-use App\Admin\History\HistoryFilters;
+use App\Enum\Admin\AdminRole;
+use App\Enum\Admin\AuditOrigin;
+use App\Model\Admin\AuditedEntity;
+use App\Model\Admin\HistoryFilters;
+use App\Service\Admin\EntityHistory;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;

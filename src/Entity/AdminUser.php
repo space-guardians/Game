@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Admin\AdminRole;
+use App\Enum\Admin\AdminRole;
 use App\Repository\AdminUserRepository;
 use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
 use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Ignore;

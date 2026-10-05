@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Story;
 
 use App\Factory\GalaxyShapeTemplateFactory;
-use App\Universe\Generation\GalaxyGenerator;
+use App\Service\Universe\GalaxyGenerator;
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;
 

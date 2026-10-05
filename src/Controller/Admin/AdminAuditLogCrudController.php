@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Admin\AdminRole;
-use App\Admin\AuditAction;
 use App\Entity\AdminAuditLog;
+use App\Enum\Admin\AdminRole;
+use App\Enum\Admin\AuditAction;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;

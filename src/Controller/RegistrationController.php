@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Account\EmailAlreadyRegistered;
-use App\Account\PlayerRegistration;
-use App\Account\Registration;
+use App\Exception\Account\EmailAlreadyRegistered;
 use App\Form\RegistrationFormType;
+use App\Model\Account\Registration;
+use App\Service\Account\PlayerRegistration;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\Form\FormError;

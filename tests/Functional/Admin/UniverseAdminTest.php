@@ -4,12 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Admin;
 
-use App\Admin\AdminRole;
 use App\Entity\Galaxy;
 use App\Entity\GlobalPosition;
 use App\Entity\OrbitalPosition;
 use App\Entity\Planet;
 use App\Entity\StarSystem;
+use App\Enum\Admin\AdminRole;
 use App\Factory\AdminUserFactory;
 use App\Factory\GalaxyFactory;
 use App\Factory\PlanetFactory;

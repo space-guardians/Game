@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Command;
 
-use App\Admin\AdminRole;
 use App\Entity\AdminUser;
+use App\Enum\Admin\AdminRole;
 use App\Factory\AdminUserFactory;
 use App\Repository\AdminUserRepository;
 use PHPUnit\Framework\Attributes\DataProvider;

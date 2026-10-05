@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
-use App\Admin\AuditAction;
+use App\Enum\Admin\AuditAction;
 use App\Repository\AdminAuditLogRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
