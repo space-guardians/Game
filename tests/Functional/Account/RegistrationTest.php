@@ -4,9 +4,15 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Account;
 
+use App\Entity\Empire;
 use App\Entity\User;
+use App\Enum\Account\StartingOrientation;
+use App\Factory\EmpireFactory;
 use App\Factory\UserFactory;
+use App\Model\Universe\SpiralGalaxyShape;
+use App\Repository\EmpireRepository;
 use App\Repository\UserRepository;
+use App\Service\Universe\GalaxyCreator;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\DomCrawler\Field\ChoiceFormField;
@@ -26,8 +32,15 @@ final class RegistrationTest extends WebTestCase
         $this->client->setServerParameter('HTTP_ORIGIN', 'http://localhost');
     }
 
+    /** Une petite galaxie où placer les planètes mères */
+    private function generateGalaxy(): void
+    {
+        self::getContainer()->get(GalaxyCreator::class)->create(1, 'Voie des Gardiens', 7, new SpiralGalaxyShape(), 40);
+    }
+
     public function testRegistersLogsInAndSendsWelcomeEmail(): void
     {
+        $this->generateGalaxy();
         $this->register('Nouveau.Gardien@Exemple.fr', UserFactory::DEFAULT_PASSWORD);
 
         self::assertResponseRedirects('/');
@@ -43,6 +56,61 @@ final class RegistrationTest extends WebTestCase
 
         $this->client->followRedirect();
         self::assertSelectorTextContains('body', 'Connecté en tant que nouveau.gardien@exemple.fr');
+    }
+
+    public function testFoundsEmpireOnHomePlanet(): void
+    {
+        $this->generateGalaxy();
+
+        $this->register('gardien@exemple.fr', UserFactory::DEFAULT_PASSWORD, empireName: '  Ordre   d’Orion ', orientation: 'producer');
+
+        self::assertResponseRedirects('/');
+        $user = self::getContainer()->get(UserRepository::class)->findOneByEmail('gardien@exemple.fr');
+        self::assertInstanceOf(User::class, $user);
+        $empire = self::getContainer()->get(EmpireRepository::class)->findOneByUser($user);
+        self::assertInstanceOf(Empire::class, $empire);
+        self::assertSame('Ordre d’Orion', $empire->getName());
+        self::assertSame(StartingOrientation::Producer, $empire->getOrientation());
+        self::assertSame($empire, $empire->getHomePlanet()->getOwner());
+        self::assertSame($empire->getHomePlanet(), $empire->getActivePlanet());
+    }
+
+    public function testRefusesTakenEmpireNameWhateverItsCase(): void
+    {
+        $this->generateGalaxy();
+        EmpireFactory::createOne(['name' => 'Ordre d’Orion']);
+
+        $this->register('gardien@exemple.fr', UserFactory::DEFAULT_PASSWORD, empireName: 'ORDRE D’ORION');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('.sg-field--error', 'Un empire porte déjà ce nom');
+        self::assertNull(self::getContainer()->get(UserRepository::class)->findOneByEmail('gardien@exemple.fr'));
+        self::assertQueuedEmailCount(0);
+    }
+
+    public function testRejectsInvalidEmpireName(): void
+    {
+        $this->register('gardien@exemple.fr', UserFactory::DEFAULT_PASSWORD, empireName: '<Ordre>');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('.sg-field--error', 'Lettres, chiffres, espaces');
+    }
+
+    public function testRequiresOrientation(): void
+    {
+        $this->register('gardien@exemple.fr', UserFactory::DEFAULT_PASSWORD, orientation: null);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('.sg-choices', 'Choisissez une orientation de départ.');
+    }
+
+    public function testExplainsWhenNoPlanetIsFree(): void
+    {
+        $this->register('gardien@exemple.fr', UserFactory::DEFAULT_PASSWORD);
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('form', 'Aucune planète n’est disponible pour le moment');
+        self::assertNull(self::getContainer()->get(UserRepository::class)->findOneByEmail('gardien@exemple.fr'));
     }
 
     public function testRefusesAlreadyRegisteredEmail(): void
@@ -73,13 +141,24 @@ final class RegistrationTest extends WebTestCase
         self::assertNull(self::getContainer()->get(UserRepository::class)->findOneByEmail('gardien@exemple.fr'));
     }
 
-    private function register(string $email, string $password, bool $acceptRules = true): void
-    {
+    private function register(
+        string $email,
+        string $password,
+        bool $acceptRules = true,
+        string $empireName = 'Ordre d’Orion',
+        ?string $orientation = 'aggressive',
+    ): void {
         $this->client->request('GET', '/inscription');
         $form = $this->client->getCrawler()->selectButton('Fonder mon empire')->form([
             'registration_form[email]' => $email,
             'registration_form[plainPassword]' => $password,
+            'registration_form[empireName]' => $empireName,
         ]);
+        if (null !== $orientation) {
+            $choice = $form['registration_form[orientation]'];
+            self::assertInstanceOf(ChoiceFormField::class, $choice);
+            $choice->select($orientation);
+        }
         if ($acceptRules) {
             $checkbox = $form['registration_form[acceptRules]'];
             self::assertInstanceOf(ChoiceFormField::class, $checkbox);

@@ -22,6 +22,11 @@ final class Planet
     #[ORM\Column]
     private ?int $id = null;
 
+    /** Empire propriétaire ; libre tant que null */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
+    private ?Empire $owner = null;
+
     public function __construct(
         #[ORM\ManyToOne(inversedBy: 'planets')]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -53,6 +58,19 @@ final class Planet
     public function getTemperature(): int
     {
         return $this->temperature;
+    }
+
+    public function getOwner(): ?Empire
+    {
+        return $this->owner;
+    }
+
+    public function assignTo(Empire $empire): void
+    {
+        if (null !== $this->owner && $this->owner !== $empire) {
+            throw new \LogicException(\sprintf('La planète %s appartient déjà à l\'empire « %s ».', $this, $this->owner->getName()));
+        }
+        $this->owner = $empire;
     }
 
     /** Adresse entre crochets, comme partout dans l'interface (charte §3) */

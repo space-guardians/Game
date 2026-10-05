@@ -468,3 +468,66 @@ a:hover {
         border-left: none;
     }
 }
+
+/* Choix exclusif en tuiles (ex. orientation de départ) : angle 10 px, bordure or quand sélectionné */
+.sg-choices {
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.sg-choices legend {
+    padding: 0;
+}
+
+.sg-choices__options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.sg-choice {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 10px;
+    padding: 14px;
+    background: var(--sg-space);
+    border: 1px solid var(--sg-line-strong);
+    border-radius: 10px;
+    cursor: pointer;
+}
+
+.sg-choice:has(:checked) {
+    border-color: var(--sg-gold);
+    background: var(--sg-panel-raised);
+}
+
+.sg-choice:has(:focus-visible) {
+    outline: 2px solid var(--sg-gold);
+    outline-offset: 2px;
+}
+
+.sg-choice__input {
+    width: 18px;
+    height: 18px;
+    margin: 2px 0 0;
+    accent-color: var(--sg-gold);
+}
+
+.sg-choice__title {
+    font-family: var(--sg-font-display);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--sg-text);
+}
+
+.sg-choice__text {
+    grid-column: 2;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--sg-text-2);
+}
+
+.sg-field--error .sg-choice {
+    border-color: var(--sg-danger-line);
+}

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Service\Admin;
 
 use App\Entity\AdminUser;
+use App\Entity\Empire;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
 use App\Entity\Planet;
@@ -45,7 +46,7 @@ final class EntityHistoryTest extends KernelTestCase
     {
         $classes = array_map(static fn(AuditedEntity $entity): string => $entity->class, $this->history->entities());
 
-        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Galaxy::class, GalaxyShapeTemplate::class], $classes);
+        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Empire::class, Galaxy::class, GalaxyShapeTemplate::class], $classes);
         self::assertNotContains(Planet::class, $classes);
         self::assertNotContains(StarSystem::class, $classes);
     }

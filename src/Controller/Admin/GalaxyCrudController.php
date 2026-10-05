@@ -6,7 +6,9 @@ namespace App\Controller\Admin;
 
 use App\Entity\Galaxy;
 use App\Enum\Admin\AdminRole;
+use App\Repository\PlanetRepository;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -26,6 +28,10 @@ final class GalaxyCrudController extends AbstractCrudController
 {
     use HistoryActionTrait;
 
+    public function __construct(
+        private readonly PlanetRepository $planets,
+    ) {}
+
     public static function getEntityFqcn(): string
     {
         return Galaxy::class;
@@ -39,6 +45,19 @@ final class GalaxyCrudController extends AbstractCrudController
             ->setPageTitle(Crud::PAGE_DETAIL, static fn(Galaxy $galaxy): string => (string) $galaxy)
             ->setDefaultSort(['number' => 'ASC'])
             ->setSearchFields(['name']);
+    }
+
+    /** Une galaxie habitée ne se supprime pas : ses empires perdraient leur planète mère */
+    public function deleteEntity(EntityManagerInterface $entityManager, mixed $entityInstance): void
+    {
+        $owned = $this->planets->countOwnedIn($entityInstance);
+        if ($owned > 0) {
+            $this->addFlash('danger', \sprintf('%s n’a pas été supprimée : %d planète%s appartien%s à des empires.', $entityInstance, $owned, $owned > 1 ? 's' : '', $owned > 1 ? 'nent' : 't'));
+
+            return;
+        }
+
+        parent::deleteEntity($entityManager, $entityInstance);
     }
 
     public function configureActions(Actions $actions): Actions

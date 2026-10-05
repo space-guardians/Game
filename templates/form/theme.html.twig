@@ -20,6 +20,30 @@
     </div>
 {%- endblock checkbox_row -%}
 
+{# Choix exclusif en tuiles (charte : « choix », angle 10 px) ; description optionnelle via choice_attr data-description #}
+{%- block choice_row -%}
+    {%- if expanded -%}
+        <fieldset class="sg-field sg-choices{{ not valid ? ' sg-field--error' }}"{% if help is not empty %} aria-describedby="{{ id }}_help"{% endif %}>
+            <legend class="sg-field__label">{{ label }}</legend>
+            <div class="sg-choices__options">
+                {%- for child in form -%}
+                    <label class="sg-choice" for="{{ child.vars.id }}">
+                        {{- form_widget(child, {attr: {class: 'sg-choice__input'}}) -}}
+                        <span class="sg-choice__title">{{ child.vars.label }}</span>
+                        {%- if child.vars.attr['data-description'] is defined -%}
+                            <span class="sg-choice__text">{{ child.vars.attr['data-description'] }}</span>
+                        {%- endif -%}
+                    </label>
+                {%- endfor -%}
+            </div>
+            {{- form_help(form) -}}
+            {{- form_errors(form) -}}
+        </fieldset>
+    {%- else -%}
+        {{- block('form_row') -}}
+    {%- endif -%}
+{%- endblock choice_row -%}
+
 {%- block form_help -%}
     {%- if help is not empty -%}
         <span id="{{ id }}_help" class="sg-field__help">{{ help }}</span>
