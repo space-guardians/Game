@@ -1,0 +1,36 @@
+{# Avancement d'une génération ; rechargé toutes les 2 s par le contrôleur Stimulus tant qu'elle n'est pas finie #}
+{% set status = generation.status %}
+<section class="sg-admin-generation"
+    aria-live="polite"
+    aria-labelledby="generation-status-title"
+    data-controller="generation-status"
+    data-generation-status-url-value="{{ path('admin_galaxy_generation_status', {entityId: generation.id}) }}"
+    data-generation-status-finished-value="{{ status.finished ? 'true' : 'false' }}">
+    <h2 id="generation-status-title">Avancement : <span class="badge badge-{{ status.badge }}">{{ status.label }}</span></h2>
+
+    {% if status.value == 'pending' %}
+        <p>En attente du traitement en arrière-plan.</p>
+    {% elseif status.value == 'running' %}
+        <p>Placement des systèmes et des planètes en cours depuis {{ generation.startedAt|date('H:i:s') }}…</p>
+    {% elseif status.value == 'failed' %}
+        <p class="text-danger">{{ generation.error }}</p>
+    {% elseif generation.galaxy %}
+        <p>
+            <a href="{{ path('admin_galaxy_detail', {entityId: generation.galaxy.id}) }}">{{ generation.galaxy }}</a> :
+            {{ generation.systemCount|format_number }} systèmes, {{ generation.planetCount|format_number }} planètes,
+            en {{ generation.finishedAt.timestamp - generation.startedAt.timestamp }} s (graine {{ generation.seed }}).
+        </p>
+    {% else %}
+        <p>La galaxie générée a depuis été supprimée.</p>
+    {% endif %}
+
+    {% if preview_stars is not empty %}
+        <div class="sg-admin-preview">
+            <svg viewBox="-100 -100 200 200" role="img" aria-label="Aperçu de la galaxie générée">
+                {% for star in preview_stars %}
+                    <circle cx="{{ star.x }}" cy="{{ star.y }}" r="{{ star.r }}" fill="{{ star.color }}"/>
+                {% endfor %}
+            </svg>
+        </div>
+    {% endif %}
+</section>

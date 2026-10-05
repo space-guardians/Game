@@ -28,10 +28,12 @@ services:
     <<: *php
 
   # Traite la file asynchrone (e-mails, puis événements de jeu). Redémarré toutes les heures pour
-  # recharger le code ; après une modification du code : docker compose restart worker
+  # recharger le code ; après une modification du code : docker compose restart worker.
+  # Sans le mode débogage, comme en production : en dev, Doctrine conserverait la trace de chaque requête
+  # et une génération de galaxie (≈ 10 000 insertions) dépasserait la limite mémoire.
   worker:
     <<: *php
-    command: [bin/console, messenger:consume, async, --time-limit=3600, --memory-limit=256M]
+    command: [bin/console, messenger:consume, async, --time-limit=3600, --memory-limit=256M, --no-debug]
     restart: unless-stopped
 
   web:
