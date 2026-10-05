@@ -129,7 +129,7 @@ final class DashboardController extends AbstractDashboardController
 
     public function configureAssets(): Assets
     {
-        return Assets::new()->addCssFile('styles/admin.css');
+        return Assets::new()->addCssFile('styles/admin.css')->addAssetMapperEntry('admin');
     }
 
     public function configureMenuItems(): iterable
@@ -141,6 +141,7 @@ final class DashboardController extends AbstractDashboardController
         yield MenuItem::linkTo(StarSystemCrudController::class, 'Systèmes')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(PlanetCrudController::class, 'Planètes')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(GalaxyShapeTemplateCrudController::class, 'Gabarits de forme')->setPermission(AdminRole::GameDesigner->value);
+        yield MenuItem::linkTo(GalaxyGenerationCrudController::class, 'Générations')->setPermission(AdminRole::GameDesigner->value);
 
         yield MenuItem::section('Exploitation')->setPermission(AdminRole::Admin->value);
         yield MenuItem::linkToRoute('Historique des données', null, 'admin_entity_history_index')->setPermission(AdminRole::Admin->value);

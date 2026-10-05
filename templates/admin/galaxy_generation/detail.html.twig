@@ -1,0 +1,8 @@
+{# Fiche d'une génération : champs, puis bloc de statut suivi en direct #}
+{% extends '@EasyAdmin/crud/detail.html.twig' %}
+
+{% block main %}
+    {{ parent() }}
+
+    {{ include('admin/galaxy_generation/_status.html.twig', {generation: entity.instance}) }}
+{% endblock %}

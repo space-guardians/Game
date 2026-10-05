@@ -23,3 +23,15 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    # Aléatoire non reproductible (graines de génération…) : moteur sûr par défaut
+    Random\Randomizer: ~
+
+when@test:
+    services:
+        # Graine fixe : les tests sont reproductibles
+        Random\Randomizer:
+            arguments: ['@app.test_random_engine']
+        app.test_random_engine:
+            class: Random\Engine\Mt19937
+            arguments: [42]

@@ -118,6 +118,13 @@ final class SpiralGalaxyShapeTest extends TestCase
         new SpiralGalaxyShape(...$parameters);
     }
 
+    public function testRoundTripsThroughArray(): void
+    {
+        $shape = new SpiralGalaxyShape(arms: 6, armTightness: 1.5, armWidth: 0.3, coreRadius: 900.0, diskScale: 4_000.0, interArmDensity: 0.1);
+
+        self::assertEquals($shape, SpiralGalaxyShape::fromArray($shape->toArray()));
+    }
+
     /** Angle de la première branche (rotation nulle) au rayon donné */
     private function armAngle(SpiralGalaxyShape $shape, float $radius): float
     {

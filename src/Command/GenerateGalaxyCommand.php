@@ -4,20 +4,19 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Entity\Galaxy;
+use App\Entity\GalaxyGeneration;
+use App\Exception\Universe\GalaxyNumberTaken;
 use App\Model\Universe\SpiralGalaxyShape;
-use App\Repository\GalaxyRepository;
 use App\Repository\GalaxyShapeTemplateRepository;
-use App\Service\Universe\GalaxyGenerator;
-use App\Service\Universe\SystemPlacer;
-use Doctrine\ORM\EntityManagerInterface;
+use App\Service\Universe\GalaxyCreator;
+use Random\Randomizer;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
- * Génère une galaxie et l'ajoute à l'univers, sans toucher aux galaxies existantes (§2.1).
+ * Génère une galaxie et l'ajoute à l'univers (GalaxyCreator, partagé avec le panneau d'administration).
  * La graine est affichée : la relancer avec --seed reproduit exactement la même galaxie.
  *
  * @see §5.5 du cahier des charges
@@ -26,10 +25,9 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 final readonly class GenerateGalaxyCommand
 {
     public function __construct(
-        private GalaxyGenerator $generator,
-        private GalaxyRepository $galaxies,
+        private GalaxyCreator $creator,
         private GalaxyShapeTemplateRepository $templates,
-        private EntityManagerInterface $entityManager,
+        private Randomizer $randomizer,
     ) {}
 
     public function __invoke(
@@ -47,13 +45,6 @@ final readonly class GenerateGalaxyCommand
         #[Option('Nom d\'un gabarit de forme du panneau d\'administration (remplace --arms)')]
         ?string $template = null,
     ): int {
-        $number ??= $this->galaxies->nextNumber();
-        if ($this->galaxies->numberExists($number)) {
-            $io->error(\sprintf('La galaxie n°%d existe déjà.', $number));
-
-            return Command::FAILURE;
-        }
-
         $shapeTemplate = null;
         if (null !== $template) {
             $shapeTemplate = $this->templates->findOneByName($template);
@@ -64,32 +55,28 @@ final readonly class GenerateGalaxyCommand
             }
         }
 
-        $seed ??= random_int(1, 2_147_483_647);
+        $seed ??= $this->randomizer->getInt(1, GalaxyGeneration::MAX_SEED);
         $start = hrtime(true);
 
         try {
-            $galaxy = $this->generator->generate(
-                $number,
-                $name ?? \sprintf('Galaxie %d', $number),
-                $seed,
-                $shapeTemplate?->toShape() ?? new SpiralGalaxyShape(arms: $arms),
-                $systems,
-                SystemPlacer::DEFAULT_MIN_DISTANCE,
-            );
+            $created = $this->creator->create($number, $name, $seed, $shapeTemplate?->toShape() ?? new SpiralGalaxyShape(arms: $arms), $systems);
+        } catch (GalaxyNumberTaken $exception) {
+            $io->error($exception->getMessage());
+
+            return Command::FAILURE;
         } catch (\InvalidArgumentException $exception) {
             $io->error($exception->getMessage());
 
             return Command::INVALID;
         }
 
-        $planets = $this->persist($galaxy);
-
+        $galaxy = $created->galaxy;
         $io->success(\sprintf('Galaxie n°%d « %s » générée.', $galaxy->getNumber(), $galaxy->getName()));
         $io->definitionList(
             ['Graine' => (string) $seed],
-            ['Systèmes' => (string) $galaxy->getSystems()->count()],
-            ['Planètes' => (string) $planets],
-            ['Rayon' => \sprintf('%.0f', $this->radius($galaxy))],
+            ['Systèmes' => (string) $created->systems],
+            ['Planètes' => (string) $created->planets],
+            ['Rayon' => \sprintf('%.0f', $created->radius)],
             ['Durée' => \sprintf('%.1f s', (hrtime(true) - $start) / 1e9)],
         );
         $io->note(\sprintf(
@@ -102,32 +89,5 @@ final readonly class GenerateGalaxyCommand
         ));
 
         return Command::SUCCESS;
-    }
-
-    /** @return int nombre de planètes enregistrées */
-    private function persist(Galaxy $galaxy): int
-    {
-        $planets = 0;
-        $this->entityManager->persist($galaxy);
-        foreach ($galaxy->getSystems() as $system) {
-            $this->entityManager->persist($system);
-            foreach ($system->getPlanets() as $planet) {
-                $this->entityManager->persist($planet);
-                ++$planets;
-            }
-        }
-        $this->entityManager->flush();
-
-        return $planets;
-    }
-
-    private function radius(Galaxy $galaxy): float
-    {
-        $radius = 0.0;
-        foreach ($galaxy->getSystems() as $system) {
-            $radius = max($radius, $system->getPosition()->distanceFromCenter());
-        }
-
-        return $radius;
     }
 }

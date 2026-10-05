@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Universe;
 
+use App\Entity\GlobalPosition;
 use App\Model\Universe\SpiralGalaxyShape;
 use Random\Engine\Mt19937;
 use Random\Randomizer;
@@ -22,13 +23,39 @@ final readonly class GalaxyPreview
     ) {}
 
     /**
+     * Aperçu d'une forme : systèmes placés par l'algorithme de génération avec une graine fixe.
+     *
      * @return list<array{x: float, y: float, r: float, color: string}>
      */
     public function stars(SpiralGalaxyShape $shape, int $systems = 700, int $seed = 7): array
     {
         $randomizer = new Randomizer(new Mt19937($seed));
-        $positions = $this->systemPlacer->place($shape, $systems, SystemPlacer::DEFAULT_MIN_DISTANCE, $randomizer);
-        $extent = max(1.0, ...array_map(static fn($p): float => $p->distanceFromCenter(), $positions));
+
+        return $this->draw($this->systemPlacer->place($shape, $systems, SystemPlacer::DEFAULT_MIN_DISTANCE, $randomizer), $randomizer);
+    }
+
+    /**
+     * Aperçu d'une galaxie existante, à partir des positions de ses systèmes.
+     *
+     * @param list<GlobalPosition> $positions
+     *
+     * @return list<array{x: float, y: float, r: float, color: string}>
+     */
+    public function galaxy(array $positions, int $seed = 7): array
+    {
+        return $this->draw($positions, new Randomizer(new Mt19937($seed)));
+    }
+
+    /**
+     * Ramène les positions dans la boîte SVG ; l'éclat de chaque système est tiré au hasard.
+     *
+     * @param list<GlobalPosition> $positions
+     *
+     * @return list<array{x: float, y: float, r: float, color: string}>
+     */
+    private function draw(array $positions, Randomizer $randomizer): array
+    {
+        $extent = max(1.0, ...array_map(static fn(GlobalPosition $p): float => $p->distanceFromCenter(), $positions));
 
         $stars = [];
         foreach ($positions as $position) {

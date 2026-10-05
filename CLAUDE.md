@@ -23,7 +23,7 @@ Docker Compose (`compose.yaml`, image PHP construite depuis le `Dockerfile`, cib
 | `redis` | Redis 8 | — |
 | `mercure` | Hub Mercure | http://localhost:3100 (`MERCURE_PORT`) |
 | `mailer` | Mailpit (SMTP + interface) | http://localhost:8125 (`MAILPIT_PORT`) |
-| `worker` | Consomme la file Messenger `async` (e-mails…) ; `docker compose restart worker` après une modification du code | — |
+| `worker` | Consomme la file Messenger `async` (e-mails, générations de galaxie…), sans mode débogage comme en production ; `docker compose restart worker` après une modification du code | — |
 
 **Mercure** : hub v1, protocole 1.0. Les JWT suivent la RFC 9068 (`iss`, `sub`, `client_id`, `aud`, `exp`) ; l'émetteur `MERCURE_JWT_ISSUER` doit figurer dans `MERCURE_TRUSTED_ISSUERS` du hub, et l'audience est l'URL publique, épinglée par `resource_identifier`. Un abonnement utilise le paramètre `match` (plus `topic`). En test, `MockHub` partout sauf `tests/Integration/MercureHubTest.php`, qui valide la configuration contre le vrai hub.
 
@@ -40,7 +40,7 @@ Tout passe par le `Makefile` (`make help`) :
 | `make stan` | PHPStan niveau 6 |
 | `make test`, `make test-unit`, `make coverage` | Tests PHPUnit |
 | `make fixtures` | Applique les migrations (`make db`) puis charge les données de développement (galaxie générée, graine 1) |
-| `docker compose exec php bin/console app:galaxy:generate` | Génère une galaxie ; `--seed` la rend reproductible, `--template="<nom>"` utilise un gabarit de forme du panneau (`--help` pour les options) |
+| `docker compose exec php bin/console app:galaxy:generate` | Génère une galaxie ; `--seed` la rend reproductible, `--template="<nom>"` utilise un gabarit de forme du panneau (`--help` pour les options). Même service (`GalaxyCreator`) que la génération depuis le panneau (`/admin/generations`, exécutée par le `worker`) |
 | `docker compose exec php bin/console app:admin:create <email> [--role=…]` | Crée un compte d'administration (mot de passe demandé en saisie masquée) |
 
 **Panneau d'administration** : http://localhost:8100/admin, avec des comptes `AdminUser` distincts des joueurs (pare-feu `admin`). Les rôles sont l'enum `App\Enum\Admin\AdminRole` (`Moderator` < `GameDesigner` < `Admin` < `SuperAdmin`, valeurs `ROLE_…`) ; jamais de chaîne `'ROLE_…'` en dur, et la `role_hierarchy` de `security.yaml` suit l'ordre de l'enum (vérifié par un test). Chaque écran déclare le rôle minimal requis (§5.6.2) **sur toutes ses actions**, consultation comprise : `Actions::setPermission(Action::INDEX / DETAIL / EDIT…, AdminRole::GameDesigner->value)` et `MenuItem::setPermission()`. `Crud::setEntityPermission()` ne fait que filtrer les lignes affichées, il n'interdit pas la page. Une action personnalisée (méthode du contrôleur CRUD) n'est **pas** protégée par `setPermission()` : elle appelle elle-même `denyAccessUnlessGranted()`, n'accepte que POST et vérifie l'origine. Un test fonctionnel vérifie le refus (403) pour le rôle juste en dessous.

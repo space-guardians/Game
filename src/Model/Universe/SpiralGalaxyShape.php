@@ -43,6 +43,29 @@ final readonly class SpiralGalaxyShape
     }
 
     /**
+     * Paramètres de la forme, pour la conserver avec une demande de génération (rejouable même si le gabarit change).
+     *
+     * @return array{arms: int, armTightness: float, armWidth: float, coreRadius: float, diskScale: float, interArmDensity: float}
+     */
+    public function toArray(): array
+    {
+        return [
+            'arms' => $this->arms,
+            'armTightness' => $this->armTightness,
+            'armWidth' => $this->armWidth,
+            'coreRadius' => $this->coreRadius,
+            'diskScale' => $this->diskScale,
+            'interArmDensity' => $this->interArmDensity,
+        ];
+    }
+
+    /** @param array{arms: int, armTightness: float, armWidth: float, coreRadius: float, diskScale: float, interArmDensity: float} $parameters */
+    public static function fromArray(array $parameters): self
+    {
+        return new self(...$parameters);
+    }
+
+    /**
      * Densité relative, entre MIN_DENSITY et 1, au point de coordonnées polaires (rayon, angle).
      *
      * @param float $rotation orientation de la galaxie (angle de départ des branches), en radians
