@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Command;
 
-use App\Admin\AdminAccounts;
-use App\Admin\AdminRole;
+use App\Enum\Admin\AdminRole;
+use App\Service\Admin\AdminAccounts;
 use Symfony\Component\Console\Attribute\Argument;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;

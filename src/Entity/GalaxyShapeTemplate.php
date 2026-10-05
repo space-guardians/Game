@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Model\Universe\SpiralGalaxyShape;
 use App\Repository\GalaxyShapeTemplateRepository;
-use App\Universe\Generation\SpiralGalaxyShape;
 use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;

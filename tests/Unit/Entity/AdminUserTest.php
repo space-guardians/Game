@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Entity;
 
-use App\Admin\AdminRole;
 use App\Entity\AdminUser;
+use App\Enum\Admin\AdminRole;
 use PHPUnit\Framework\TestCase;
 
 final class AdminUserTest extends TestCase

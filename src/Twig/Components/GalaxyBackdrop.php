@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Twig\Components;
 
-use App\Universe\Generation\GalaxyPreview;
-use App\Universe\Generation\SpiralGalaxyShape;
+use App\Model\Universe\SpiralGalaxyShape;
+use App\Service\Universe\GalaxyPreview;
 use Symfony\Contracts\Cache\CacheInterface;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 

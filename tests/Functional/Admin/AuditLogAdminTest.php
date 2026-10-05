@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Admin;
 
-use App\Admin\AdminAudit;
-use App\Admin\AdminRole;
-use App\Admin\AuditAction;
 use App\Entity\AdminAuditLog;
 use App\Entity\AdminUser;
+use App\Enum\Admin\AdminRole;
+use App\Enum\Admin\AuditAction;
 use App\Factory\AdminUserFactory;
 use App\Factory\GalaxyFactory;
+use App\Service\Admin\AdminAudit;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Zenstruck\Foundry\Test\Factories;

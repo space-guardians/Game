@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Admin\AdminRole;
-use App\Admin\AdminTwoFactor;
 use App\Entity\AdminUser;
+use App\Enum\Admin\AdminRole;
+use App\Service\Admin\AdminTwoFactor;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Assets;

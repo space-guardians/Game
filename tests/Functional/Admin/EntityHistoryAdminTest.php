@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Admin;
 
-use App\Admin\AdminRole;
-use App\Admin\AuditAction;
 use App\Entity\AdminUser;
+use App\Enum\Admin\AdminRole;
+use App\Enum\Admin\AuditAction;
 use App\Factory\AdminUserFactory;
 use App\Factory\GalaxyFactory;
 use App\Repository\AdminAuditLogRepository;

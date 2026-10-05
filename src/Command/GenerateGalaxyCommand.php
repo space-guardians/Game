@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Entity\Galaxy;
+use App\Model\Universe\SpiralGalaxyShape;
 use App\Repository\GalaxyRepository;
 use App\Repository\GalaxyShapeTemplateRepository;
-use App\Universe\Generation\GalaxyGenerator;
-use App\Universe\Generation\SpiralGalaxyShape;
-use App\Universe\Generation\SystemPlacer;
+use App\Service\Universe\GalaxyGenerator;
+use App\Service\Universe\SystemPlacer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Attribute\Option;
