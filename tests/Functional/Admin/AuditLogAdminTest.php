@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Admin;
 
+use App\Admin\AdminAudit;
 use App\Admin\AdminRole;
 use App\Admin\AuditAction;
 use App\Entity\AdminAuditLog;
 use App\Entity\AdminUser;
 use App\Factory\AdminUserFactory;
 use App\Factory\GalaxyFactory;
-use App\Repository\AdminAuditLogRepository;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
- * Journal d'audit : alimenté par les écritures faites depuis le panneau, consultable par l'administration (§5.6.2).
+ * Journal des actions d'administration, consultable par l'administration (§5.6.2).
  */
 final class AuditLogAdminTest extends WebTestCase
 {
@@ -34,37 +34,32 @@ final class AuditLogAdminTest extends WebTestCase
     {
         $this->loginAs(AdminRole::GameDesigner);
 
-        $this->client->request('GET', '/admin/journal-audit');
+        $this->client->request('GET', '/admin/journal-actions');
         self::assertResponseStatusCodeSame(403);
         $this->client->request('GET', '/admin');
-        self::assertSelectorTextNotContains('nav', 'Journal d’audit');
+        self::assertSelectorTextNotContains('nav', 'Journal des actions');
     }
 
-    public function testEditFromPanelAppearsInJournal(): void
+    public function testRecordedActionAppearsInJournal(): void
     {
+        $admin = $this->loginAs(AdminRole::Admin, 'admin@space-guardians.local');
         $galaxy = GalaxyFactory::createOne(['number' => 1, 'name' => 'Orion']);
-        $this->loginAs(AdminRole::Admin, 'admin@space-guardians.local');
+        $entry = self::getContainer()->get(AdminAudit::class)->record(AuditAction::Generate, $galaxy, ['seed' => [null, 42]], $admin);
 
-        $this->client->request('GET', '/admin/galaxies/' . $galaxy->getId() . '/edit');
-        $this->client->submitForm('Sauvegarder les modifications', ['Galaxy[name]' => 'Bras d’Orion']);
-
-        $entries = self::getContainer()->get(AdminAuditLogRepository::class)->findBySubject('Galaxy', (string) $galaxy->getId());
-        self::assertCount(1, $entries);
-        $this->client->request('GET', '/admin/journal-audit');
+        $this->client->request('GET', '/admin/journal-actions');
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('table', 'admin@space-guardians.local');
-        self::assertSelectorTextContains('table', 'Modification');
-        self::assertSelectorTextContains('table', 'Galaxie 1 — Bras d’Orion');
+        self::assertSelectorTextContains('table', 'Génération');
+        self::assertSelectorTextContains('table', 'Galaxie 1 — Orion');
 
-        $this->client->request('GET', '/admin/journal-audit/' . $entries[0]->getId());
+        $this->client->request('GET', '/admin/journal-actions/' . $entry->getId());
         self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('.sg-admin-audit-changes', 'Orion');
-        self::assertSelectorTextContains('.sg-admin-audit-changes', 'Bras d’Orion');
+        self::assertSelectorTextContains('.sg-admin-audit-changes', '42');
 
-        $this->client->request('GET', '/admin/journal-audit', ['filters' => ['action' => ['comparison' => '=', 'value' => AuditAction::Update->value]]]);
-        self::assertSelectorTextContains('table', 'Bras d’Orion');
-        $this->client->request('GET', '/admin/journal-audit', ['filters' => ['action' => ['comparison' => '=', 'value' => AuditAction::Delete->value]]]);
-        self::assertSelectorTextNotContains('body', 'Bras d’Orion');
+        $this->client->request('GET', '/admin/journal-actions', ['filters' => ['action' => ['comparison' => '=', 'value' => AuditAction::Generate->value]]]);
+        self::assertSelectorTextContains('table', 'Galaxie 1 — Orion');
+        $this->client->request('GET', '/admin/journal-actions', ['filters' => ['action' => ['comparison' => '=', 'value' => AuditAction::Sanction->value]]]);
+        self::assertSelectorTextNotContains('body', 'Galaxie 1 — Orion');
     }
 
     public function testJournalIsReadOnly(): void
@@ -75,12 +70,12 @@ final class AuditLogAdminTest extends WebTestCase
         $entityManager->persist($entry);
         $entityManager->flush();
 
-        $crawler = $this->client->request('GET', '/admin/journal-audit');
+        $crawler = $this->client->request('GET', '/admin/journal-actions');
         self::assertCount(0, $crawler->filter('a[href*="/edit"], a[href$="/new"], form[action*="/delete"]'));
 
-        $this->client->request('GET', '/admin/journal-audit/' . $entry->getId() . '/edit');
+        $this->client->request('GET', '/admin/journal-actions/' . $entry->getId() . '/edit');
         self::assertResponseStatusCodeSame(403);
-        $this->client->request('POST', '/admin/journal-audit/' . $entry->getId() . '/delete');
+        $this->client->request('POST', '/admin/journal-actions/' . $entry->getId() . '/delete');
         self::assertResponseStatusCodeSame(403);
     }
 

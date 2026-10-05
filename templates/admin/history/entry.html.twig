@@ -1,0 +1,74 @@
+{# Détail d'une entrée de l'historique : valeurs avant/après et autres modifications de la même transaction #}
+{% extends '@EasyAdmin/page/content.html.twig' %}
+{% import 'admin/history/_macros.html.twig' as history %}
+
+{# Une suppression n'enregistre que le résumé de l'objet ; les autres opérations le placent sous « @source » #}
+{% set removed = entry.type == 'remove' %}
+{% set source = removed ? entry.diffs : entry.getDiffs(true)['@source'] ?? null %}
+{% set title = (types[entry.type] ?? entry.type) ~ ' — ' ~ (source.label ?? audited.label ~ ' #' ~ entry.objectId) %}
+
+{% block page_title title %}
+{% block content_title title %}
+
+{% block main %}
+    <p><a href="{{ path('admin_entity_history_list', {entity: audited.key, objet: entry.objectId}) }}">← Historique de cet objet</a></p>
+
+    <dl class="sg-admin-history-meta">
+        <dt>Date</dt>
+        <dd>{{ entry.createdAt|date('d/m/Y H:i:s') }} (UTC)</dd>
+        <dt>Entité</dt>
+        <dd>{{ audited.label }} #{{ entry.objectId }}</dd>
+        <dt>Auteur</dt>
+        <dd>{{ history.author(entry) }}</dd>
+        <dt>Adresse IP</dt>
+        <dd>{{ entry.ip ?? '—' }}</dd>
+        <dt>Transaction</dt>
+        <dd><code>{{ entry.transactionHash ?? '—' }}</code></dd>
+    </dl>
+
+    {% set diffs = entry.diffs %}
+    <h2 class="h5">Valeurs avant / après</h2>
+    {% if removed %}
+        <p>Objet supprimé : <code>{{ source.label ?? audited.label ~ ' #' ~ entry.objectId }}</code></p>
+    {% elseif diffs is empty %}
+        <p class="text-muted">Aucune valeur de champ enregistrée.</p>
+    {% else %}
+        <table class="table sg-admin-audit-changes">
+            <thead>
+                <tr>
+                    <th scope="col">Champ</th>
+                    <th scope="col">Avant</th>
+                    <th scope="col">Après</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for field, change in diffs %}
+                    <tr>
+                        <th scope="row">{{ field }}</th>
+                        {% if change is iterable and (change.old is defined or change.new is defined) %}
+                            <td>{{ history.value(change.old ?? null) }}</td>
+                            <td>{{ history.value(change.new ?? null) }}</td>
+                        {% else %}
+                            <td colspan="2">{{ history.value(change) }}</td>
+                        {% endif %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% endif %}
+
+    {% if transaction|length > 1 %}
+        <h2 class="h5">Dans la même transaction</h2>
+        <ul>
+            {% for item in transaction %}
+                {% if item.entity.key != audited.key or item.entry.id != entry.id %}
+                    <li>
+                        <a href="{{ path('admin_entity_history_entry', {entity: item.entity.key, id: item.entry.id}) }}">
+                            {{ types[item.entry.type] ?? item.entry.type }} — {{ item.entity.label }} #{{ item.entry.objectId }}
+                        </a>
+                    </li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endblock %}

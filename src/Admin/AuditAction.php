@@ -8,24 +8,21 @@ use Symfony\Contracts\Translation\TranslatableInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * Nature d'une action d'administration enregistrée dans le journal d'audit (§5.6.2).
+ * Nature d'une action enregistrée dans le journal des actions d'administration (§5.6.2). Les créations,
+ * modifications et suppressions de données n'y figurent pas : elles sont dans l'historique (§5.6.3).
  */
 enum AuditAction: string implements TranslatableInterface
 {
-    case Create = 'create';
-    case Update = 'update';
-    case Delete = 'delete';
     case Generate = 'generate';
     case Sanction = 'sanction';
+    case ResetTwoFactor = 'reset_two_factor';
 
     public function label(): string
     {
         return match ($this) {
-            self::Create => 'Création',
-            self::Update => 'Modification',
-            self::Delete => 'Suppression',
             self::Generate => 'Génération',
             self::Sanction => 'Sanction',
+            self::ResetTwoFactor => 'Réinitialisation de la double authentification',
         };
     }
 

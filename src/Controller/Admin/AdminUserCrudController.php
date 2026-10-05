@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
+use App\Admin\AdminAudit;
 use App\Admin\AdminRole;
 use App\Admin\AdminTwoFactor;
+use App\Admin\AuditAction;
 use App\Entity\AdminUser;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
@@ -36,9 +38,12 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 #[AdminRoute(path: '/comptes', name: 'account')]
 final class AdminUserCrudController extends AbstractCrudController
 {
+    use HistoryActionTrait;
+
     public function __construct(
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly AdminTwoFactor $twoFactor,
+        private readonly AdminAudit $audit,
         private readonly ClockInterface $clock,
     ) {}
 
@@ -87,7 +92,7 @@ final class AdminUserCrudController extends AbstractCrudController
             $actions->setPermission($action, AdminRole::SuperAdmin->value);
         }
 
-        return $actions;
+        return $this->addHistoryAction($actions, 'admin_user');
     }
 
     public function configureFields(string $pageName): iterable
@@ -144,6 +149,7 @@ final class AdminUserCrudController extends AbstractCrudController
         $this->denyOwnAccount($admin);
 
         $this->twoFactor->reset($admin);
+        $this->audit->record(AuditAction::ResetTwoFactor, $admin);
         $this->addFlash('success', \sprintf('Double authentification réinitialisée pour %s.', $admin->getEmail()));
 
         return $this->redirect($urlGenerator->setController(self::class)->setAction(Action::INDEX)->generateUrl());
