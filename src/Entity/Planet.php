@@ -144,6 +144,16 @@ final class Planet
         $ships->setQuantity($ships->getQuantity() + $quantity);
     }
 
+    /** Retire des vaisseaux de l'inventaire (constitution d'une flotte, pertes…) */
+    public function removeShips(ShipType $type, int $quantity): void
+    {
+        $available = $this->shipCount($type);
+        if ($quantity < 0 || $quantity > $available) {
+            throw new \InvalidArgumentException(\sprintf('Impossible de retirer %d × %s : %d disponible(s).', $quantity, $type->getName(), $available));
+        }
+        $this->findShips($type)?->setQuantity($available - $quantity);
+    }
+
     private function findShips(ShipType $type): ?PlanetShip
     {
         return $this->ships->findFirst(static fn(int $key, PlanetShip $ships): bool => $ships->getType() === $type);

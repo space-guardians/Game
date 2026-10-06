@@ -1240,3 +1240,53 @@ a:hover {
 .sg-entity__order .sg-input {
     width: 7em;
 }
+
+/* Écran Flotte : formulaire de constitution, liste des flottes */
+.sg-fleet-form .sg-input[type="number"] {
+    width: 7em;
+}
+
+.sg-fleet-form__footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-end;
+    margin-top: 12px;
+}
+
+.sg-fleets {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sg-fleet {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    background: var(--sg-panel-raised);
+    border: 1px solid var(--sg-line-strong);
+}
+
+.sg-fleet__header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sg-fleet__name {
+    margin: 0;
+    font-family: var(--sg-font-display);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sg-fleet__ships {
+    margin: 0;
+    font-size: 13px;
+}

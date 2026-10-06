@@ -8,6 +8,8 @@ use App\Entity\AdminUser;
 use App\Entity\BuildingQueueItem;
 use App\Entity\BuildingType;
 use App\Entity\Empire;
+use App\Entity\Fleet;
+use App\Entity\FleetShip;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
 use App\Entity\PlanetBuilding;
@@ -50,6 +52,8 @@ final readonly class EntityHistory
         BuildingQueueItem::class => 'Constructions en cours',
         BuildingType::class => 'Types de bâtiments',
         Empire::class => 'Empires',
+        Fleet::class => 'Flottes',
+        FleetShip::class => 'Vaisseaux des flottes',
         Galaxy::class => 'Galaxies',
         GalaxyShapeTemplate::class => 'Gabarits de forme',
         PlanetBuilding::class => 'Bâtiments des planètes',

@@ -1,0 +1,84 @@
+{# Écran « Flotte » (§4.5) : hangar de la planète active, constitution d'une flotte, flottes de l'empire #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Flotte — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · <span class="sg-mono">{{ planet }}</span>{% endblock %}
+{% block heading %}Flotte{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="hangar-title">
+        <h2 id="hangar-title" class="sg-section-title">Hangar de la planète</h2>
+        {% if hangar is empty %}
+            <p class="sg-empty">Aucun vaisseau en attente sur cette planète. <a href="{{ path('app_shipyard') }}">Commander des vaisseaux au chantier spatial</a></p>
+        {% else %}
+            <form method="post" action="{{ path('app_fleet_assemble') }}" class="sg-fleet-form">
+                <input type="hidden" name="_token" value="{{ csrf_token('assemble-fleet') }}">
+                <table class="sg-table" id="hangar">
+                    <thead>
+                        <tr>
+                            <th scope="col">Vaisseau</th>
+                            <th scope="col">Classe</th>
+                            <th scope="col" class="sg-num">Au hangar</th>
+                            <th scope="col" class="sg-num">Dans la flotte</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in hangar %}
+                            {% set type = row.type %}
+                            <tr>
+                                <td><label for="flotte-{{ type.code }}">{{ type.name }}</label></td>
+                                <td>{{ type.shipClass.name ?? type.category.label }}</td>
+                                <td class="sg-num sg-mono">{{ row.count|format_number }}</td>
+                                <td class="sg-num">
+                                    <input class="sg-input sg-mono" type="number" id="flotte-{{ type.code }}" name="ships[{{ type.code }}]" min="0" max="{{ row.count }}" placeholder="0">
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div class="sg-fleet-form__footer">
+                    <div class="sg-field">
+                        <label class="sg-field__label" for="nom-flotte">Nom de la flotte</label>
+                        <input class="sg-input" type="text" id="nom-flotte" name="name" maxlength="{{ name_max_length }}" placeholder="Flotte {{ fleets|length + 1 }}">
+                    </div>
+                    <twig:Btn type="submit" label="Constituer la flotte" variant="primary" size="sm"/>
+                </div>
+                <p class="sg-field__help">Les vaisseaux choisis quittent le hangar pour former une flotte stationnée sur cette planète.</p>
+            </form>
+        {% endif %}
+    </section>
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="fleets-title">
+        <h2 id="fleets-title" class="sg-section-title">Flottes de l’empire</h2>
+        {% if fleets is empty %}
+            <p class="sg-empty">Aucune flotte constituée.</p>
+        {% else %}
+            <ul class="sg-fleets" id="flottes">
+                {% for fleet in fleets %}
+                    <li class="sg-fleet sg-cut-10">
+                        <header class="sg-fleet__header">
+                            <h3 class="sg-fleet__name">{{ fleet.name }}</h3>
+                            <twig:Chip label="Stationnée" tone="neutral" dot/>
+                        </header>
+                        <p class="sg-entity__meta">
+                            Sur <span class="sg-mono">{{ fleet.planet }}</span>
+                            · {{ fleet.shipCount|format_number }} vaisseau(x)
+                            · Cargo <span class="sg-mono">{{ fleet.cargo|format_number }}</span>
+                            · Vitesse <span class="sg-mono">{{ fleet.slowestSpeed|format_number }}</span>
+                        </p>
+                        <p class="sg-fleet__ships">
+                            {% for ships in fleet.ships %}
+                                <span class="sg-mono">{{ ships.quantity|format_number }} × {{ ships.type.name }}</span>{{ not loop.last ? ',' }}
+                            {% endfor %}
+                        </p>
+                        <form method="post" action="{{ path('app_fleet_disband', {id: fleet.id}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('disband-fleet-' ~ fleet.id) }}">
+                            <twig:Btn type="submit" label="Dissoudre" variant="ghost" size="sm"/>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <p class="sg-field__help">Dissoudre une flotte rend ses vaisseaux au hangar de sa planète. Les déplacements et les ordres arrivent avec la suite d’ordres de flotte.</p>
+    </section>
+{% endblock %}
