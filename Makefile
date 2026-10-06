@@ -82,7 +82,7 @@ db: ## Applique les migrations à la base de développement
 	$(CONSOLE) doctrine:migrations:migrate --no-interaction --allow-no-migration
 
 # Contenu de jeu installé par les migrations (types de bâtiments…) : conservé lors du chargement des fixtures
-CONTENT_TABLES = building_type technology prerequisite
+CONTENT_TABLES = building_type technology prerequisite ship_class ship_type
 
 fixtures: db ## Charge les fixtures de développement (migrations comprises)
 	$(CONSOLE) doctrine:fixtures:load --no-interaction $(addprefix --purge-exclusions=,$(CONTENT_TABLES))
