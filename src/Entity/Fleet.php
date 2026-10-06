@@ -44,6 +44,10 @@ final class Fleet implements \Stringable
     #[ORM\Column(length: 20, enumType: FleetStatus::class)]
     private FleetStatus $status = FleetStatus::Stationed;
 
+    /** Formation de combat (§4.7) ; créée avec la flotte, ou à la première consultation pour les plus anciennes */
+    #[ORM\OneToOne(targetEntity: Formation::class, mappedBy: 'fleet', cascade: ['persist', 'remove'])]
+    private ?Formation $formation = null;
+
     /** Planète où la flotte est stationnée ; null en vol ou hors planète */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
@@ -98,6 +102,35 @@ final class Fleet implements \Stringable
     public function getPlanet(): ?Planet
     {
         return $this->planet;
+    }
+
+    public function getFormation(): ?Formation
+    {
+        return $this->formation;
+    }
+
+    public function setFormation(Formation $formation): void
+    {
+        if ($formation->getFleet() !== $this) {
+            throw new \InvalidArgumentException('Cette formation est celle d’une autre flotte.');
+        }
+        $this->formation = $formation;
+    }
+
+    /**
+     * Vaisseaux de la flotte, par code de type.
+     *
+     * @return array<string, int>
+     */
+    public function shipCounts(): array
+    {
+        $counts = [];
+        foreach ($this->ships as $ships) {
+            $code = $ships->getType()->getCode();
+            $counts[$code] = ($counts[$code] ?? 0) + $ships->getQuantity();
+        }
+
+        return $counts;
     }
 
     public function getStatus(): FleetStatus

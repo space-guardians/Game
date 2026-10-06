@@ -6,9 +6,13 @@ namespace App\Controller;
 
 use App\Entity\Fleet;
 use App\Enum\Fleet\FleetAction;
+use App\Enum\Fleet\FormationColumn;
+use App\Enum\Fleet\FormationRow;
 use App\Exception\Fleet\InvalidFleetComposition;
 use App\Exception\Fleet\InvalidFleetMission;
+use App\Exception\Fleet\InvalidFormation;
 use App\Model\Economy\Resources;
+use App\Model\Fleet\FormationCell;
 use App\Model\Fleet\MissionStep;
 use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
@@ -17,6 +21,7 @@ use App\Service\Account\GameContext;
 use App\Service\Fleet\DestinationResolver;
 use App\Service\Fleet\FleetAssembly;
 use App\Service\Fleet\FleetDispatch;
+use App\Service\Fleet\Formations;
 use App\Service\Fleet\TravelRules;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -26,7 +31,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Écran « Flotte » (§4.5, §4.6) : hangar de la planète active (vaisseaux en inventaire), constitution d'une flotte,
- * flottes de l'empire avec leur carnet d'ordres et leur déplacement en cours, envoi en mission, dissolution.
+ * flottes de l'empire avec leur carnet d'ordres et leur déplacement en cours, formation, envoi en mission, dissolution.
  */
 final class FleetController extends AbstractController
 {
@@ -39,6 +44,7 @@ final class FleetController extends AbstractController
         private readonly FleetDispatch $dispatch,
         private readonly DestinationResolver $destinations,
         private readonly ClockInterface $clock,
+        private readonly Formations $formations,
     ) {}
 
     /** Ordres proposés dans le formulaire d'envoi ; le dernier suggère le retour au point de départ (§4.6) */
@@ -176,6 +182,74 @@ final class FleetController extends AbstractController
             'stock' => $fleet->isAtHome() ? $this->context->activeResources()?->amounts : null,
             'submitted' => $request->request->all(),
         ], new Response(status: $request->isMethod('POST') ? 422 : 200));
+    }
+
+    /** Formation de combat (§4.7) : répartition des vaisseaux sur la grille, réglable tant que la flotte est stationnée */
+    #[Route('/flotte/{id}/formation', name: 'app_fleet_formation', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
+    public function formation(Fleet $fleet, Request $request): Response
+    {
+        $empire = $this->context->empire();
+        if (null === $empire || $fleet->getEmpire() !== $empire) {
+            throw $this->createNotFoundException('Flotte introuvable.');
+        }
+        $formation = $this->formations->of($fleet);
+        $failed = false;
+
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('formation-' . $fleet->getId(), $request->request->getString('_token'))) {
+                $this->addFlash('error', 'La page a expiré : recommencez.');
+
+                return $this->redirectToRoute('app_fleet_formation', ['id' => $fleet->getId()]);
+            }
+            try {
+                $this->formations->arrange($fleet, $this->cells($request->request->all('cells')));
+                $this->addFlash('success', \sprintf('Formation de « %s » enregistrée.', $fleet->getName()));
+
+                return $this->redirectToRoute('app_fleet_formation', ['id' => $fleet->getId()]);
+            } catch (InvalidFormation $exception) {
+                $failed = true;
+                foreach ($exception->violations as $violation) {
+                    $this->addFlash('error', $violation);
+                }
+            }
+        }
+
+        return $this->render('fleet/formation.html.twig', [
+            'empire' => $empire,
+            'planet' => $empire->getActivePlanet(),
+            'fleet' => $fleet,
+            'formation' => $formation,
+            'rows' => FormationRow::cases(),
+            'columns' => FormationColumn::cases(),
+            'submitted' => $failed ? $request->request->all('cells') : null,
+        ], new Response(status: $failed ? 422 : 200));
+    }
+
+    /**
+     * Cases saisies : cells[code][ligne-colonne] = nombre.
+     *
+     * @param array<mixed> $input
+     *
+     * @return list<FormationCell>
+     */
+    private function cells(array $input): array
+    {
+        $cells = [];
+        foreach ($input as $ship => $byCell) {
+            if (!\is_array($byCell)) {
+                continue;
+            }
+            foreach (FormationRow::cases() as $row) {
+                foreach (FormationColumn::cases() as $column) {
+                    $quantity = (int) ($byCell[$row->value . '-' . $column->value] ?? 0);
+                    if (0 !== $quantity) {
+                        $cells[] = new FormationCell($row, $column, (string) $ship, $quantity);
+                    }
+                }
+            }
+        }
+
+        return $cells;
     }
 
     /**

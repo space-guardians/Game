@@ -31,6 +31,7 @@ final readonly class FleetAssembly
         private LockFactory $lockFactory,
         private ClockInterface $clock,
         private PlanetResources $resources,
+        private Formations $formations,
     ) {}
 
     /**
@@ -80,6 +81,7 @@ final readonly class FleetAssembly
                     $fleet->addShips($type, $quantity);
                 }
                 $this->entityManager->persist($fleet);
+                $this->formations->createDefault($fleet);
                 $this->entityManager->flush();
 
                 return $fleet;
