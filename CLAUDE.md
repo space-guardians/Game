@@ -72,6 +72,7 @@ Historique des données (`/admin/historique`, rôle `Admin`, §5.6.3) : `damienh
 - Textes de l'interface rédigés directement en français (langue par défaut `fr`).
 - Twig : pas de logique métier ; style vérifié par Twig-CS-Fixer et `lint:twig`.
 - Interactions : Live Components ou contrôleurs Stimulus (`assets/controllers`). Pas de framework JS.
+- Seule exception au cadre HTML : la carte (`/carte`, §5.5), un SVG zoomable piloté par le contrôleur `galaxy_map` avec `d3-zoom` (importmap), alimenté par l'endpoint JSON de la zone visible (`GalaxyMap` : systèmes agrégés, planètes au-delà d'un zoom). Planètes et systèmes dans le même repère global que les trajectoires.
 - JS / CSS / JSON : **Biome** (lint + format, `biome.json`).
 
 ### Autres

@@ -1382,3 +1382,99 @@ a:hover {
 .sg-formation-form .sg-table .sg-input {
     width: 5em;
 }
+
+/* Carte (§2.3, §5.5) : SVG zoomable ; repères à taille constante, le monde suit le zoom */
+.sg-map__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sg-map__galaxies {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.sg-map__canvas {
+    display: block;
+    width: 100%;
+    height: min(70vh, 720px);
+    background: radial-gradient(circle at 50% 50%, #131a33 0%, #0b1020 45%, #060912 100%);
+    cursor: grab;
+    touch-action: none;
+}
+
+.sg-map__canvas:active {
+    cursor: grabbing;
+}
+
+.sg-map__system {
+    fill: var(--sg-text-3);
+    cursor: pointer;
+}
+
+.sg-map__system.is-occupied {
+    fill: var(--sg-cyan);
+}
+
+.sg-map__system.is-mine {
+    fill: var(--sg-gold);
+}
+
+.sg-map__edge {
+    fill: none;
+    stroke: var(--sg-line-strong);
+    stroke-dasharray: 4 4;
+    vector-effect: non-scaling-stroke;
+}
+
+.sg-map__planet {
+    fill: var(--sg-text-3);
+    stroke: var(--sg-panel);
+    vector-effect: non-scaling-stroke;
+    cursor: pointer;
+}
+
+.sg-map__planet.is-occupied {
+    fill: var(--sg-cyan);
+}
+
+.sg-map__planet.is-mine {
+    fill: var(--sg-gold);
+}
+
+.sg-map__info {
+    margin: 8px 0 0;
+    min-height: 1.4em;
+}
+
+.sg-map__legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin: 8px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 12px;
+    color: var(--sg-text-3);
+}
+
+.sg-map__swatch {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    margin-right: 4px;
+    border-radius: 50%;
+    background: var(--sg-text-3);
+}
+
+.sg-map__swatch.is-occupied {
+    background: var(--sg-cyan);
+}
+
+.sg-map__swatch.is-mine {
+    background: var(--sg-gold);
+}

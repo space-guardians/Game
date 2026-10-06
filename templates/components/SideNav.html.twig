@@ -31,6 +31,12 @@
                 Flotte
             </a>
         </li>
+        <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_map' ? ' is-active' }}" href="{{ path('app_map') }}"{% if current starts with 'app_map' %} aria-current="page"{% endif %}>
+                <twig:Icon name="planet" size="18"/>
+                Carte
+            </a>
+        </li>
     </ul>
 
     {% if this.empire %}
