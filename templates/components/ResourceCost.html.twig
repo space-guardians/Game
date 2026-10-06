@@ -1,0 +1,15 @@
+{# Coût en ressources (charte §8) : une valeur par ressource non nulle ; ce qui manque est en rouge #}
+{% props cost, missing = null %}
+<ul {{ attributes.defaults({class: 'sg-cost'}) }}>
+    {% for kind, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+        {% set amount = attribute(cost, kind) %}
+        {% if amount > 0 %}
+            {% set short = missing is not null and attribute(missing, kind) > 0 %}
+            <li class="sg-cost__item{{ short ? ' is-short' }}">
+                <span class="sg-dot sg-dot--{{ kind }}" aria-hidden="true"></span>
+                <span class="sg-mono">{{ amount|round|format_number }}</span>
+                <span class="sg-cost__label">{{ label }}{% if short %} (manque {{ attribute(missing, kind)|round(0, 'ceil')|format_number }}){% endif %}</span>
+            </li>
+        {% endif %}
+    {% endfor %}
+</ul>

@@ -14,11 +14,13 @@ use App\Model\Economy\Resources;
  * - coût du niveau n : coût de base × facteur^(n − 1) ;
  * - production et énergie : base × n × croissance^n, modulées par la température ;
  * - consommations (énergie des mines, deutérium de la fusion) : base × n × 1,1^n ;
- * - stockage : base × ⌊2,5 × e^(20n / 33)⌋ (10 000 au niveau 0 pour une base de 5 000).
+ * - stockage : base × ⌊2,5 × e^(20n / 33)⌋ (10 000 au niveau 0 pour une base de 5 000) ;
+ * - durée de construction (heures) : (métal + cristal) / (2 500 × (1 + robots) × 2^nanites) / vitesse d'univers.
  */
 final class BuildingRules
 {
     private const float CONSUMPTION_GROWTH = 1.1;
+    private const float CONSTRUCTION_DIVISOR = 2500.0;
 
     public function cost(BuildingType $type, int $level): Resources
     {
@@ -59,6 +61,14 @@ final class BuildingRules
         }
 
         return $type->getEffectBase() * floor(2.5 * exp(20 * max(0, $level) / 33));
+    }
+
+    /** Durée de construction en secondes (au moins une), selon le coût et les usines de la planète */
+    public function constructionSeconds(Resources $cost, int $robotFactoryLevel, int $naniteFactoryLevel, float $universeSpeed): int
+    {
+        $hours = ($cost->metal + $cost->crystal) / (self::CONSTRUCTION_DIVISOR * (1 + $robotFactoryLevel) * 2 ** $naniteFactoryLevel) / $universeSpeed;
+
+        return max(1, (int) ceil($hours * 3600));
     }
 
     private function consumption(float $base, int $level): float

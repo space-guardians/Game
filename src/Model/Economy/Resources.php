@@ -30,6 +30,23 @@ final readonly class Resources
         return new self($this->metal + $other->metal, $this->crystal + $other->crystal, $this->deuterium + $other->deuterium);
     }
 
+    /** @throws \InvalidArgumentException si une ressource manque */
+    public function minus(self $other): self
+    {
+        return new self($this->metal - $other->metal, $this->crystal - $other->crystal, $this->deuterium - $other->deuterium);
+    }
+
+    public function covers(self $cost): bool
+    {
+        return $this->metal >= $cost->metal && $this->crystal >= $cost->crystal && $this->deuterium >= $cost->deuterium;
+    }
+
+    /** Ce qui manque pour payer le coût (0 pour une ressource suffisante) */
+    public function shortfall(self $cost): self
+    {
+        return new self(max(0.0, $cost->metal - $this->metal), max(0.0, $cost->crystal - $this->crystal), max(0.0, $cost->deuterium - $this->deuterium));
+    }
+
     public function times(float $factor): self
     {
         return new self($this->metal * $factor, $this->crystal * $factor, $this->deuterium * $factor);

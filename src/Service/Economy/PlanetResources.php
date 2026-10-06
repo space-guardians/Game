@@ -24,11 +24,20 @@ final readonly class PlanetResources
         private ClockInterface $clock,
     ) {}
 
-    public function snapshot(Planet $planet): ResourceSnapshot
+    /**
+     * @param \DateTimeImmutable|null $at instant du calcul, maintenant par défaut ; un instant passé sert à appliquer
+     *                                   un changement de production à l'heure exacte où il s'est produit (fin de
+     *                                   construction résolue avec quelques secondes de retard)
+     */
+    public function snapshot(Planet $planet, ?\DateTimeImmutable $at = null): ResourceSnapshot
     {
-        $now = $this->now();
+        $now = self::toSecond($at ?? $this->clock->now());
         $output = $this->economy->output($planet);
         $updatedAt = $planet->getResourcesUpdatedAt();
+        if (null !== $updatedAt && $now < $updatedAt) {
+            // Déjà consolidé plus tard (autre action entre-temps) : ne pas faire reculer la date, rien à produire
+            $now = $updatedAt;
+        }
         $hours = null === $updatedAt ? 0.0 : ($now->getTimestamp() - $updatedAt->getTimestamp()) / 3600;
 
         return new ResourceSnapshot(
@@ -38,19 +47,17 @@ final readonly class PlanetResources
         );
     }
 
-    public function settle(Planet $planet): ResourceSnapshot
+    public function settle(Planet $planet, ?\DateTimeImmutable $at = null): ResourceSnapshot
     {
-        $snapshot = $this->snapshot($planet);
+        $snapshot = $this->snapshot($planet, $at);
         $planet->storeResources($snapshot->amounts, $snapshot->at);
 
         return $snapshot;
     }
 
     /** À la seconde, comme les dates enregistrées : aucune fraction de seconde produite deux fois */
-    private function now(): \DateTimeImmutable
+    private static function toSecond(\DateTimeImmutable $at): \DateTimeImmutable
     {
-        $now = $this->clock->now();
-
-        return $now->setTime((int) $now->format('H'), (int) $now->format('i'), (int) $now->format('s'));
+        return $at->setTime((int) $at->format('H'), (int) $at->format('i'), (int) $at->format('s'));
     }
 }

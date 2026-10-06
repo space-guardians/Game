@@ -21,6 +21,8 @@ enum BuildingEffect: string implements TranslatableInterface
     case MetalStorage = 'metal_storage';
     case CrystalStorage = 'crystal_storage';
     case DeuteriumStorage = 'deuterium_storage';
+    case RobotFactory = 'robot_factory';
+    case NaniteFactory = 'nanite_factory';
 
     public function label(): string
     {
@@ -33,6 +35,8 @@ enum BuildingEffect: string implements TranslatableInterface
             self::MetalStorage => 'Stockage de métal',
             self::CrystalStorage => 'Stockage de cristal',
             self::DeuteriumStorage => 'Stockage de deutérium',
+            self::RobotFactory => 'Vitesse de construction (robots)',
+            self::NaniteFactory => 'Vitesse de construction (nanites)',
         };
     }
 
@@ -43,7 +47,7 @@ enum BuildingEffect: string implements TranslatableInterface
             self::MetalProduction, self::MetalStorage => 'metal',
             self::CrystalProduction, self::CrystalStorage => 'crystal',
             self::DeuteriumProduction, self::DeuteriumStorage => 'deuterium',
-            self::SolarEnergy, self::FusionEnergy => null,
+            self::SolarEnergy, self::FusionEnergy, self::RobotFactory, self::NaniteFactory => null,
         };
     }
 

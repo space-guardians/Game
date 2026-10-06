@@ -1,0 +1,38 @@
+{# Écran « Bâtiments » (§5.4) : une carte par bâtiment, coût et durée du niveau suivant, lancement de la construction #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Bâtiments — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · <span class="sg-mono">{{ planet }}</span>{% endblock %}
+{% block heading %}Bâtiments{% endblock %}
+
+{% block content %}
+    {% if current %}
+        <twig:AlertBanner variant="info">
+            Construction en cours : {{ current.type.name }} niveau {{ current.targetLevel }}, fin à {{ current.endsAt|date('H:i:s') }}.
+            Une seule construction à la fois par planète.
+        </twig:AlertBanner>
+    {% endif %}
+
+    <div class="sg-entities">
+        {% for card in cards %}
+            {% set type = card.type %}
+            <twig:EntityCard name="{{ type.name }}" :level="card.level" state="{{ card.state }}" description="{{ type.description }}">
+                <h3 class="sg-entity__meta">Niveau {{ card.level + 1 }} : {{ card.duration|duration }}</h3>
+                <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
+                {% if card.state == 'building' %}
+                    <p class="sg-entity__meta">Fin à <span class="sg-mono">{{ current.endsAt|date('H:i:s') }}</span></p>
+                {% else %}
+                    <form method="post" action="{{ path('app_buildings_build', {code: type.code}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('build-' ~ type.code) }}">
+                        <twig:Btn type="submit"
+                            label="{{ current ? 'File occupée' : 'Construire niveau ' ~ (card.level + 1) }}"
+                            variant="{{ card.state == 'ready' and not current ? 'primary' : 'ghost' }}"
+                            size="sm"
+                            full
+                            :disabled="card.state != 'ready' or current is not null"/>
+                    </form>
+                {% endif %}
+            </twig:EntityCard>
+        {% endfor %}
+    </div>
+{% endblock %}

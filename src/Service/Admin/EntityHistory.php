@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\AdminUser;
+use App\Entity\BuildingQueueItem;
 use App\Entity\BuildingType;
 use App\Entity\Empire;
 use App\Entity\Galaxy;
@@ -38,6 +39,7 @@ final readonly class EntityHistory
     public const array LABELS = [
         User::class => 'Joueurs',
         AdminUser::class => 'Comptes d’administration',
+        BuildingQueueItem::class => 'Constructions en cours',
         BuildingType::class => 'Types de bâtiments',
         Empire::class => 'Empires',
         Galaxy::class => 'Galaxies',
