@@ -934,6 +934,22 @@ a:hover {
     color: var(--sg-danger);
 }
 
+/* Notifications poussées (Mercure) : en haut à droite, au-dessus du contenu */
+.sg-toasts {
+    position: fixed;
+    top: 76px;
+    right: 24px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(420px, calc(100vw - 32px));
+}
+
+.sg-toast {
+    cursor: pointer;
+}
+
 /* Élément de file (charte §8, QueueItem) : bâtiment en or */
 .sg-queue {
     display: flex;

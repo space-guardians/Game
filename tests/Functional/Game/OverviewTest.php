@@ -67,6 +67,21 @@ final class OverviewTest extends WebTestCase
         self::assertSelectorTextContains('#buildings-title + .sg-table', 'Mine de métal');
     }
 
+    public function testSubscribesToPrivateEmpireTopic(): void
+    {
+        $empire = EmpireFactory::createOne();
+        $this->client->loginUser($empire->getUser());
+
+        $crawler = $this->client->request('GET', '/');
+
+        $source = $crawler->filter('turbo-mercure-stream-source[private]');
+        self::assertCount(1, $source);
+        self::assertStringContainsString(rawurlencode('/empire/' . $empire->getId()), (string) $source->attr('src'));
+        self::assertBrowserHasCookie('mercure_access_token', '/.well-known/mercure');
+        self::assertSelectorExists('#sg-notifications[data-turbo-permanent]');
+        self::assertSelectorExists('meta[name="turbo-refresh-method"][content="morph"]');
+    }
+
     public function testSwitchesActivePlanet(): void
     {
         $empire = EmpireFactory::createOne();

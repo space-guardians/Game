@@ -1,0 +1,11 @@
+{# Fin de construction, poussée par Mercure : notification, puis rafraîchissement de la page ouverte (morphing) #}
+<turbo-stream action="append" target="sg-notifications">
+    <template>
+        <div class="sg-toast" data-controller="toast">
+            <twig:AlertBanner variant="success">
+                Construction terminée : {{ building }}{% if level %} niveau {{ level }}{% endif %} sur {{ empire.isHomePlanet(planet) ? 'la planète mère' : 'la colonie' }} <span class="sg-mono">{{ planet }}</span>.
+            </twig:AlertBanner>
+        </div>
+    </template>
+</turbo-stream>
+<turbo-stream action="refresh"></turbo-stream>

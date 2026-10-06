@@ -56,7 +56,7 @@ final class BuildingConstructionTest extends KernelTestCase
         self::assertInstanceOf(ScheduledEvent::class, $event);
         self::assertSame(BuildingCompletedHandler::TYPE, $event->getType());
         self::assertEquals($item->getEndsAt(), $event->getDueAt());
-        self::assertSame(['item' => $item->getId()], $event->getPayload());
+        self::assertSame(['item' => $item->getId(), 'building' => 'metal_mine', 'level' => 1], $event->getPayload());
     }
 
     public function testOnlyOneConstructionAtATime(): void

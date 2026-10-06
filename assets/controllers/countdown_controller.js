@@ -5,6 +5,7 @@ import { visit } from '@hotwired/turbo';
  * Compte à rebours d'un élément de file (charte §8) : temps restant au format « 2 h 14 min », barre de progression,
  * calés sur l'heure du serveur (l'horloge du navigateur peut dériver). À l'échéance, après un court délai (le temps que
  * le worker termine la construction), la page est rafraîchie par Turbo : niveaux, ressources et énergie sont à jour.
+ * Quand le flux Mercure du joueur est connecté, c'est lui qui pousse la fin : le décompte ne rafraîchit pas en double.
  */
 export default class extends Controller {
     static targets = ['remaining', 'bar'];
@@ -51,7 +52,9 @@ export default class extends Controller {
 
     finish() {
         const event = this.dispatch('finished', { cancelable: true });
-        if (!event.defaultPrevented) {
+        // Flux Mercure connecté : la fin de construction sera poussée (notification + rafraîchissement)
+        const pushed = document.querySelector('turbo-mercure-stream-source[connected]');
+        if (!event.defaultPrevented && !pushed) {
             visit(window.location.href, { action: 'replace' });
         }
     }

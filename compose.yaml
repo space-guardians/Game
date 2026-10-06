@@ -81,6 +81,7 @@ services:
       MERCURE_EXTRA_DIRECTIVES: |
         cors_origins http://localhost:${HTTP_PORT:-8100}
         resource_identifier http://localhost:${MERCURE_PORT:-3100}/.well-known/mercure
+        cookie_name ${MERCURE_COOKIE_NAME:-mercure_access_token}
     ports:
       - ${MERCURE_PORT:-3100}:80
     volumes:
