@@ -8,7 +8,9 @@ use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\Planet;
 use App\Entity\ShipType;
+use App\Entity\SpaceLocation;
 use App\Factory\EmpireFactory;
+use App\Model\Fleet\SpacePosition;
 use App\Repository\FleetRepository;
 use App\Repository\ShipTypeRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -132,6 +134,52 @@ final class FleetTest extends WebTestCase
         self::assertSelectorTextContains('#flottes .sg-fleet__orders', 'Stationner');
         self::assertSelectorTextContains('#flottes .sg-fleet__orders', 'En cours');
         self::assertSelectorNotExists('#flottes form[action$="/dissoudre"]');
+    }
+
+    public function testFleetAtSystemLevelIsSuggestedToReturnToItsSystem(): void
+    {
+        $empire = $this->login();
+        $system = $empire->getHomePlanet()->getSystem();
+        $fleet = new Fleet($empire, 'Garde du système', $empire->getHomePlanet(), new \DateTimeImmutable());
+        $fleet->addShips($this->ship('light_fighter'), 2);
+        // Stationnée au niveau du système (§4.6.2), après une mission
+        $fleet->arriveAt(SpaceLocation::of(SpacePosition::system($system)), null);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($fleet);
+        $entityManager->flush();
+
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+
+        self::assertSelectorTextContains('main', \sprintf('Stationnée en système %d:%d', $system->getGalaxy()->getNumber(), $system->getNumber()));
+        self::assertSame((string) $system->getNumber(), $crawler->filter('input[name="steps[2][system]"]')->attr('value'));
+        self::assertSame('', $crawler->filter('input[name="steps[2][position]"]')->attr('value'));
+        self::assertSame('station', $crawler->filter('select[name="steps[2][action]"] option[selected]')->attr('value'));
+    }
+
+    public function testSuggestedReturnCanBeRemoved(): void
+    {
+        $empire = $this->login();
+        $home = $empire->getHomePlanet();
+        $fleet = new Fleet($empire, 'Escadre', $home, new \DateTimeImmutable());
+        $fleet->addShips($this->ship('light_fighter'), 1);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($fleet);
+        $entityManager->flush();
+        $address = $home->getAddress();
+
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+        $this->client->submit($crawler->selectButton('Envoyer la flotte')->form([
+            'steps[0][galaxy]' => (string) $address->galaxy,
+            'steps[0][system]' => (string) $address->system,
+            'steps[0][position]' => '',
+            'steps[0][action]' => 'station',
+            'steps[2][action]' => '',
+        ]));
+
+        self::assertResponseRedirects('/flotte');
+        $this->client->followRedirect();
+        // Un seul ordre : pas de retour implicite, la flotte restera au niveau du système
+        self::assertSelectorCount(1, '#flottes .sg-fleet__order');
     }
 
     public function testUnknownCoordinatesAreRefused(): void
