@@ -148,7 +148,8 @@ final class FleetController extends AbstractController
         if (null === $empire || $fleet->getEmpire() !== $empire) {
             throw $this->createNotFoundException('Flotte introuvable.');
         }
-        $origin = $fleet->getPlanet()?->getAddress();
+        // Point de départ : planète, ou système entier pour une flotte stationnée au niveau d'un système (§4.6.2)
+        $origin = $this->destinations->coordinatesOf($fleet->getLocation());
 
         if ($request->isMethod('POST')) {
             if (!$this->isCsrfTokenValid('dispatch-fleet-' . $fleet->getId(), $request->request->getString('_token'))) {

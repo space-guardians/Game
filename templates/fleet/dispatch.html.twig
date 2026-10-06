@@ -46,7 +46,7 @@
                         <th scope="row">{{ index + 1 }}</th>
                         <td><input class="sg-input sg-mono" type="number" min="1" name="steps[{{ index }}][galaxy]" aria-label="Galaxie de l’ordre {{ index + 1 }}" value="{{ row.galaxy ?? (suggested ? origin.galaxy) }}"></td>
                         <td><input class="sg-input sg-mono" type="number" min="1" name="steps[{{ index }}][system]" aria-label="Système de l’ordre {{ index + 1 }}" value="{{ row.system ?? (suggested ? origin.system) }}"></td>
-                        <td><input class="sg-input sg-mono" type="number" min="1" name="steps[{{ index }}][position]" aria-label="Position de l’ordre {{ index + 1 }}" placeholder="—" value="{{ row.position ?? (suggested ? origin.position) }}"></td>
+                        <td><input class="sg-input sg-mono" type="number" min="1" name="steps[{{ index }}][position]" aria-label="Position de l’ordre {{ index + 1 }}" placeholder="—" value="{{ row.position ?? (suggested ? origin.position : '') }}"></td>
                         <td>
                             <select class="sg-input" name="steps[{{ index }}][action]" aria-label="Action de l’ordre {{ index + 1 }}">
                                 <option value="">— Aucun —</option>
