@@ -13,6 +13,7 @@ use App\Entity\GalaxyShapeTemplate;
 use App\Entity\PlanetBuilding;
 use App\Entity\Prerequisite;
 use App\Entity\Research;
+use App\Entity\ResearchQueueItem;
 use App\Entity\Technology;
 use App\Entity\User;
 use App\Enum\Admin\AuditOrigin;
@@ -50,6 +51,7 @@ final readonly class EntityHistory
         PlanetBuilding::class => 'Bâtiments des planètes',
         Prerequisite::class => 'Prérequis',
         Research::class => 'Recherches des empires',
+        ResearchQueueItem::class => 'Recherches en cours',
         Technology::class => 'Technologies',
     ];
 

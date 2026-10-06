@@ -1,0 +1,79 @@
+{# Écran « Recherche » (§4.4) : recherche en cours de l'empire, puis une carte par technologie, lancée depuis la planète active #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Recherche — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · <span class="sg-mono">{{ planet }}</span>{% endblock %}
+{% block heading %}Recherche{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="research-queue-title">
+        <h2 id="research-queue-title" class="sg-section-title">Recherche en cours</h2>
+        <div class="sg-queue sg-research-queue">
+            {% if current %}
+                <article class="sg-queue-item sg-queue-item--research sg-cut-10"
+                    data-controller="countdown"
+                    data-countdown-start-value="{{ current.startedAt.timestamp * 1000 }}"
+                    data-countdown-end-value="{{ current.endsAt.timestamp * 1000 }}"
+                    data-countdown-server-now-value="{{ now_ms }}">
+                    <header class="sg-queue-item__header">
+                        <twig:Chip label="Recherche" tone="cyan" dot/>
+                        <h3 class="sg-queue-item__name">{{ current.technology.name }} <span class="sg-mono">niv. {{ current.targetLevel }}</span></h3>
+                    </header>
+                    <div class="sg-queue-item__progress" role="progressbar" aria-label="Avancement de la recherche" aria-valuemin="0" aria-valuemax="100">
+                        <span data-countdown-target="bar"></span>
+                    </div>
+                    <dl class="sg-queue-item__times">
+                        <div>
+                            <dt>Temps restant</dt>
+                            <dd class="sg-mono" data-countdown-target="remaining">{{ max(0, current.endsAt.timestamp - now_ms // 1000)|duration }}</dd>
+                        </div>
+                        <div>
+                            <dt>Fin prévue</dt>
+                            <dd class="sg-mono">{{ current.endsAt|date('H:i:s') }}</dd>
+                        </div>
+                        <div>
+                            <dt>Lancée depuis</dt>
+                            <dd class="sg-mono">{{ current.planet }}</dd>
+                        </div>
+                    </dl>
+                </article>
+            {% else %}
+                <p class="sg-empty">Aucune recherche en cours dans l’empire.</p>
+            {% endif %}
+        </div>
+        <p class="sg-field__help">
+            Une seule recherche à la fois pour tout l’empire, lancée depuis la planète active, qui en paie le coût.
+            Vitesse : somme des laboratoires de l’empire (niveau <span class="sg-mono">{{ laboratories }}</span>).
+        </p>
+    </section>
+
+    <div class="sg-entities">
+        {% for card in cards %}
+            {% set technology = card.technology %}
+            <twig:EntityCard name="{{ technology.name }}" :level="card.level" state="{{ card.state }}" description="{{ technology.description }}">
+                <h3 class="sg-entity__meta">Niveau {{ card.level + 1 }} : {{ card.duration|duration }}</h3>
+                <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
+                {% if card.requires is not empty %}
+                    <p class="sg-entity__meta sg-entity__requires">Requiert :
+                        {% for prerequisite in card.requires %}
+                            <span class="sg-mono">{{ prerequisite.required.name }} {{ prerequisite.level }}</span>{{ not loop.last ? ',' }}
+                        {% endfor %}
+                    </p>
+                {% endif %}
+                {% if card.state == 'researching' %}
+                    <p class="sg-entity__meta">Fin à <span class="sg-mono">{{ current.endsAt|date('H:i:s') }}</span></p>
+                {% else %}
+                    <form method="post" action="{{ path('app_research_start', {code: technology.code}) }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('research-' ~ technology.code) }}">
+                        <twig:Btn type="submit"
+                            label="{{ card.state == 'locked' ? 'Verrouillée' : (current ? 'Recherche en cours' : 'Rechercher niveau ' ~ (card.level + 1)) }}"
+                            variant="{{ card.state == 'ready' and not current ? 'primary' : 'ghost' }}"
+                            size="sm"
+                            full
+                            :disabled="card.state != 'ready' or current is not null"/>
+                    </form>
+                {% endif %}
+            </twig:EntityCard>
+        {% endfor %}
+    </div>
+{% endblock %}

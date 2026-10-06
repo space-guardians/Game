@@ -13,6 +13,12 @@
                 Bâtiments
             </a>
         </li>
+        <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_research' ? ' is-active' }}" href="{{ path('app_research') }}"{% if current starts with 'app_research' %} aria-current="page"{% endif %}>
+                <twig:Icon name="flask" size="18"/>
+                Recherche
+            </a>
+        </li>
     </ul>
 
     {% if this.empire %}
