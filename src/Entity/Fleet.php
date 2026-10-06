@@ -251,6 +251,27 @@ final class Fleet implements \Stringable
         $ships->setQuantity($ships->getQuantity() + $quantity);
     }
 
+    /** Retire des vaisseaux de la flotte (colonisateur consommé, pertes…), formation comprise */
+    public function removeShips(ShipType $type, int $quantity): void
+    {
+        $ships = $this->ships->findFirst(static fn(int $key, FleetShip $ships): bool => $ships->getType() === $type);
+        $available = $ships?->getQuantity() ?? 0;
+        if ($quantity < 1 || $quantity > $available) {
+            throw new \InvalidArgumentException(\sprintf('Impossible de retirer %d × %s : %d dans la flotte.', $quantity, $type->getName(), $available));
+        }
+        if ($quantity === $available) {
+            $this->ships->removeElement($ships);
+        } else {
+            $ships->setQuantity($available - $quantity);
+        }
+        $this->formation?->withdraw($type, $quantity);
+    }
+
+    public function isEmpty(): bool
+    {
+        return 0 === $this->shipCount();
+    }
+
     public function shipCount(?ShipType $type = null): int
     {
         $count = 0;

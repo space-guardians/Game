@@ -26,6 +26,9 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 #[Auditable]
 final class ShipType implements \Stringable
 {
+    /** Code du colonisateur : seul vaisseau capable de fonder une colonie, consommé par l'action « Coloniser » */
+    public const string COLONY_SHIP = 'colony_ship';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

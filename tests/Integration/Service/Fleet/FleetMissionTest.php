@@ -113,6 +113,82 @@ final class FleetMissionTest extends KernelTestCase
         self::assertFalse($fleet->isAtHome());
     }
 
+    public function testColonizingAFreePlanetConsumesOneColonyShip(): void
+    {
+        $empire = $this->empire();
+        $target = $this->freePlanetNear($empire);
+        $fleet = $this->fleet($empire, ['colony_ship' => 2, 'light_fighter' => 3]);
+
+        $movement = $this->dispatch()->dispatch($fleet, [
+            new MissionStep(SpacePosition::planet($target), FleetAction::Colonize, 'cible'),
+            new MissionStep(SpacePosition::planet($empire->getHomePlanet()), FleetAction::Station, 'retour'),
+        ], 100, new Resources(1000, 500));
+        $this->clock->sleep($movement->getDurationSeconds());
+        $this->resolve((int) $movement->getEvent()?->getId());
+
+        $target = $this->reloadPlanet($target);
+        self::assertSame($empire->getId(), $target->getOwner()?->getId());
+        // Cargaison déposée sur la colonie, dont la production démarre à la fondation
+        self::assertEquals(new Resources(1000, 500), $target->getResources());
+        self::assertEquals($movement->getArrivesAt(), $target->getResourcesUpdatedAt());
+        $fleet = $this->reload($fleet);
+        self::assertSame(1, $fleet->shipCount($this->ship('colony_ship')));
+        self::assertSame(3, $fleet->shipCount($this->ship('light_fighter')));
+        self::assertSame(FleetOrderStatus::Done, $fleet->getOrders()[0]?->getStatus());
+        // Le reste de la flotte poursuit son carnet
+        self::assertSame(FleetStatus::InFlight, $fleet->getStatus());
+    }
+
+    public function testFleetMadeOfOneColonyShipDisappears(): void
+    {
+        $empire = $this->empire();
+        $target = $this->freePlanetNear($empire);
+        $fleet = $this->fleet($empire, ['colony_ship' => 1]);
+        $fleetId = $fleet->getId();
+
+        $movement = $this->dispatch()->dispatch($fleet, [
+            new MissionStep(SpacePosition::planet($target), FleetAction::Colonize, 'cible'),
+            new MissionStep(SpacePosition::planet($empire->getHomePlanet()), FleetAction::Station, 'retour'),
+        ], 100, new Resources());
+        $this->clock->sleep($movement->getDurationSeconds());
+        $this->resolve((int) $movement->getEvent()?->getId());
+
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->clear();
+        self::assertNull($entityManager->find(Fleet::class, $fleetId));
+        self::assertSame($empire->getId(), $this->reloadPlanet($target)->getOwner()?->getId());
+    }
+
+    public function testOccupiedPlanetCannotBeColonized(): void
+    {
+        $empire = $this->empire();
+        $occupied = $this->freePlanetNear($empire);
+        $occupied->assignTo(EmpireFactory::createOne());
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+        $fleet = $this->fleet($empire, ['colony_ship' => 1]);
+
+        $movement = $this->dispatch()->dispatch($fleet, [new MissionStep(SpacePosition::planet($occupied), FleetAction::Colonize, 'cible')], 100, new Resources());
+        $this->clock->sleep($movement->getDurationSeconds());
+        $this->resolve((int) $movement->getEvent()?->getId());
+
+        $fleet = $this->reload($fleet);
+        $order = $fleet->getOrders()[0];
+        self::assertSame(FleetOrderStatus::Failed, $order?->getStatus());
+        self::assertStringContainsString('est déjà occupée', (string) $order->getFailure());
+        self::assertSame(1, $fleet->shipCount($this->ship('colony_ship')));
+        self::assertSame(FleetStatus::Stationed, $fleet->getStatus());
+    }
+
+    public function testColonizingNeedsAColonyShipPerOrder(): void
+    {
+        $empire = $this->empire();
+        $fleet = $this->fleet($empire, ['light_fighter' => 3]);
+
+        $this->expectExceptionObject(new InvalidFleetMission('« Coloniser » consomme un colonisateur : il en faut 1 dans la flotte.'));
+
+        $this->dispatch()->dispatch($fleet, [new MissionStep(SpacePosition::planet($this->freePlanetNear($empire)), FleetAction::Colonize, 'cible')], 100, new Resources());
+    }
+
     public function testTransportMustTargetAPlanet(): void
     {
         $empire = $this->empire();
@@ -178,6 +254,25 @@ final class FleetMissionTest extends KernelTestCase
         self::getContainer()->get(EntityManagerInterface::class)->flush();
 
         return $colony;
+    }
+
+    /** Planète libre dans un autre système de la galaxie de l'empire */
+    private function freePlanetNear(Empire $empire): Planet
+    {
+        $home = $empire->getHomePlanet()->getSystem();
+
+        return PlanetFactory::createOne(['system' => StarSystemFactory::new([
+            'galaxy' => $home->getGalaxy(),
+            'position' => new GlobalPosition($home->getPosition()->x, $home->getPosition()->y + 1200),
+        ])]);
+    }
+
+    private function ship(string $code): ShipType
+    {
+        $type = self::getContainer()->get(ShipTypeRepository::class)->findOneByCode($code);
+        \assert($type instanceof ShipType);
+
+        return $type;
     }
 
     /** @param array<string, int> $ships */

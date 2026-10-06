@@ -8,7 +8,9 @@ use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
 use App\Entity\Planet;
+use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
+use App\Enum\Fleet\FleetAction;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
@@ -48,10 +50,18 @@ final readonly class FleetDispatch
         if ([] === $steps || \count($steps) > self::MAX_STEPS) {
             throw new InvalidFleetMission(\sprintf('Une mission compte de 1 à %d ordres.', self::MAX_STEPS));
         }
+        $colonizations = 0;
         foreach ($steps as $rank => $step) {
             if ($step->action->requiresPlanet() && null === $step->destination->planetId) {
                 throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » doit viser une planète.', $rank + 1, $step->action->label()));
             }
+            if (FleetAction::Colonize === $step->action) {
+                ++$colonizations;
+            }
+        }
+        // Chaque « Coloniser » consomme un colonisateur de la flotte
+        if ($colonizations > $this->colonyShips($fleet)) {
+            throw new InvalidFleetMission(\sprintf('« Coloniser » consomme un colonisateur : il en faut %d dans la flotte.', $colonizations));
         }
 
         $planet = $fleet->getPlanet();
@@ -90,6 +100,18 @@ final readonly class FleetDispatch
         } finally {
             $lock->release();
         }
+    }
+
+    private function colonyShips(Fleet $fleet): int
+    {
+        $count = 0;
+        foreach ($fleet->getShips() as $ships) {
+            if (ShipType::COLONY_SHIP === $ships->getType()->getCode()) {
+                $count += $ships->getQuantity();
+            }
+        }
+
+        return $count;
     }
 
     private function load(Fleet $fleet, Planet $planet, Resources $cargo): void

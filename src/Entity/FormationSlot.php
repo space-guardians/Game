@@ -34,7 +34,7 @@ final class FormationSlot implements \Stringable
         #[ORM\JoinColumn(nullable: false)]
         private readonly ShipType $type,
         #[ORM\Column]
-        private readonly int $quantity,
+        private int $quantity,
     ) {
         if ($quantity < 1) {
             throw new \InvalidArgumentException('Une case occupée compte au moins un vaisseau.');
@@ -69,6 +69,15 @@ final class FormationSlot implements \Stringable
     public function getQuantity(): int
     {
         return $this->quantity;
+    }
+
+    /** Retire des vaisseaux de la case (au plus ce qu'elle contient) ; renvoie le nombre retiré */
+    public function take(int $quantity): int
+    {
+        $taken = max(0, min($quantity, $this->quantity));
+        $this->quantity -= $taken;
+
+        return $taken;
     }
 
     public function __toString(): string
