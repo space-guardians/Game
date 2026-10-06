@@ -21,6 +21,14 @@
                 <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
                 {% if card.state == 'building' %}
                     <p class="sg-entity__meta">Fin à <span class="sg-mono">{{ current.endsAt|date('H:i:s') }}</span></p>
+                    <form method="post" action="{{ path('app_buildings_cancel') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('cancel-construction') }}">
+                        <p class="sg-entity__meta">
+                            Annuler rend le coût au prorata du temps restant (environ {{ (refund_share * 100)|round(0, 'floor') }} % maintenant),
+                            dans la limite de vos dépôts : le reste est perdu.
+                        </p>
+                        <twig:Btn type="submit" label="Annuler la construction" variant="danger" size="sm" full/>
+                    </form>
                 {% else %}
                     <form method="post" action="{{ path('app_buildings_build', {code: type.code}) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('build-' ~ type.code) }}">
