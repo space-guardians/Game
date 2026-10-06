@@ -11,10 +11,13 @@ use App\Entity\Technology;
 use App\Enum\Economy\BuildingEffect;
 use App\Exception\Economy\InsufficientResources;
 use App\Exception\Research\MissingPrerequisites;
+use App\Exception\Research\NoCancellableResearch;
 use App\Exception\Research\ResearchInProgress;
+use App\Model\Economy\CancellationResult;
 use App\Model\Economy\EconomySettings;
 use App\Repository\PlanetRepository;
 use App\Repository\ResearchQueueItemRepository;
+use App\Service\Economy\CancellationRefund;
 use App\Service\Economy\PlanetResources;
 use App\Service\Scheduling\EventScheduler;
 use App\Service\Scheduling\ScheduledEventResolver;
@@ -22,9 +25,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Lock\LockFactory;
 
 /**
- * Lance la recherche du niveau suivant d'une technologie (§4.4) : une seule à la fois par empire, depuis n'importe
- * laquelle de ses planètes, qui paie le coût (après consolidation de ses ressources). La durée dépend de la somme des
- * laboratoires de l'empire ; la fin est planifiée comme événement de jeu (ResearchCompletedHandler).
+ * Lance ou annule la recherche du niveau suivant d'une technologie (§4.4) : une seule à la fois par empire, depuis
+ * n'importe laquelle de ses planètes, qui paie le coût (après consolidation de ses ressources). La durée dépend de la
+ * somme des laboratoires de l'empire ; la fin est planifiée comme événement de jeu (ResearchCompletedHandler).
+ * L'annulation rembourse au prorata du temps restant, sur la planète de lancement et dans la limite de son stockage.
  * Sous le verrou de l'empire (une seule recherche) puis de la planète (son stock).
  */
 final readonly class ResearchQueue
@@ -39,6 +43,7 @@ final readonly class ResearchQueue
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
         private LockFactory $lockFactory,
+        private CancellationRefund $refund,
     ) {}
 
     public static function empireLockKey(int $empireId): string
@@ -96,6 +101,54 @@ final readonly class ResearchQueue
             });
         } finally {
             $planetLock->release();
+            $empireLock->release();
+        }
+    }
+
+    /**
+     * Annule la recherche en cours de l'empire : remboursement au prorata du temps restant sur la planète de lancement,
+     * plafonné par sa capacité de stockage courante ; l'événement de fin est annulé. Une recherche échue n'est plus
+     * annulable.
+     *
+     * @throws NoCancellableResearch
+     */
+    public function cancel(Empire $empire): CancellationResult
+    {
+        $empireLock = $this->lockFactory->createLock(self::empireLockKey((int) $empire->getId()), ttl: 30.0);
+        $empireLock->acquire(true);
+
+        try {
+            $item = $this->queue->findActiveFor($empire) ?? throw NoCancellableResearch::none();
+            $planet = $item->getPlanet();
+            $planetLock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
+            $planetLock->acquire(true);
+
+            try {
+                $snapshot = $this->resources->settle($planet);
+                $now = $snapshot->at;
+                if ($item->getEndsAt() <= $now) {
+                    throw NoCancellableResearch::finished();
+                }
+
+                $share = $this->refund->remainingShare($item->getStartedAt(), $item->getEndsAt(), $now);
+                $refund = $item->getPaid()->times($share);
+                $stock = $this->refund->credit($snapshot->amounts, $refund, $snapshot->capacity);
+
+                return $this->entityManager->wrapInTransaction(function () use ($planet, $item, $stock, $now, $share, $refund, $snapshot): CancellationResult {
+                    $planet->storeResources($stock, $now);
+                    $item->getEvent()?->cancel($now);
+                    $this->entityManager->remove($item);
+                    $this->entityManager->flush();
+
+                    $refunded = $stock->minus($snapshot->amounts);
+
+                    // Ce qui n'a pas trouvé de place (shortfall : jamais négatif malgré les arrondis)
+                    return new CancellationResult($share, $refunded, $refunded->shortfall($refund));
+                });
+            } finally {
+                $planetLock->release();
+            }
+        } finally {
             $empireLock->release();
         }
     }
