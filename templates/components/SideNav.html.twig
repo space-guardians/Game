@@ -25,6 +25,12 @@
                 Chantier spatial
             </a>
         </li>
+        <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_fleet' ? ' is-active' }}" href="{{ path('app_fleet') }}"{% if current starts with 'app_fleet' %} aria-current="page"{% endif %}>
+                <twig:Icon name="fleet" size="18"/>
+                Flotte
+            </a>
+        </li>
     </ul>
 
     {% if this.empire %}
