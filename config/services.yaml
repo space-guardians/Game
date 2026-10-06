@@ -29,6 +29,24 @@ services:
 
 when@test:
     services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+
+        # Doublures de test : gestionnaires d'événements planifiés factices, publications Mercure enregistrées
+        App\Tests\Fixtures\:
+            resource: '../tests/Fixtures/'
+
+        # MockHub partout ; seul MercureHubTest vise le vrai hub (service « mercure.hub.default »)
+        Symfony\Component\Mercure\HubInterface:
+            class: Symfony\Component\Mercure\MockHub
+            arguments:
+                $url: 'https://mercure.test/.well-known/mercure'
+                $jwtProvider: !service
+                    class: Symfony\Component\Mercure\Jwt\StaticTokenProvider
+                    arguments: ['jeton-de-test']
+                $publisher: '@App\Tests\Fixtures\Mercure\PublishedUpdates'
+
         # Graine fixe : les tests sont reproductibles
         Random\Randomizer:
             arguments: ['@app.test_random_engine']

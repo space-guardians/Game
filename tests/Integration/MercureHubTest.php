@@ -47,6 +47,6 @@ final class MercureHubTest extends KernelTestCase
 
     private function hub(): HubInterface
     {
-        return self::getContainer()->get(HubInterface::class);
+        return self::getContainer()->get('mercure.hub.default');
     }
 }

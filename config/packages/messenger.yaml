@@ -24,6 +24,8 @@ framework:
 
             # Génération de galaxie depuis le panneau d'administration (traitement long)
             App\Message\GenerateGalaxy: async
+            # Réveils différés des événements planifiés (§5.2)
+            App\Message\ResolveScheduledEvent: async
 
 when@test:
     framework:
