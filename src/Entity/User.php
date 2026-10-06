@@ -41,6 +41,11 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column]
     private string $password = '';
 
+    /** Dernière activité dans le jeu, à quelques minutes près (UserRepository::recordActivity()) */
+    #[Ignore]
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $lastActiveAt = null;
+
     public function __construct(
         string $email,
         /** Date d'inscription, qui vaut aussi acceptation des règles du jeu */
@@ -91,6 +96,11 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function getRegisteredAt(): \DateTimeImmutable
     {
         return $this->registeredAt;
+    }
+
+    public function getLastActiveAt(): ?\DateTimeImmutable
+    {
+        return $this->lastActiveAt;
     }
 
     /**

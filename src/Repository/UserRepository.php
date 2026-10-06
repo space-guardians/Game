@@ -33,6 +33,28 @@ final class UserRepository extends ServiceEntityRepository implements PasswordUp
         return $this->findOneByEmail($identifier);
     }
 
+    /**
+     * Note l'activité du joueur directement en base : ni flush de l'unité de travail en cours, ni entrée
+     * d'historique (§5.6.3) pour une simple date de passage.
+     */
+    public function recordActivity(User $user, \DateTimeImmutable $now): void
+    {
+        $this->getEntityManager()->createQuery('UPDATE ' . User::class . ' u SET u.lastActiveAt = :now WHERE u.id = :id')
+            ->setParameter('now', $now)
+            ->setParameter('id', $user->getId())
+            ->execute();
+    }
+
+    public function countRegisteredSince(\DateTimeImmutable $since): int
+    {
+        return $this->countWhere('u.registeredAt >= :since', $since);
+    }
+
+    public function countActiveSince(\DateTimeImmutable $since): int
+    {
+        return $this->countWhere('u.lastActiveAt >= :since', $since);
+    }
+
     /** Re-hache le mot de passe quand l'algorithme ou son coût évoluent */
     public function upgradePassword(PasswordAuthenticatedUserInterface $user, string $newHashedPassword): void
     {
@@ -42,5 +64,15 @@ final class UserRepository extends ServiceEntityRepository implements PasswordUp
 
         $user->setPassword($newHashedPassword);
         $this->getEntityManager()->flush();
+    }
+
+    private function countWhere(string $condition, \DateTimeImmutable $since): int
+    {
+        return (int) $this->createQueryBuilder('u')
+            ->select('COUNT(u.id)')
+            ->where($condition)
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
     }
 }
