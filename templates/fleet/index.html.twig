@@ -55,14 +55,35 @@
         {% else %}
             <ul class="sg-fleets" id="flottes">
                 {% for fleet in fleets %}
-                    <li class="sg-fleet sg-cut-10">
+                    {% set movement = movements[fleet.id] ?? null %}
+                    {% set last_done = fleet.orders|filter(order => order.status.value == 'done')|last %}
+                    <li class="sg-fleet sg-cut-10" id="flotte-{{ fleet.id }}">
                         <header class="sg-fleet__header">
                             <h3 class="sg-fleet__name">{{ fleet.name }}</h3>
-                            <twig:Chip label="Stationnée" tone="neutral" dot/>
+                            <twig:Chip label="{{ fleet.status.label }}" tone="{{ fleet.status.tone }}" dot/>
                         </header>
+                        {% if movement %}
+                            <div class="sg-fleet__movement"
+                                data-controller="countdown"
+                                data-countdown-start-value="{{ movement.departedAt.timestamp * 1000 }}"
+                                data-countdown-end-value="{{ movement.arrivesAt.timestamp * 1000 }}"
+                                data-countdown-server-now-value="{{ now.format('Uv') }}">
+                                <p class="sg-entity__meta">
+                                    {{ movement.order.action.label }} vers <span class="sg-mono">{{ movement.order.destinationLabel }}</span>
+                                    · arrivée à <span class="sg-mono">{{ movement.arrivesAt|date('H:i:s') }}</span>
+                                    (<span class="sg-mono" data-countdown-target="remaining">{{ max(0, movement.arrivesAt.timestamp - now.timestamp)|duration }}</span>)
+                                </p>
+                                <div class="sg-queue-item__progress" role="progressbar" aria-label="Avancement du trajet" aria-valuemin="0" aria-valuemax="100">
+                                    <span data-countdown-target="bar"></span>
+                                </div>
+                            </div>
+                        {% else %}
+                            <p class="sg-entity__meta">
+                                Stationnée en <span class="sg-mono">{{ fleet.planet ? fleet.planet.address : (last_done ? last_done.destinationLabel : '—') }}</span>
+                            </p>
+                        {% endif %}
                         <p class="sg-entity__meta">
-                            Sur <span class="sg-mono">{{ fleet.planet }}</span>
-                            · {{ fleet.shipCount|format_number }} vaisseau(x)
+                            {{ fleet.shipCount|format_number }} vaisseau(x)
                             · Cargo <span class="sg-mono">{{ fleet.cargo|format_number }}</span>
                             · Vitesse <span class="sg-mono">{{ fleet.slowestSpeed|format_number }}</span>
                         </p>
@@ -71,14 +92,36 @@
                                 <span class="sg-mono">{{ ships.quantity|format_number }} × {{ ships.type.name }}</span>{{ not loop.last ? ',' }}
                             {% endfor %}
                         </p>
-                        <form method="post" action="{{ path('app_fleet_disband', {id: fleet.id}) }}">
-                            <input type="hidden" name="_token" value="{{ csrf_token('disband-fleet-' ~ fleet.id) }}">
-                            <twig:Btn type="submit" label="Dissoudre" variant="ghost" size="sm"/>
-                        </form>
+                        {% set loaded = fleet.getCargo() %}
+                        {% if loaded.metal + loaded.crystal + loaded.deuterium > 0 %}
+                            <p class="sg-entity__meta">À bord : <twig:ResourceCost :cost="loaded"/></p>
+                        {% endif %}
+                        {% if fleet.orders is not empty %}
+                            <ol class="sg-fleet__orders">
+                                {% for order in fleet.orders %}
+                                    <li class="sg-fleet__order sg-fleet__order--{{ order.status.value }}">
+                                        {{ order.action.label }} → <span class="sg-mono">{{ order.destinationLabel }}</span>
+                                        <span class="sg-fleet__order-status">{{ order.status.label }}</span>
+                                        {% if order.failure %}<span class="sg-field__help">{{ order.failure }}</span>{% endif %}
+                                    </li>
+                                {% endfor %}
+                            </ol>
+                        {% endif %}
+                        <div class="sg-fleet__actions">
+                            {% if fleet.stationed %}
+                                <twig:Btn label="Envoyer" href="{{ path('app_fleet_dispatch', {id: fleet.id}) }}" size="sm"/>
+                            {% endif %}
+                            {% if fleet.atHome %}
+                                <form method="post" action="{{ path('app_fleet_disband', {id: fleet.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ csrf_token('disband-fleet-' ~ fleet.id) }}">
+                                    <twig:Btn type="submit" label="Dissoudre" variant="ghost" size="sm"/>
+                                </form>
+                            {% endif %}
+                        </div>
                     </li>
                 {% endfor %}
             </ul>
         {% endif %}
-        <p class="sg-field__help">Dissoudre une flotte rend ses vaisseaux au hangar de sa planète. Les déplacements et les ordres arrivent avec la suite d’ordres de flotte.</p>
+        <p class="sg-field__help">Une flotte exécute son carnet d’ordres l’un après l’autre, puis reste stationnée là où elle est. Dissoudre une flotte stationnée sur une planète de l’empire rend ses vaisseaux et sa cargaison à cette planète.</p>
     </section>
 {% endblock %}

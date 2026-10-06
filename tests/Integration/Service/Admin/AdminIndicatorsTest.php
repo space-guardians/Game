@@ -68,7 +68,7 @@ final class AdminIndicatorsTest extends KernelTestCase
 
         $indicators = self::getContainer()->get(AdminIndicators::class)->current();
 
-        self::assertSame(['Constructions en cours' => 2, 'fleet.arrival' => 1], $indicators->pendingEvents);
+        self::assertSame(['Constructions en cours' => 2, 'Flottes en vol' => 1], $indicators->pendingEvents);
         self::assertSame(3, $indicators->pendingEventCount());
         self::assertSame(1, $indicators->lateEvents);
         self::assertSame(1, $indicators->failedEvents);

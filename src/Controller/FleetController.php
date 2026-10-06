@@ -5,19 +5,28 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Fleet;
+use App\Enum\Fleet\FleetAction;
 use App\Exception\Fleet\InvalidFleetComposition;
+use App\Exception\Fleet\InvalidFleetMission;
+use App\Model\Economy\Resources;
+use App\Model\Fleet\MissionStep;
+use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Account\GameContext;
+use App\Service\Fleet\DestinationResolver;
 use App\Service\Fleet\FleetAssembly;
+use App\Service\Fleet\FleetDispatch;
+use App\Service\Fleet\TravelRules;
+use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Écran « Flotte » (§4.5) : hangar de la planète active (vaisseaux en inventaire), constitution d'une flotte à partir
- * de cet inventaire, flottes de l'empire et dissolution d'une flotte stationnée.
+ * Écran « Flotte » (§4.5, §4.6) : hangar de la planète active (vaisseaux en inventaire), constitution d'une flotte,
+ * flottes de l'empire avec leur carnet d'ordres et leur déplacement en cours, envoi en mission, dissolution.
  */
 final class FleetController extends AbstractController
 {
@@ -26,7 +35,14 @@ final class FleetController extends AbstractController
         private readonly ShipTypeRepository $shipTypes,
         private readonly FleetRepository $fleets,
         private readonly FleetAssembly $assembly,
+        private readonly FleetMovementRepository $movements,
+        private readonly FleetDispatch $dispatch,
+        private readonly DestinationResolver $destinations,
+        private readonly ClockInterface $clock,
     ) {}
+
+    /** Ordres proposés dans le formulaire d'envoi ; le dernier suggère le retour au point de départ (§4.6) */
+    private const int FORM_STEPS = 3;
 
     #[Route('/flotte', name: 'app_fleet', methods: ['GET'])]
     public function index(): Response
@@ -45,11 +61,19 @@ final class FleetController extends AbstractController
             }
         }
 
+        $fleets = $this->fleets->findOwnedBy($empire);
+        $movements = [];
+        foreach ($fleets as $fleet) {
+            $movements[(int) $fleet->getId()] = $this->movements->findActiveFor($fleet);
+        }
+
         return $this->render('fleet/index.html.twig', [
             'empire' => $empire,
             'planet' => $planet,
             'hangar' => $hangar,
-            'fleets' => $this->fleets->findOwnedBy($empire),
+            'fleets' => $fleets,
+            'movements' => $movements,
+            'now' => $this->clock->now(),
             'name_max_length' => Fleet::NAME_MAX_LENGTH,
         ]);
     }
@@ -100,9 +124,96 @@ final class FleetController extends AbstractController
         }
 
         $name = $fleet->getName();
-        $this->assembly->disband($fleet);
-        $this->addFlash('success', \sprintf('Flotte « %s » dissoute : ses vaisseaux ont rejoint le hangar.', $name));
+        try {
+            $this->assembly->disband($fleet);
+            $this->addFlash('success', \sprintf('Flotte « %s » dissoute : ses vaisseaux ont rejoint le hangar.', $name));
+        } catch (InvalidFleetComposition $exception) {
+            $this->addFlash('error', $exception->getMessage());
+        }
 
         return $this->redirectToRoute('app_fleet');
+    }
+
+    /** Envoi en mission : carnet d'ordres « se déplacer puis agir », cargaison, vitesse */
+    #[Route('/flotte/{id}/envoyer', name: 'app_fleet_dispatch', methods: ['GET', 'POST'], requirements: ['id' => '\d+'])]
+    public function dispatch(Fleet $fleet, Request $request): Response
+    {
+        $empire = $this->context->empire();
+        if (null === $empire || $fleet->getEmpire() !== $empire) {
+            throw $this->createNotFoundException('Flotte introuvable.');
+        }
+        $origin = $fleet->getPlanet()?->getAddress();
+
+        if ($request->isMethod('POST')) {
+            if (!$this->isCsrfTokenValid('dispatch-fleet-' . $fleet->getId(), $request->request->getString('_token'))) {
+                $this->addFlash('error', 'La page a expiré : recommencez.');
+
+                return $this->redirectToRoute('app_fleet_dispatch', ['id' => $fleet->getId()]);
+            }
+            try {
+                $movement = $this->dispatch->dispatch(
+                    $fleet,
+                    $this->steps($request->request->all('steps')),
+                    $request->request->getInt('speed', 100),
+                    $this->cargo($request->request->all('cargo')),
+                );
+                $this->addFlash('success', \sprintf('Flotte « %s » en route vers %s, arrivée à %s.', $fleet->getName(), $movement->getOrder()->getDestinationLabel(), $movement->getArrivesAt()->format('H:i:s')));
+
+                return $this->redirectToRoute('app_fleet');
+            } catch (InvalidFleetMission $exception) {
+                $this->addFlash('error', $exception->getMessage());
+            }
+        }
+
+        return $this->render('fleet/dispatch.html.twig', [
+            'empire' => $empire,
+            'planet' => $empire->getActivePlanet(),
+            'fleet' => $fleet,
+            'origin' => $origin,
+            'form_steps' => self::FORM_STEPS,
+            'actions' => FleetAction::cases(),
+            'speeds' => TravelRules::SPEED_PERCENTS,
+            'stock' => $fleet->isAtHome() ? $this->context->activeResources()?->amounts : null,
+            'submitted' => $request->request->all(),
+        ], new Response(status: $request->isMethod('POST') ? 422 : 200));
+    }
+
+    /**
+     * Étapes saisies, dans l'ordre ; une ligne sans action est ignorée.
+     *
+     * @param array<mixed> $rows
+     *
+     * @return list<MissionStep>
+     *
+     * @throws InvalidFleetMission
+     */
+    private function steps(array $rows): array
+    {
+        $steps = [];
+        foreach (array_values($rows) as $index => $row) {
+            if (!\is_array($row)) {
+                continue;
+            }
+            $action = FleetAction::tryFrom((string) ($row['action'] ?? ''));
+            if (null === $action) {
+                continue;
+            }
+            $orbit = trim((string) ($row['position'] ?? ''));
+            $destination = $this->destinations->resolve((int) ($row['galaxy'] ?? 0), (int) ($row['system'] ?? 0), '' === $orbit ? null : (int) $orbit);
+            if (null === $destination) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : ces coordonnées ne désignent ni une planète ni un système.', $index + 1));
+            }
+            $steps[] = new MissionStep($destination['position'], $action, $destination['label']);
+        }
+
+        return $steps;
+    }
+
+    /** @param array<mixed> $cargo */
+    private function cargo(array $cargo): Resources
+    {
+        $amount = static fn(string $key): float => max(0.0, (float) ($cargo[$key] ?? 0));
+
+        return new Resources($amount('metal'), $amount('crystal'), $amount('deuterium'));
     }
 }

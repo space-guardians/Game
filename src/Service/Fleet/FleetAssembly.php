@@ -9,6 +9,7 @@ use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Exception\Fleet\InvalidFleetComposition;
 use App\Repository\FleetRepository;
+use App\Service\Economy\PlanetResources;
 use App\Service\Scheduling\ScheduledEventResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -29,6 +30,7 @@ final readonly class FleetAssembly
         private EntityManagerInterface $entityManager,
         private LockFactory $lockFactory,
         private ClockInterface $clock,
+        private PlanetResources $resources,
     ) {}
 
     /**
@@ -87,10 +89,17 @@ final readonly class FleetAssembly
         }
     }
 
-    /** Dissout une flotte stationnée : ses vaisseaux rejoignent l'inventaire de sa planète */
+    /**
+     * Dissout une flotte stationnée sur une planète de son empire : ses vaisseaux et sa cargaison rejoignent la planète.
+     *
+     * @throws InvalidFleetComposition
+     */
     public function disband(Fleet $fleet): void
     {
         $planet = $fleet->getPlanet();
+        if (null === $planet || !$fleet->isAtHome()) {
+            throw new InvalidFleetComposition('Une flotte se dissout stationnée sur une planète de son empire.');
+        }
         $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
         $lock->acquire(true);
 
@@ -98,6 +107,11 @@ final readonly class FleetAssembly
             $this->entityManager->wrapInTransaction(function () use ($fleet, $planet): void {
                 foreach ($fleet->getShips() as $ships) {
                     $planet->addShips($ships->getType(), $ships->getQuantity());
+                }
+                $cargo = $fleet->unload();
+                if ($cargo->metal + $cargo->crystal + $cargo->deuterium > 0) {
+                    $snapshot = $this->resources->settle($planet);
+                    $planet->storeResources($snapshot->amounts->plus($cargo), $snapshot->at);
                 }
                 $this->entityManager->remove($fleet);
                 $this->entityManager->flush();

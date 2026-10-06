@@ -100,6 +100,60 @@ final class FleetTest extends WebTestCase
         self::assertSelectorTextContains('.sg-alert', 'Flotte « Flotte 1 » constituée');
     }
 
+    public function testDispatchesFleetWithSuggestedReturnOrder(): void
+    {
+        $empire = $this->login(['light_fighter' => 4]);
+        $home = $empire->getHomePlanet();
+        $fleet = new Fleet($empire, 'Escadre Orion', $home, new \DateTimeImmutable());
+        $fleet->addShips($this->ship('light_fighter'), 4);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($fleet);
+        $entityManager->flush();
+        $address = $home->getAddress();
+
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+        self::assertResponseIsSuccessful();
+        // Dernier ordre prérempli : stationner au point de départ (§4.6)
+        self::assertSame((string) $address->system, $crawler->filter('input[name="steps[2][system]"]')->attr('value'));
+        self::assertSame('station', $crawler->filter('select[name="steps[2][action]"] option[selected]')->attr('value'));
+
+        $this->client->submit($crawler->selectButton('Envoyer la flotte')->form([
+            'steps[0][galaxy]' => (string) $address->galaxy,
+            'steps[0][system]' => (string) $address->system,
+            'steps[0][position]' => '',
+            'steps[0][action]' => 'station',
+            'speed' => '50',
+        ]));
+
+        self::assertResponseRedirects('/flotte');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Flotte « Escadre Orion » en route vers système');
+        self::assertSelectorTextContains('#flottes', 'En vol');
+        self::assertSelectorTextContains('#flottes .sg-fleet__orders', 'Stationner');
+        self::assertSelectorTextContains('#flottes .sg-fleet__orders', 'En cours');
+        self::assertSelectorNotExists('#flottes form[action$="/dissoudre"]');
+    }
+
+    public function testUnknownCoordinatesAreRefused(): void
+    {
+        $empire = $this->login(['light_fighter' => 1]);
+        $fleet = new Fleet($empire, 'Escadre', $empire->getHomePlanet(), new \DateTimeImmutable());
+        $fleet->addShips($this->ship('light_fighter'), 1);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($fleet);
+        $entityManager->flush();
+
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+        $this->client->submit($crawler->selectButton('Envoyer la flotte')->form([
+            'steps[0][galaxy]' => '999999',
+            'steps[0][system]' => '1',
+            'steps[0][action]' => 'station',
+        ]));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('.sg-alert', 'Ordre 1 : ces coordonnées ne désignent ni une planète ni un système.');
+    }
+
     public function testCannotDisbandAnotherEmpiresFleet(): void
     {
         $other = EmpireFactory::createOne();

@@ -8,6 +8,7 @@ use App\Model\Admin\DashboardIndicators;
 use App\Repository\ScheduledEventRepository;
 use App\Repository\UserRepository;
 use App\Service\Economy\BuildingCompletedHandler;
+use App\Service\Fleet\FleetArrivalHandler;
 use App\Service\Fleet\ShipyardOrderCompletedHandler;
 use App\Service\Research\ResearchCompletedHandler;
 use Psr\Clock\ClockInterface;
@@ -15,8 +16,8 @@ use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
 
 /**
- * Indicateurs du tableau de bord d'administration (§5.6.1). Flottes en vol et batailles programmées s'y
- * ajouteront avec leurs phases, comme nouveaux types d'événements de jeu.
+ * Indicateurs du tableau de bord d'administration (§5.6.1). Les flottes en vol se comptent par leurs arrivées
+ * planifiées ; les batailles programmées s'y ajouteront avec leur phase, comme nouveau type d'événement de jeu.
  */
 final readonly class AdminIndicators
 {
@@ -25,6 +26,7 @@ final readonly class AdminIndicators
         BuildingCompletedHandler::TYPE => 'Constructions en cours',
         ResearchCompletedHandler::TYPE => 'Recherches en cours',
         ShipyardOrderCompletedHandler::TYPE => 'Commandes du chantier spatial',
+        FleetArrivalHandler::TYPE => 'Flottes en vol',
     ];
 
     /**
