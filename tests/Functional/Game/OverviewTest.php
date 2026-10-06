@@ -13,6 +13,7 @@ use App\Repository\EmpireRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
@@ -20,6 +21,7 @@ use Zenstruck\Foundry\Test\Factories;
  */
 final class OverviewTest extends WebTestCase
 {
+    use ClockSensitiveTrait;
     use Factories;
 
     private KernelBrowser $client;
@@ -44,6 +46,23 @@ final class OverviewTest extends WebTestCase
         self::assertSelectorTextContains('.sg-overview', '−42 °C');
         self::assertSelectorTextContains('.sg-sidenav [aria-current="page"]', 'Vue d’ensemble');
         self::assertSelectorTextContains('.sg-sidenav [aria-current="true"]', (string) $empire->getHomePlanet());
+    }
+
+    public function testShowsResourcesWithLiveCounter(): void
+    {
+        $clock = self::mockTime('2026-10-06 10:00:00');
+        $empire = EmpireFactory::createOne(['foundedAt' => $clock->now()]);
+        $clock->sleep(2 * 3600);
+        $this->client->loginUser($empire->getUser());
+
+        $crawler = $this->client->request('GET', '/');
+
+        $metal = $crawler->filter('.sg-topbar .sg-resource--metal');
+        self::assertSame('560', $metal->attr('data-resource-counter-amount-value'));
+        self::assertSame('30', $metal->attr('data-resource-counter-rate-value'));
+        self::assertSame('10000', $metal->attr('data-resource-counter-capacity-value'));
+        self::assertSelectorTextContains('.sg-topbar .sg-resource--crystal', '530');
+        self::assertSelectorTextContains('.sg-overview .sg-table', '+15/h');
     }
 
     public function testSwitchesActivePlanet(): void

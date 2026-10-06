@@ -42,6 +42,26 @@ final class PlanetRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Planètes habitées dont le stock n'a pas été consolidé depuis la date donnée, par identifiant croissant.
+     *
+     * @return list<Planet>
+     */
+    public function findStaleResources(\DateTimeImmutable $staleBefore, int $afterId, int $limit): array
+    {
+        /** @var list<Planet> */
+        return $this->createQueryBuilder('p')
+            ->where('p.owner IS NOT NULL')
+            ->andWhere('p.resourcesUpdatedAt < :staleBefore')
+            ->andWhere('p.id > :afterId')
+            ->setParameter('staleBefore', $staleBefore)
+            ->setParameter('afterId', $afterId)
+            ->orderBy('p.id')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function countOwnedIn(Galaxy $galaxy): int
     {
         return (int) $this->createQueryBuilder('p')

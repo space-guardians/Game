@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Model\Economy\Resources;
 use App\Repository\PlanetRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -26,6 +27,20 @@ final class Planet
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?Empire $owner = null;
+
+    /** Stock à la date resourcesUpdatedAt ; le stock courant se calcule à la demande (PlanetResources) */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $metal = 0.0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private float $crystal = 0.0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private float $deuterium = 0.0;
+
+    /** Dernière consolidation du stock ; null tant que la planète ne produit pas (sans propriétaire) */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $resourcesUpdatedAt = null;
 
     public function __construct(
         #[ORM\ManyToOne(inversedBy: 'planets')]
@@ -63,6 +78,25 @@ final class Planet
     public function getOwner(): ?Empire
     {
         return $this->owner;
+    }
+
+    public function getResources(): Resources
+    {
+        return new Resources($this->metal, $this->crystal, $this->deuterium);
+    }
+
+    public function getResourcesUpdatedAt(): ?\DateTimeImmutable
+    {
+        return $this->resourcesUpdatedAt;
+    }
+
+    /** Enregistre le stock calculé à l'instant donné (à la seconde : c'est la précision de la base) */
+    public function storeResources(Resources $resources, \DateTimeImmutable $at): void
+    {
+        $this->metal = $resources->metal;
+        $this->crystal = $resources->crystal;
+        $this->deuterium = $resources->deuterium;
+        $this->resourcesUpdatedAt = $at->setTime((int) $at->format('H'), (int) $at->format('i'), (int) $at->format('s'));
     }
 
     public function assignTo(Empire $empire): void

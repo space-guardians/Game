@@ -1,4 +1,4 @@
-{# Barre globale (charte §8) : logo, planète active, empire, déconnexion #}
+{# Barre globale (charte §8) : logo, planète active et ses ressources, empire, déconnexion #}
 <header {{ attributes.defaults({class: 'sg-topbar'}) }}>
     <twig:Logo class="sg-topbar__brand"/>
 
@@ -10,6 +10,18 @@
                 {{ this.empire.isHomePlanet(planet) ? 'Planète mère' : 'Colonie' }}
                 <span class="sg-mono">{{ planet }}</span>
             </span>
+        </div>
+
+        {% set resources = this.resources %}
+        <div class="sg-topbar__resources">
+            {% for kind, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+                <twig:ResourceGauge
+                    kind="{{ kind }}"
+                    label="{{ label }}"
+                    :amount="attribute(resources.amounts, kind)"
+                    :rate="attribute(resources.hourlyProduction, kind)"
+                    :capacity="attribute(resources.capacity, kind)"/>
+            {% endfor %}
         </div>
     {% endif %}
 

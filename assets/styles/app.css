@@ -757,8 +757,136 @@ a:hover {
     gap: 16px;
 }
 
-.sg-overview__queues {
+.sg-overview__wide {
     grid-column: 1 / -1;
+}
+
+/* Ressources (charte §2.1 : couleurs dédiées) */
+.sg-topbar__resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 24px;
+}
+
+.sg-resource {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: 2px 10px;
+    min-width: 120px;
+    align-items: baseline;
+}
+
+.sg-resource__label {
+    grid-column: 1 / -1;
+    font-size: 11px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sg-text-4);
+}
+
+.sg-resource__amount {
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.sg-resource--metal .sg-resource__amount {
+    color: var(--sg-metal);
+}
+
+.sg-resource--crystal .sg-resource__amount {
+    color: var(--sg-crystal);
+}
+
+.sg-resource--deuterium .sg-resource__amount {
+    color: var(--sg-deut);
+}
+
+.sg-resource.is-full .sg-resource__amount,
+.sg-table .is-full {
+    color: var(--sg-warning);
+}
+
+.sg-resource__rate {
+    font-size: 11px;
+    color: var(--sg-text-3);
+}
+
+.sg-resource__gauge {
+    grid-column: 1 / -1;
+    display: block;
+    height: 3px;
+    background: var(--sg-track);
+}
+
+.sg-resource__gauge > span {
+    display: block;
+    height: 100%;
+    background: var(--sg-text-3);
+}
+
+.sg-resource--metal .sg-resource__gauge > span {
+    background: var(--sg-metal);
+}
+
+.sg-resource--crystal .sg-resource__gauge > span {
+    background: var(--sg-crystal);
+}
+
+.sg-resource--deuterium .sg-resource__gauge > span {
+    background: var(--sg-deut);
+}
+
+.sg-resource.is-full .sg-resource__gauge > span {
+    background: var(--sg-warning);
+}
+
+/* Tableau de données (charte §9) */
+.sg-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+.sg-table th,
+.sg-table td {
+    height: 48px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--sg-track);
+    text-align: left;
+    color: var(--sg-text);
+    font-weight: 400;
+}
+
+.sg-table thead th {
+    height: 32px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--sg-text-4);
+}
+
+.sg-table .sg-num {
+    text-align: right;
+}
+
+.sg-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    margin-right: 10px;
+    transform: rotate(45deg);
+}
+
+.sg-dot--metal {
+    background: var(--sg-metal);
+}
+
+.sg-dot--crystal {
+    background: var(--sg-crystal);
+}
+
+.sg-dot--deuterium {
+    background: var(--sg-deut);
 }
 
 @media (max-width: 900px) {

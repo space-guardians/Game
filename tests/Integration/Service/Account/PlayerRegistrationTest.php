@@ -10,6 +10,7 @@ use App\Exception\Account\EmpireNameTaken;
 use App\Exception\Universe\NoFreePlanet;
 use App\Factory\UserFactory;
 use App\Model\Account\Registration;
+use App\Model\Economy\Resources;
 use App\Model\Universe\SpiralGalaxyShape;
 use App\Repository\EmpireRepository;
 use App\Service\Account\PlayerRegistration;
@@ -36,6 +37,17 @@ final class PlayerRegistrationTest extends KernelTestCase
         }
 
         self::assertLessThan(min($producer), max($aggressive));
+    }
+
+    public function testHomePlanetStartsWithStartingResources(): void
+    {
+        self::bootKernel();
+        $this->generateGalaxy(20);
+
+        $planet = $this->register('orion', StartingOrientation::Producer)->getHomePlanet();
+
+        self::assertEquals(new Resources(500, 500, 0), $planet->getResources());
+        self::assertNotNull($planet->getResourcesUpdatedAt());
     }
 
     public function testNoTwoEmpiresShareAPlanetUntilGalaxyIsFull(): void

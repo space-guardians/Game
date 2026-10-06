@@ -59,7 +59,7 @@ final readonly class ScheduledEventResolver
         }
 
         $planet = $event->getPlanet();
-        $lock = $this->lockFactory->createLock(null === $planet ? 'scheduled-event-' . $eventId : 'scheduled-events-planet-' . $planet->getId(), ttl: 60.0);
+        $lock = $this->lockFactory->createLock(null === $planet ? 'scheduled-event-' . $eventId : self::planetLockKey((int) $planet->getId()), ttl: 60.0);
         $lock->acquire(true);
 
         try {
@@ -75,6 +75,12 @@ final readonly class ScheduledEventResolver
         } finally {
             $lock->release();
         }
+    }
+
+    /** Verrou d'une planète : résolution de ses événements, consolidation de ses ressources */
+    public static function planetLockKey(int $planetId): string
+    {
+        return 'scheduled-events-planet-' . $planetId;
     }
 
     /** Sous verrou : relit l'événement (un autre processus a pu le résoudre entre-temps) et le résout */

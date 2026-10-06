@@ -6,6 +6,7 @@ namespace App\Factory;
 
 use App\Entity\Empire;
 use App\Enum\Account\StartingOrientation;
+use App\Model\Economy\Resources;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
@@ -29,5 +30,13 @@ final class EmpireFactory extends PersistentObjectFactory
             'homePlanet' => PlanetFactory::new(),
             'foundedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeThisYear()),
         ];
+    }
+
+    /** Comme à l'inscription : la planète mère produit depuis la fondation, avec la dotation de départ */
+    protected function initialize(): static
+    {
+        return $this->afterInstantiate(static function (Empire $empire): void {
+            $empire->getHomePlanet()->storeResources(new Resources(500.0, 500.0), $empire->getFoundedAt());
+        });
     }
 }

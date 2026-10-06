@@ -1,4 +1,4 @@
-{# Vue d'ensemble de la planète active (§5.4). Ressources, files et alertes s'y ajoutent avec l'économie. #}
+{# Vue d'ensemble de la planète active (§5.4) : planète, empire, ressources ; files et alertes viendront avec les constructions. #}
 {% extends 'layout/app.html.twig' %}
 
 {% set planet_label = empire.isHomePlanet(planet) ? 'Planète mère' : 'Colonie' %}
@@ -40,7 +40,34 @@
             </dl>
         </section>
 
-        <section class="sg-panel sg-cut-14 sg-overview__queues" aria-labelledby="queues-title">
+        <section class="sg-panel sg-cut-14 sg-overview__wide" aria-labelledby="resources-title">
+            <h2 id="resources-title" class="sg-section-title">Ressources</h2>
+            <table class="sg-table">
+                <thead>
+                    <tr>
+                        <th scope="col">Ressource</th>
+                        <th scope="col" class="sg-num">Stock</th>
+                        <th scope="col" class="sg-num">Production</th>
+                        <th scope="col" class="sg-num">Capacité</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for kind, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+                        {% set amount = attribute(resources.amounts, kind) %}
+                        {% set capacity = attribute(resources.capacity, kind) %}
+                        <tr>
+                            <th scope="row"><span class="sg-dot sg-dot--{{ kind }}" aria-hidden="true"></span>{{ label }}</th>
+                            <td class="sg-num sg-mono{{ amount >= capacity ? ' is-full' }}">{{ amount|round(0, 'floor')|format_number }}</td>
+                            <td class="sg-num sg-mono">+{{ attribute(resources.hourlyProduction, kind)|round(0, 'floor')|format_number }}/h</td>
+                            <td class="sg-num sg-mono">{{ capacity|format_number }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="sg-field__help">Au-delà de la capacité de stockage, la production est perdue.</p>
+        </section>
+
+        <section class="sg-panel sg-cut-14 sg-overview__wide" aria-labelledby="queues-title">
             <h2 id="queues-title" class="sg-section-title">Files en cours</h2>
             <p class="sg-empty">Aucune construction ni recherche en cours sur cette planète.</p>
         </section>

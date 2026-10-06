@@ -10,6 +10,12 @@ parameters:
     # Déconnexion du panneau d'administration après 30 minutes sans activité (§5.6.2)
     app.admin_idle_timeout: 1800
 
+    # Économie (§4.2) : valeurs de base, avant mines et dépôts (#20) ; reprises d'OGame, à équilibrer (§7)
+    app.economy.base_hourly_production: { metal: 30, crystal: 15, deuterium: 0 }
+    app.economy.base_capacity: { metal: 10000, crystal: 10000, deuterium: 10000 }
+    app.economy.starting_resources: { metal: 500, crystal: 500, deuterium: 0 }
+    app.economy.universe_speed: 1.0
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -23,6 +29,13 @@ services:
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
+
+    App\Model\Economy\EconomySettings:
+        arguments:
+            $baseHourlyProduction: '%app.economy.base_hourly_production%'
+            $baseCapacity: '%app.economy.base_capacity%'
+            $startingResources: '%app.economy.starting_resources%'
+            $universeSpeed: '%app.economy.universe_speed%'
 
     # Aléatoire non reproductible (graines de génération…) : moteur sûr par défaut
     Random\Randomizer: ~
