@@ -16,5 +16,7 @@ final readonly class MissionStep
         public FleetAction $action,
         /** Libellé de la destination (« 1:42:7 », « système 1:42 ») */
         public string $label,
+        /** Flotte à ravitailler (action « Ravitaillement ») */
+        public ?int $targetFleetId = null,
     ) {}
 }

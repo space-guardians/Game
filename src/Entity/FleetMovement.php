@@ -10,7 +10,7 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Déplacement en cours d'une flotte vers la destination de son ordre en cours (§4.6) : départ, arrivée planifiée
- * (événement de jeu), pourcentage de vitesse. Supprimé à l'arrivée.
+ * (événement de jeu), pourcentage de vitesse, et panne de carburant éventuelle en chemin. Supprimé à l'arrivée.
  */
 #[ORM\Entity(repositoryClass: FleetMovementRepository::class)]
 #[ORM\UniqueConstraint(name: 'fleet_movement_fleet_unique', fields: ['fleet'])]
@@ -26,6 +26,13 @@ final class FleetMovement implements \Stringable
     #[ORM\OneToOne]
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?ScheduledEvent $event = null;
+
+    /**
+     * Panne de carburant prévue : l'événement survient quand le réservoir se vide, à la fraction $reach du trajet,
+     * au lieu de l'arrivée (§4.6.3)
+     */
+    #[ORM\Column]
+    private float $reach = 1.0;
 
     public function __construct(
         #[ORM\ManyToOne]
@@ -82,6 +89,21 @@ final class FleetMovement implements \Stringable
     public function getDurationSeconds(): int
     {
         return $this->arrivesAt->getTimestamp() - $this->departedAt->getTimestamp();
+    }
+
+    public function strandsAt(float $reach): void
+    {
+        $this->reach = max(0.0, min(1.0, $reach));
+    }
+
+    public function getReach(): float
+    {
+        return $this->reach;
+    }
+
+    public function isStranding(): bool
+    {
+        return $this->reach < 1.0;
     }
 
     public function getEvent(): ?ScheduledEvent

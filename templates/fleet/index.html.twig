@@ -79,14 +79,26 @@
                             </div>
                         {% else %}
                             <p class="sg-entity__meta">
-                                Stationnée en <span class="sg-mono">{{ fleet.planet ? fleet.planet.address : (last_done ? last_done.destinationLabel : '—') }}</span>
+                                {% if fleet.stranded %}Immobilisée dans l’espace{% else %}Stationnée en <span class="sg-mono">{{ fleet.planet ? fleet.planet.address : (last_done ? last_done.destinationLabel : '—') }}</span>{% endif %}
                             </p>
                         {% endif %}
                         <p class="sg-entity__meta">
                             {{ fleet.shipCount|format_number }} vaisseau(x)
                             · Cargo <span class="sg-mono">{{ fleet.cargo|format_number }}</span>
                             · Vitesse <span class="sg-mono">{{ fleet.slowestSpeed|format_number }}</span>
+                            · Carburant <span class="sg-mono">{{ fleet.fuel|round(0, 'floor')|format_number }} / {{ fleet.tankCapacity|format_number }}</span>
                         </p>
+                        {% if fleet.stranded %}
+                            <twig:AlertBanner variant="error">En panne de carburant, immobilisée dans l’espace : envoyez une autre flotte la ravitailler.</twig:AlertBanner>
+                            {% set rescuers = fleets|filter(other => other.atHome and other.id != fleet.id) %}
+                            {% if rescuers is not empty %}
+                                <ul class="sg-fleet__rescuers">
+                                    {% for rescuer in rescuers %}
+                                        <li><a href="{{ path('app_fleet_dispatch', {id: rescuer.id, ravitailler: fleet.id}) }}">Ravitailler avec « {{ rescuer.name }} »</a></li>
+                                    {% endfor %}
+                                </ul>
+                            {% endif %}
+                        {% endif %}
                         <p class="sg-fleet__ships">
                             {% for ships in fleet.ships %}
                                 <span class="sg-mono">{{ ships.quantity|format_number }} × {{ ships.type.name }}</span>{{ not loop.last ? ',' }}

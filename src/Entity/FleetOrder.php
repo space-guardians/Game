@@ -47,7 +47,15 @@ final class FleetOrder implements \Stringable
         /** Libellé de la destination au moment de l'ordre (« 1:42:7 », « système 1:42 »…) */
         #[ORM\Column(length: 60)]
         private readonly string $destinationLabel,
+        /** Flotte visée par un ravitaillement */
+        #[ORM\Column(nullable: true)]
+        private readonly ?int $targetFleetId = null,
     ) {}
+
+    public function getTargetFleetId(): ?int
+    {
+        return $this->targetFleetId;
+    }
 
     public function getId(): ?int
     {

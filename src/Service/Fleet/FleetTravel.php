@@ -19,7 +19,20 @@ final readonly class FleetTravel
         private TrajectoryPlanner $planner,
         private TravelRules $rules,
         private EconomySettings $settings,
+        private FuelRules $fuel,
     ) {}
+
+    /** Deutérium que la flotte brûle pour ce trajet (§4.6.3) */
+    public function fuelFor(Fleet $fleet, TravelPlan $plan): float
+    {
+        $ships = [];
+        foreach ($fleet->getShips() as $fleetShips) {
+            $type = $fleetShips->getType();
+            $ships[] = ['consumption' => $type->getFuelConsumption(), 'quantity' => $fleetShips->getQuantity(), 'drive' => $type->getDrive()?->getCode()];
+        }
+
+        return $this->fuel->consumption($ships, $plan->trajectory->distance, $plan->speedPercent);
+    }
 
     /** Position actuelle d'une flotte stationnée (ou point de départ de son déplacement en cours) */
     public function positionOf(Fleet $fleet): SpacePosition

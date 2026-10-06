@@ -160,11 +160,15 @@ final class FleetController extends AbstractController
             try {
                 $movement = $this->dispatch->dispatch(
                     $fleet,
-                    $this->steps($request->request->all('steps')),
+                    $this->steps($request->request->all('steps'), $fleet),
                     $request->request->getInt('speed', 100),
                     $this->cargo($request->request->all('cargo')),
+                    max(0.0, (float) $request->request->get('fuel', 0)),
                 );
                 $this->addFlash('success', \sprintf('Flotte « %s » en route vers %s, arrivée à %s.', $fleet->getName(), $movement->getOrder()->getDestinationLabel(), $movement->getArrivesAt()->format('H:i:s')));
+                if ($movement->isStranding()) {
+                    $this->addFlash('error', \sprintf('Carburant insuffisant : la flotte tombera en panne en chemin, à %s.', $movement->getArrivesAt()->format('H:i:s')));
+                }
 
                 return $this->redirectToRoute('app_fleet');
             } catch (InvalidFleetMission $exception) {
@@ -172,15 +176,23 @@ final class FleetController extends AbstractController
             }
         }
 
+        // Ravitaillement proposé depuis une flotte en panne (§4.6.3)
+        $rescued = $this->fleets->find($request->query->getInt('ravitailler'));
+        $rescued = $rescued instanceof Fleet && $rescued->getEmpire() === $empire && $rescued->isStranded() && $rescued !== $fleet ? $rescued : null;
+        $stock = $fleet->isAtHome() ? $this->context->activeResources()?->amounts : null;
+
         return $this->render('fleet/dispatch.html.twig', [
             'empire' => $empire,
             'planet' => $empire->getActivePlanet(),
             'fleet' => $fleet,
             'origin' => $origin,
+            'rescued' => $rescued,
+            // Plein proposé : réservoirs complétés, dans la limite du deutérium de la planète
+            'suggested_fuel' => null === $stock ? 0 : (int) floor(min($fleet->tankCapacity() - $fleet->getFuel(), $stock->deuterium)),
             'form_steps' => self::FORM_STEPS,
             'actions' => FleetAction::cases(),
             'speeds' => TravelRules::SPEED_PERCENTS,
-            'stock' => $fleet->isAtHome() ? $this->context->activeResources()?->amounts : null,
+            'stock' => $stock,
             'submitted' => $request->request->all(),
         ], new Response(status: $request->isMethod('POST') ? 422 : 200));
     }
@@ -254,7 +266,8 @@ final class FleetController extends AbstractController
     }
 
     /**
-     * Étapes saisies, dans l'ordre ; une ligne sans action est ignorée.
+     * Étapes saisies, dans l'ordre ; une ligne sans action est ignorée. Un ravitaillement vise une flotte (sa position
+     * exacte), les autres actions des coordonnées.
      *
      * @param array<mixed> $rows
      *
@@ -262,7 +275,7 @@ final class FleetController extends AbstractController
      *
      * @throws InvalidFleetMission
      */
-    private function steps(array $rows): array
+    private function steps(array $rows, Fleet $fleet): array
     {
         $steps = [];
         foreach (array_values($rows) as $index => $row) {
@@ -271,6 +284,15 @@ final class FleetController extends AbstractController
             }
             $action = FleetAction::tryFrom((string) ($row['action'] ?? ''));
             if (null === $action) {
+                continue;
+            }
+            if (!$action->targetsCoordinates()) {
+                $target = $this->fleets->find((int) ($row['fleet'] ?? 0));
+                if (!$target instanceof Fleet || $target->getEmpire() !== $fleet->getEmpire()) {
+                    throw new InvalidFleetMission(\sprintf('Ordre %d : choisissez une flotte de l’empire à ravitailler.', $index + 1));
+                }
+                $steps[] = new MissionStep($target->getLocation()->toPosition(), $action, \sprintf('flotte « %s »', $target->getName()), (int) $target->getId());
+
                 continue;
             }
             $orbit = trim((string) ($row['position'] ?? ''));
