@@ -17,6 +17,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\NullFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 
 /**
@@ -56,7 +57,8 @@ final class PlanetCrudController extends AbstractCrudController
     {
         return $filters
             ->add(NumericFilter::new('position.orbit', 'Orbite'))
-            ->add(NumericFilter::new('temperature', 'Température (°C)'));
+            ->add(NumericFilter::new('temperature', 'Température (°C)'))
+            ->add(NullFilter::new('owner', 'Occupation')->setChoiceLabels('Libre', 'Occupée'));
     }
 
     public function configureFields(string $pageName): iterable
@@ -72,5 +74,6 @@ final class PlanetCrudController extends AbstractCrudController
             ->setSortable(false)
             ->formatValue(static fn(?float $radians): string => number_format(rad2deg((float) $radians), 0) . '°');
         yield IntegerField::new('temperature', 'Température (°C)');
+        yield AssociationField::new('owner', 'Empire')->formatValue(static fn(mixed $value): string => null === $value ? 'Libre' : (string) $value);
     }
 }

@@ -10,10 +10,13 @@
 
 {% block panel %}
     {{ form_start(form, {attr: {class: 'sg-form', novalidate: 'novalidate'}}) }}
+        {{ form_errors(form) }}
         <div class="sg-fields">
             {{ form_row(form.email) }}
             {{ form_row(form.plainPassword) }}
+            {{ form_row(form.empireName) }}
         </div>
+        {{ form_row(form.orientation) }}
         {{ form_row(form.acceptRules) }}
         <twig:Btn type="submit" label="Fonder mon empire" icon="arrow" full/>
     {{ form_end(form) }}

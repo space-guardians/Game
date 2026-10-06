@@ -11,6 +11,7 @@ use App\Entity\Planet;
 use App\Entity\StarSystem;
 use App\Enum\Admin\AdminRole;
 use App\Factory\AdminUserFactory;
+use App\Factory\EmpireFactory;
 use App\Factory\GalaxyFactory;
 use App\Factory\PlanetFactory;
 use App\Factory\StarSystemFactory;
@@ -148,6 +149,21 @@ final class UniverseAdminTest extends WebTestCase
         self::assertSame(0, self::getContainer()->get(GalaxyRepository::class)->count([]));
         self::assertSame(0, self::getContainer()->get(StarSystemRepository::class)->count([]));
         self::assertSame(0, self::getContainer()->get(PlanetRepository::class)->count([]));
+    }
+
+    public function testRefusesToDeleteInhabitedGalaxy(): void
+    {
+        EmpireFactory::createOne(['homePlanet' => $this->planet]);
+        $this->loginAs(AdminRole::Admin);
+        $crawler = $this->client->request('GET', '/admin/galaxies');
+        $deleteUrl = (string) $crawler->filter('[data-action-name="delete"]')->first()->attr('href');
+
+        $this->client->request('POST', $deleteUrl, ['token' => (string) $crawler->filter('input[name="token"]')->first()->attr('value')]);
+
+        self::assertResponseRedirects();
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('body', 'n’a pas été supprimée : 1 planète appartient à des empires.');
+        self::assertNotNull(self::getContainer()->get(GalaxyRepository::class)->find($this->galaxy->getId()));
     }
 
     private function loginAs(AdminRole $role): void

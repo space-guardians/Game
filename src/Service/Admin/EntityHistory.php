@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\AdminUser;
+use App\Entity\Empire;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
 use App\Entity\User;
@@ -35,6 +36,7 @@ final readonly class EntityHistory
     public const array LABELS = [
         User::class => 'Joueurs',
         AdminUser::class => 'Comptes d’administration',
+        Empire::class => 'Empires',
         Galaxy::class => 'Galaxies',
         GalaxyShapeTemplate::class => 'Gabarits de forme',
     ];
