@@ -16,6 +16,8 @@ enum AuditAction: string implements TranslatableInterface
     case Generate = 'generate';
     case Sanction = 'sanction';
     case ResetTwoFactor = 'reset_two_factor';
+    case Retry = 'retry';
+    case Discard = 'discard';
 
     public function label(): string
     {
@@ -23,6 +25,8 @@ enum AuditAction: string implements TranslatableInterface
             self::Generate => 'Génération',
             self::Sanction => 'Sanction',
             self::ResetTwoFactor => 'Réinitialisation de la double authentification',
+            self::Retry => 'Relance',
+            self::Discard => 'Suppression d’un message',
         };
     }
 

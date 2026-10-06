@@ -30,13 +30,13 @@
             {% if indicators.hasAlerts %}
                 <ul class="list-unstyled">
                     {% if indicators.failedMessages > 0 %}
-                        <li class="alert alert-danger">{{ indicators.failedMessages }} message(s) Messenger en échec (file « failed »).</li>
+                        <li class="alert alert-danger"><a href="{{ path('admin_messenger_index') }}">{{ indicators.failedMessages }} message(s) Messenger en échec</a> (file « failed »).</li>
                     {% endif %}
                     {% if indicators.lateEvents > 0 %}
-                        <li class="alert alert-warning">{{ indicators.lateEvents }} événement(s) planifié(s) en retard de plus de {{ late_after }} s : vérifier le worker.</li>
+                        <li class="alert alert-warning"><a href="{{ path('admin_scheduled_event_index', {filters: {status: {comparison: '=', value: 'pending'}}}) }}">{{ indicators.lateEvents }} événement(s) planifié(s) en retard</a> de plus de {{ late_after }} s : vérifier le worker.</li>
                     {% endif %}
                     {% if indicators.failedEvents > 0 %}
-                        <li class="alert alert-danger">{{ indicators.failedEvents }} événement(s) planifié(s) en échec ces 7 derniers jours.</li>
+                        <li class="alert alert-danger"><a href="{{ path('admin_scheduled_event_index', {filters: {status: {comparison: '=', value: 'failed'}}}) }}">{{ indicators.failedEvents }} événement(s) planifié(s) en échec</a> ces 7 derniers jours.</li>
                     {% endif %}
                 </ul>
             {% else %}

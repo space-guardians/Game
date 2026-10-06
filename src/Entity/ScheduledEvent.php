@@ -17,7 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: ScheduledEventRepository::class)]
 #[ORM\Index(name: 'scheduled_event_due_idx', fields: ['status', 'dueAt'])]
-final class ScheduledEvent
+final class ScheduledEvent implements \Stringable
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
@@ -135,6 +135,32 @@ final class ScheduledEvent
         $this->assertPending();
         $this->status = ScheduledEventStatus::Cancelled;
         $this->resolvedAt = $now;
+    }
+
+    /**
+     * Relance depuis le panneau d'administration (§5.6.1) d'un événement en échec, une fois la cause corrigée :
+     * il repasse en attente, son échéance passée le rend aussitôt résoluble. L'erreur précédente est effacée,
+     * le nombre de tentatives conservé.
+     */
+    public function retry(): void
+    {
+        if (ScheduledEventStatus::Failed !== $this->status) {
+            throw new \LogicException(\sprintf('Seul un événement en échec peut être relancé (#%d : %s).', (int) $this->id, $this->status->value));
+        }
+        $this->status = ScheduledEventStatus::Pending;
+        $this->error = null;
+        $this->resolvedAt = null;
+    }
+
+    /** En attente, échu depuis plus de $tolerance secondes : ni le réveil ni la vérification périodique ne l'ont résolu */
+    public function isLate(\DateTimeImmutable $now, int $tolerance): bool
+    {
+        return ScheduledEventStatus::Pending === $this->status && $this->dueAt->getTimestamp() < $now->getTimestamp() - $tolerance;
+    }
+
+    public function __toString(): string
+    {
+        return \sprintf('%s #%d', $this->type, (int) $this->id);
     }
 
     private function assertPending(): void

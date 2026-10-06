@@ -1,0 +1,70 @@
+{# Supervision des files Messenger : messages en attente et en échec (relance, suppression) #}
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block page_title 'Files de messages' %}
+{% block content_title 'Files de messages' %}
+
+{% block main %}
+    <p>Traitements en arrière-plan confiés au worker (e-mails, générations de galaxie, réveils des événements planifiés…). Les {{ limit }} premiers messages de chaque file sont listés.</p>
+
+    <h2 class="h5 mt-4">En échec <span class="badge badge-{{ failed_count ? 'danger' : 'success' }}" id="failed-count">{{ failed_count ?? '?' }}</span></h2>
+    <p class="text-muted">Messages abandonnés après leurs tentatives automatiques. Une fois la cause corrigée, les relancer les renvoie dans leur file d’origine.</p>
+    <table class="table datagrid" id="failed-messages">
+        <thead>
+            <tr>
+                <th scope="col">N°</th>
+                <th scope="col">Message</th>
+                <th scope="col">Erreur</th>
+                <th scope="col">Échec le</th>
+                <th scope="col"><span class="visually-hidden">Actions</span></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for message in failed %}
+                <tr>
+                    <td>{{ message.id }}</td>
+                    <td><code title="{{ message.class }}">{{ message.shortClass }}</code></td>
+                    <td>
+                        {% if message.errorClass %}<code>{{ message.errorClass }}</code><br>{% endif %}
+                        {{ message.error ?? '—' }}
+                    </td>
+                    <td>{{ message.failedAt ? message.failedAt|date('d/m/Y H:i:s') : '—' }}</td>
+                    <td class="text-end text-nowrap">
+                        <form method="post" action="{{ path('admin_messenger_retry', {id: message.id}) }}" class="d-inline">
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin_messenger_retry_' ~ message.id) }}">
+                            <button type="submit" class="btn btn-sm btn-primary">Relancer</button>
+                        </form>
+                        <form method="post" action="{{ path('admin_messenger_remove', {id: message.id}) }}" class="d-inline"
+                              data-controller="confirm" data-confirm-message-value="Supprimer définitivement ce message ? Son traitement n’aura jamais lieu." data-action="confirm#ask">
+                            <input type="hidden" name="_token" value="{{ csrf_token('admin_messenger_remove_' ~ message.id) }}">
+                            <button type="submit" class="btn btn-sm btn-danger">Supprimer</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5">Aucun message en échec.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2 class="h5 mt-4">En attente de traitement <span class="badge badge-secondary" id="pending-count">{{ pending_count ?? '?' }}</span></h2>
+    <p class="text-muted">Messages arrivés à échéance que le worker n’a pas encore pris. Une file qui grossit signale un worker arrêté ou débordé.</p>
+    <table class="table datagrid" id="pending-messages">
+        <thead>
+            <tr>
+                <th scope="col">N°</th>
+                <th scope="col">Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for message in pending %}
+                <tr>
+                    <td>{{ message.id }}</td>
+                    <td><code title="{{ message.class }}">{{ message.shortClass }}</code></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="2">Aucun message en attente.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
