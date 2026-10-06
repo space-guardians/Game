@@ -11,11 +11,13 @@ use App\Entity\Empire;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
 use App\Entity\PlanetBuilding;
+use App\Entity\PlanetShip;
 use App\Entity\Prerequisite;
 use App\Entity\Research;
 use App\Entity\ResearchQueueItem;
 use App\Entity\ShipClass;
 use App\Entity\ShipType;
+use App\Entity\ShipyardOrder;
 use App\Entity\Technology;
 use App\Entity\User;
 use App\Enum\Admin\AuditOrigin;
@@ -51,11 +53,13 @@ final readonly class EntityHistory
         Galaxy::class => 'Galaxies',
         GalaxyShapeTemplate::class => 'Gabarits de forme',
         PlanetBuilding::class => 'Bâtiments des planètes',
+        PlanetShip::class => 'Vaisseaux des planètes',
         Prerequisite::class => 'Prérequis',
         Research::class => 'Recherches des empires',
         ResearchQueueItem::class => 'Recherches en cours',
         ShipClass::class => 'Classes de vaisseaux',
         ShipType::class => 'Types de vaisseaux',
+        ShipyardOrder::class => 'Commandes du chantier spatial',
         Technology::class => 'Technologies',
     ];
 

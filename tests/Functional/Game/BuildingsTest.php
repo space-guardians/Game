@@ -37,7 +37,7 @@ final class BuildingsTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.sg-sidenav [aria-current="page"]', 'Bâtiments');
-        self::assertCount(11, $crawler->filter('.sg-entity'));
+        self::assertCount(12, $crawler->filter('.sg-entity'));
         $mine = $crawler->filter('.sg-entity')->first();
         self::assertStringContainsString('Mine de métal', $mine->text());
         self::assertStringContainsString('Niveau 1 : 1 min 48 s', $mine->text());

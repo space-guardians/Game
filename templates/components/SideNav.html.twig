@@ -19,6 +19,12 @@
                 Recherche
             </a>
         </li>
+        <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_shipyard' ? ' is-active' }}" href="{{ path('app_shipyard') }}"{% if current starts with 'app_shipyard' %} aria-current="page"{% endif %}>
+                <twig:Icon name="rocket" size="18"/>
+                Chantier spatial
+            </a>
+        </li>
     </ul>
 
     {% if this.empire %}

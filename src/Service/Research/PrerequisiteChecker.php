@@ -8,13 +8,14 @@ use App\Entity\BuildingType;
 use App\Entity\Empire;
 use App\Entity\Planet;
 use App\Entity\Prerequisite;
+use App\Entity\ShipType;
 use App\Entity\Technology;
 use App\Repository\PlanetRepository;
 use App\Repository\PrerequisiteRepository;
 
 /**
  * Prérequis non remplis (§4.4). Technologies requises : celles de l'empire. Bâtiments requis : ceux de la planète
- * pour un bâtiment ; pour une technologie, la somme des niveaux sur toutes les planètes de l'empire, comme pour la
+ * pour un bâtiment ou un vaisseau ; pour une technologie, la somme des niveaux sur toutes les planètes de l'empire, comme pour la
  * vitesse de recherche (une recherche se lance depuis n'importe quelle planète).
  */
 final readonly class PrerequisiteChecker
@@ -26,9 +27,9 @@ final readonly class PrerequisiteChecker
     ) {}
 
     /** @return list<Prerequisite> */
-    public function missing(BuildingType $type, Planet $planet): array
+    public function missing(BuildingType|ShipType $target, Planet $planet): array
     {
-        return $this->rules->missing($this->prerequisites->findFor($type), $this->planetBuildings($planet), $this->technologies($planet->getOwner()));
+        return $this->rules->missing($this->prerequisites->findFor($target), $this->planetBuildings($planet), $this->technologies($planet->getOwner()));
     }
 
     /** @return list<Prerequisite> */
@@ -49,6 +50,16 @@ final readonly class PrerequisiteChecker
     }
 
     /**
+     * Prérequis non remplis de chaque type de vaisseau, par code (les types débloqués n'y figurent pas).
+     *
+     * @return array<string, list<Prerequisite>>
+     */
+    public function missingForShips(Planet $planet): array
+    {
+        return $this->missingByTarget(ShipType::class, $this->planetBuildings($planet), $this->technologies($planet->getOwner()));
+    }
+
+    /**
      * Prérequis non remplis de chaque technologie, par code (les technologies débloquées n'y figurent pas).
      *
      * @return array<string, list<Prerequisite>>
@@ -59,7 +70,7 @@ final readonly class PrerequisiteChecker
     }
 
     /**
-     * @param class-string<BuildingType|Technology> $targetClass
+     * @param class-string<BuildingType|Technology|ShipType> $targetClass
      * @param array<string, int>                    $buildings
      * @param array<string, int>                    $technologies
      *

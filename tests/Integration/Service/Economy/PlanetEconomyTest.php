@@ -26,7 +26,7 @@ final class PlanetEconomyTest extends KernelTestCase
 
         $codes = array_map(static fn(BuildingType $type): string => $type->getCode(), $this->types()->findAllOrdered());
 
-        self::assertSame(['metal_mine', 'crystal_mine', 'deuterium_synthesizer', 'solar_plant', 'fusion_reactor', 'metal_storage', 'crystal_storage', 'deuterium_storage', 'robot_factory', 'nanite_factory', 'research_lab'], $codes);
+        self::assertSame(['metal_mine', 'crystal_mine', 'deuterium_synthesizer', 'solar_plant', 'fusion_reactor', 'metal_storage', 'crystal_storage', 'deuterium_storage', 'robot_factory', 'nanite_factory', 'research_lab', 'shipyard'], $codes);
     }
 
     public function testBuildingLevelsDriveProductionAndStorage(): void

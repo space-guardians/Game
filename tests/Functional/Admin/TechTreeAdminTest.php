@@ -107,7 +107,7 @@ final class TechTreeAdminTest extends WebTestCase
             'Prerequisite[level]' => '1',
         ]);
         self::assertResponseStatusCodeSame(422);
-        self::assertSelectorTextContains('body', 'Choisissez la cible');
+        self::assertSelectorTextContains('body', 'Choisissez une seule cible');
 
         $this->client->submitForm('Créer', [
             'Prerequisite[targetTechnology]' => (string) $energy->getId(),

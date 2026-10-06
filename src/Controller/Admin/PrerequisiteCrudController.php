@@ -19,7 +19,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 
 /**
- * Prérequis croisés bâtiments / technologies (contenu de jeu, §4.4, §5.6.1) : création, réglage du niveau,
+ * Prérequis croisés bâtiments / technologies / vaisseaux (contenu de jeu, §4.4, §4.5, §5.6.1) : création, réglage du niveau,
  * suppression par le game design.
  *
  * @extends AbstractCrudController<Prerequisite>
@@ -66,6 +66,7 @@ final class PrerequisiteCrudController extends AbstractCrudController
         return $filters
             ->add(EntityFilter::new('targetBuilding', 'Bâtiment cible'))
             ->add(EntityFilter::new('targetTechnology', 'Technologie cible'))
+            ->add(EntityFilter::new('targetShip', 'Vaisseau cible'))
             ->add(EntityFilter::new('requiredBuilding', 'Bâtiment requis'))
             ->add(EntityFilter::new('requiredTechnology', 'Technologie requise'));
     }
@@ -76,9 +77,10 @@ final class PrerequisiteCrudController extends AbstractCrudController
         yield TextField::new('target', 'Cible')->hideOnForm()->setSortable(false);
         yield TextField::new('required', 'Requis')->hideOnForm()->setSortable(false);
 
-        yield FormField::addFieldset('Cible')->setHelp('Ce qui est verrouillé : un bâtiment ou une technologie.');
+        yield FormField::addFieldset('Cible')->setHelp('Ce qui est verrouillé : un bâtiment, une technologie ou un vaisseau.');
         yield AssociationField::new('targetBuilding', 'Bâtiment')->onlyOnForms()->setRequired(false);
         yield AssociationField::new('targetTechnology', 'Technologie')->onlyOnForms()->setRequired(false);
+        yield AssociationField::new('targetShip', 'Vaisseau')->onlyOnForms()->setRequired(false);
 
         yield FormField::addFieldset('Requis')->setHelp('Un bâtiment (sur la planète concernée) ou une technologie (de l’empire).');
         yield AssociationField::new('requiredBuilding', 'Bâtiment')->onlyOnForms()->setRequired(false);

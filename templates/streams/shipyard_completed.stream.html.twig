@@ -1,0 +1,11 @@
+{# Livraison du chantier spatial, poussée par Mercure : notification, puis rafraîchissement de la page ouverte (morphing) #}
+<turbo-stream action="append" target="sg-notifications">
+    <template>
+        <div class="sg-toast" data-controller="toast">
+            <twig:AlertBanner variant="success">
+                Chantier spatial : {{ quantity }} × {{ ship }} livré{{ quantity > 1 ? 's' }} sur {{ empire.isHomePlanet(planet) ? 'la planète mère' : 'la colonie' }} <span class="sg-mono">{{ planet }}</span>.
+            </twig:AlertBanner>
+        </div>
+    </template>
+</turbo-stream>
+<turbo-stream action="refresh"></turbo-stream>
