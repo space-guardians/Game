@@ -70,6 +70,26 @@ final class Formation implements \Stringable
         }
     }
 
+    /**
+     * Retire des vaisseaux d'un type de la formation, en commençant par les cases les plus en arrière (le vaisseau
+     * consommé ou perdu n'a pas de case désignée).
+     */
+    public function withdraw(ShipType $type, int $quantity): void
+    {
+        $slots = array_filter($this->slots->toArray(), static fn(FormationSlot $slot): bool => $slot->getType() === $type);
+        $rank = array_flip(array_map(static fn(FormationRow $row): string => $row->value, array_reverse(FormationRow::cases())));
+        usort($slots, static fn(FormationSlot $a, FormationSlot $b): int => $rank[$a->getRow()->value] <=> $rank[$b->getRow()->value]);
+        foreach ($slots as $slot) {
+            if ($quantity <= 0) {
+                break;
+            }
+            $quantity -= $slot->take($quantity);
+            if (0 === $slot->getQuantity()) {
+                $this->slots->removeElement($slot);
+            }
+        }
+    }
+
     public function quantity(FormationRow $row, FormationColumn $column, ShipType $type): int
     {
         $count = 0;

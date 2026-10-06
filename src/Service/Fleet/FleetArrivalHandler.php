@@ -9,6 +9,7 @@ use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
 use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
+use App\Entity\ShipType;
 use App\Enum\Fleet\FleetAction;
 use App\Service\Economy\PlanetResources;
 use App\Service\Scheduling\ScheduledEventHandler;
@@ -16,7 +17,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Arrivée d'une flotte à la destination de son ordre en cours (§4.6) : elle s'y place, effectue l'action de l'ordre,
- * puis part aussitôt vers le suivant — ou reste stationnée sur place s'il n'y en a plus. Appelé par le résolveur, sous
+ * puis part aussitôt vers le suivant — ou reste stationnée sur place s'il n'y en a plus. Une flotte vidée par la
+ * colonisation (colonisateur seul) disparaît. Appelé par le résolveur, sous
  * verrou (de la planète visée le cas échéant) et dans une transaction.
  */
 final readonly class FleetArrivalHandler implements ScheduledEventHandler
@@ -52,6 +54,13 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
 
         $speedPercent = $movement->getSpeedPercent();
         $this->entityManager->remove($movement);
+        if ($fleet->isEmpty()) {
+            // Plus aucun vaisseau (colonisateur seul, consommé) : la flotte disparaît avec ses ordres restants
+            $this->entityManager->remove($fleet);
+            $this->entityManager->flush();
+
+            return;
+        }
         $this->entityManager->flush();
         $this->movements->launchNext($fleet, $arrival, $speedPercent);
     }
@@ -71,7 +80,45 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 break;
             case FleetAction::Station:
                 break;
+            case FleetAction::Colonize:
+                $failure = $this->colonize($fleet, $planet, $arrival);
+                if (null !== $failure) {
+                    $order->fail($failure, $arrival);
+
+                    return;
+                }
+                break;
         }
         $order->complete($arrival);
+    }
+
+    /**
+     * Fonde une colonie sur une planète libre : elle rejoint l'empire, reçoit la cargaison, et un colonisateur est
+     * consommé. Renvoie la raison d'un échec, ou null.
+     */
+    private function colonize(Fleet $fleet, ?Planet $planet, \DateTimeImmutable $arrival): ?string
+    {
+        if (null === $planet) {
+            return 'Plus de planète à cette position.';
+        }
+        if (null !== $planet->getOwner()) {
+            return \sprintf('La planète %s est déjà occupée.', $planet);
+        }
+        $colonyShip = null;
+        foreach ($fleet->getShips() as $ships) {
+            if (ShipType::COLONY_SHIP === $ships->getType()->getCode()) {
+                $colonyShip = $ships->getType();
+            }
+        }
+        if (null === $colonyShip) {
+            return 'Plus de colonisateur dans la flotte.';
+        }
+
+        $planet->assignTo($fleet->getEmpire());
+        // La production de la colonie démarre à sa fondation, avec la cargaison de la flotte pour premier stock
+        $planet->storeResources($fleet->unload(), $arrival);
+        $fleet->removeShips($colonyShip, 1);
+
+        return null;
     }
 }
