@@ -1,0 +1,119 @@
+{# Fiche d'un joueur : champs de l'empire, puis planètes et journal d'activité (PlayerFiles) #}
+{% extends '@EasyAdmin/crud/detail.html.twig' %}
+
+{# Libellés au singulier : un événement, pas un total comme au tableau de bord #}
+{% set event_labels = {'building.completed': 'Fin de construction'} %}
+{% set can_read_history = is_granted(constant('App\\Enum\\Admin\\AdminRole::Admin').value) %}
+
+{% block main %}
+    {{ parent() }}
+
+    <h2 class="h5 mt-4">Planètes</h2>
+    {% for item in player.planets %}
+        {% set resources = item.resources %}
+        <section class="sg-admin-player-planet" id="planete-{{ item.planet.id }}">
+            <h3 class="h6">
+                {{ item.planet }}
+                {% if item.home %}<span class="badge badge-secondary">Planète mère</span>{% endif %}
+                {% if item.planet.id == player.empire.activePlanet.id %}<span class="badge badge-info">Active</span>{% endif %}
+            </h3>
+            <table class="table datagrid">
+                <thead>
+                    <tr>
+                        <th scope="col">Ressource</th>
+                        <th scope="col" class="text-end">Stock</th>
+                        <th scope="col" class="text-end">Capacité</th>
+                        <th scope="col" class="text-end">Production / h</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for key, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+                        <tr>
+                            <td>{{ label }}</td>
+                            <td class="text-end">{{ attribute(resources.amounts, key)|round(0, 'floor')|format_number }}</td>
+                            <td class="text-end">{{ attribute(resources.capacity, key)|round(0, 'floor')|format_number }}</td>
+                            <td class="text-end">{{ attribute(resources.hourlyProduction, key)|round(0, 'floor')|format_number }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p>
+                <strong>Bâtiments :</strong>
+                {% for building in item.buildings %}
+                    {{ building.type.name }} {{ building.level }}{{ not loop.last ? ',' }}
+                {% else %}
+                    aucun.
+                {% endfor %}
+            </p>
+            <p>
+                <strong>Construction en cours :</strong>
+                {% if item.construction %}
+                    {{ item.construction.type.name }} niveau {{ item.construction.targetLevel }}, fin le {{ item.construction.endsAt|date('d/m/Y H:i:s') }}
+                {% else %}
+                    aucune.
+                {% endif %}
+            </p>
+        </section>
+    {% endfor %}
+
+    <p class="text-muted">Recherches, flottes et alliance s’ajouteront à la fiche avec leurs phases.</p>
+
+    <h2 class="h5 mt-4">Journal d’activité</h2>
+    <h3 class="h6">Actions du joueur</h3>
+    <table class="table datagrid" id="actions-joueur">
+        <thead>
+            <tr>
+                <th scope="col">Date</th>
+                <th scope="col">Opération</th>
+                <th scope="col">Objet</th>
+                <th scope="col">Champs</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for action in player.actions %}
+                {% set entry = action.entry %}
+                <tr>
+                    <td>
+                        {% if can_read_history %}
+                            <a href="{{ path('admin_entity_history_entry', {entity: action.entity.key, id: entry.id}) }}">{{ entry.createdAt|date('d/m/Y H:i:s') }}</a>
+                        {% else %}
+                            {{ entry.createdAt|date('d/m/Y H:i:s') }}
+                        {% endif %}
+                    </td>
+                    <td>{{ history_types[entry.type] ?? entry.type }}</td>
+                    <td>{{ action.entity.label }} #{{ entry.objectId }}</td>
+                    <td>{{ entry.type in ['insert', 'update'] ? entry.diffs|keys|filter(key => not (key starts with '@'))|join(', ') : '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4">Aucune action enregistrée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3 class="h6">Événements de jeu</h3>
+    <table class="table datagrid" id="evenements-joueur">
+        <thead>
+            <tr>
+                <th scope="col">Échéance</th>
+                <th scope="col">Événement</th>
+                <th scope="col">Planète</th>
+                <th scope="col">Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for event in player.events %}
+                <tr>
+                    <td>{{ event.dueAt|date('d/m/Y H:i:s') }}</td>
+                    <td>
+                        {{ event_labels[event.type] ?? event.type }}
+                        {% if event.payload.building is defined %}: {{ event.payload.building }} niveau {{ event.payload.level ?? '?' }}{% endif %}
+                    </td>
+                    <td>{{ event.planet }}</td>
+                    <td><span class="badge badge-{{ event.status.badge }}">{{ event.status.label }}</span></td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4">Aucun événement.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}

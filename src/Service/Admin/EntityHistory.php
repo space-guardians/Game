@@ -175,6 +175,38 @@ final readonly class EntityHistory
         return $result;
     }
 
+    /**
+     * Dernières modifications faites par un compte, toutes entités confondues (journal d'activité d'un joueur).
+     *
+     * @param string $firewall pare-feu de l'auteur (AuditOrigin), l'identifiant n'étant unique que par type de compte
+     *
+     * @return list<array{entity: AuditedEntity, entry: Entry}>
+     */
+    public function byAuthor(int $authorId, string $firewall, int $limit = self::PAGE_SIZE): array
+    {
+        $result = [];
+        foreach ($this->entities() as $entity) {
+            $rows = $this->connection($entity)->createQueryBuilder()
+                ->select('*')
+                ->from($entity->auditTable)
+                ->where('blame_id = :author')
+                ->andWhere('blame_user_firewall = :firewall')
+                ->setParameter('author', (string) $authorId)
+                ->setParameter('firewall', $firewall)
+                ->orderBy('created_at', 'DESC')
+                ->addOrderBy('id', 'DESC')
+                ->setMaxResults($limit)
+                ->executeQuery()
+                ->fetchAllAssociative();
+            foreach ($rows as $row) {
+                $result[] = ['entity' => $entity, 'entry' => $this->hydrate($row)];
+            }
+        }
+        usort($result, static fn(array $a, array $b): int => $b['entry']->createdAt <=> $a['entry']->createdAt ?: $b['entry']->id <=> $a['entry']->id);
+
+        return \array_slice($result, 0, $limit);
+    }
+
     private function filtered(AuditedEntity $entity, HistoryFilters $filters): QueryBuilder
     {
         $query = $this->connection($entity)->createQueryBuilder()->from($entity->auditTable);
