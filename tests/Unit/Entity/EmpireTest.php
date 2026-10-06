@@ -10,6 +10,7 @@ use App\Entity\GlobalPosition;
 use App\Entity\OrbitalPosition;
 use App\Entity\Planet;
 use App\Entity\StarSystem;
+use App\Entity\Technology;
 use App\Entity\User;
 use App\Enum\Account\StartingOrientation;
 use PHPUnit\Framework\TestCase;
@@ -51,6 +52,27 @@ final class EmpireTest extends TestCase
 
         $this->expectException(\DomainException::class);
         $empire->switchTo($this->planet());
+    }
+
+    public function testResearchLevelsBelongToTheEmpire(): void
+    {
+        $empire = $this->empire($this->planet(), 'Orion');
+        $energy = new Technology('energy', 'Énergie');
+
+        self::assertSame(0, $empire->researchLevel($energy));
+        $empire->setResearchLevel($energy, 2);
+        $empire->setResearchLevel($energy, 3);
+
+        self::assertSame(3, $empire->researchLevel($energy));
+        self::assertCount(1, $empire->getResearches());
+        self::assertSame(0, $empire->researchLevel(new Technology('computer', 'Informatique')));
+    }
+
+    public function testResearchLevelCannotBeNegative(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        $this->empire($this->planet(), 'Orion')->setResearchLevel(new Technology('energy', 'Énergie'), -1);
     }
 
     private function empire(Planet $planet, string $name): Empire

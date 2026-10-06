@@ -10,11 +10,13 @@ use App\Entity\ScheduledEvent;
 use App\Enum\Scheduling\ScheduledEventStatus;
 use App\Exception\Economy\ConstructionInProgress;
 use App\Exception\Economy\InsufficientResources;
+use App\Exception\Research\MissingPrerequisites;
 use App\Factory\EmpireFactory;
 use App\Model\Economy\Resources;
 use App\Repository\BuildingQueueItemRepository;
 use App\Repository\BuildingTypeRepository;
 use App\Repository\PlanetRepository;
+use App\Repository\TechnologyRepository;
 use App\Service\Economy\BuildingCompletedHandler;
 use App\Service\Economy\BuildingConstruction;
 use App\Service\Economy\PlanetResources;
@@ -74,12 +76,40 @@ final class BuildingConstructionTest extends KernelTestCase
         $planet = $this->homePlanet();
 
         try {
-            $this->construction()->start($planet, $this->type('fusion_reactor'));
-            self::fail('La centrale à fusion coûte plus que la dotation de départ.');
+            $this->construction()->start($planet, $this->type('robot_factory'));
+            self::fail('L’usine de robots coûte plus de deutérium que la dotation de départ.');
         } catch (InsufficientResources $exception) {
-            self::assertEquals(new Resources(400, 0, 180), $exception->missing);
+            self::assertEquals(new Resources(0, 0, 200), $exception->missing);
             self::assertNull(self::getContainer()->get(BuildingQueueItemRepository::class)->findActiveFor($planet));
         }
+    }
+
+    public function testRefusesLockedBuilding(): void
+    {
+        $planet = $this->homePlanet();
+
+        try {
+            $this->construction()->start($planet, $this->type('fusion_reactor'));
+            self::fail('La centrale à fusion requiert le synthétiseur de deutérium 5 et l’énergie 3.');
+        } catch (MissingPrerequisites $exception) {
+            self::assertSame('Synthétiseur de deutérium niveau 5, Énergie niveau 3', MissingPrerequisites::describe($exception->missing));
+            self::assertNull(self::getContainer()->get(BuildingQueueItemRepository::class)->findActiveFor($planet));
+        }
+    }
+
+    public function testUnlockedBuildingOnceItsPrerequisitesAreMet(): void
+    {
+        $planet = $this->homePlanet();
+        $planet->setBuildingLevel($this->type('deuterium_synthesizer'), 5);
+        $owner = $planet->getOwner();
+        \assert(null !== $owner);
+        $owner->setResearchLevel(self::getContainer()->get(TechnologyRepository::class)->findOneByCode('energy') ?? throw new \LogicException(), 3);
+        $planet->storeResources(new Resources(10_000, 10_000, 10_000), self::getContainer()->get(ClockInterface::class)->now());
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $item = $this->construction()->start($planet, $this->type('fusion_reactor'));
+
+        self::assertSame(1, $item->getTargetLevel());
     }
 
     public function testCompletionRaisesLevelAtEndTime(): void

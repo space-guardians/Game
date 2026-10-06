@@ -11,6 +11,9 @@ use App\Entity\Empire;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
 use App\Entity\PlanetBuilding;
+use App\Entity\Prerequisite;
+use App\Entity\Research;
+use App\Entity\Technology;
 use App\Entity\User;
 use App\Enum\Admin\AuditOrigin;
 use App\Model\Admin\AuditedEntity;
@@ -45,6 +48,9 @@ final readonly class EntityHistory
         Galaxy::class => 'Galaxies',
         GalaxyShapeTemplate::class => 'Gabarits de forme',
         PlanetBuilding::class => 'Bâtiments des planètes',
+        Prerequisite::class => 'Prérequis',
+        Research::class => 'Recherches des empires',
+        Technology::class => 'Technologies',
     ];
 
     public const array TYPE_LABELS = [

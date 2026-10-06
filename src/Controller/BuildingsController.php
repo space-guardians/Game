@@ -8,10 +8,12 @@ use App\Entity\BuildingType;
 use App\Exception\Economy\ConstructionInProgress;
 use App\Exception\Economy\InsufficientResources;
 use App\Exception\Economy\NoCancellableConstruction;
+use App\Exception\Research\MissingPrerequisites;
 use App\Repository\BuildingTypeRepository;
 use App\Service\Account\GameContext;
 use App\Service\Economy\BuildingConstruction;
 use App\Service\Economy\BuildingRules;
+use App\Service\Research\PrerequisiteChecker;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -19,8 +21,8 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Écran « Bâtiments » (§5.4) : bâtiments de la planète active, coût et durée du niveau suivant, lancement d'une
- * construction (§4.3).
+ * Écran « Bâtiments » (§5.4) : bâtiments de la planète active, coût et durée du niveau suivant, prérequis (§4.4),
+ * lancement d'une construction (§4.3).
  */
 final class BuildingsController extends AbstractController
 {
@@ -29,6 +31,7 @@ final class BuildingsController extends AbstractController
         private readonly BuildingTypeRepository $buildingTypes,
         private readonly BuildingRules $rules,
         private readonly BuildingConstruction $construction,
+        private readonly PrerequisiteChecker $prerequisites,
     ) {}
 
     #[Route('/batiments', name: 'app_buildings', methods: ['GET'])]
@@ -41,6 +44,7 @@ final class BuildingsController extends AbstractController
         $planet = $empire->getActivePlanet();
         $stock = $this->context->activeResources()?->amounts;
         $current = $this->context->activeConstruction();
+        $locked = $this->prerequisites->missingForBuildings($planet);
 
         $cards = [];
         foreach ($this->buildingTypes->findAllOrdered() as $type) {
@@ -54,7 +58,13 @@ final class BuildingsController extends AbstractController
                 'cost' => $cost,
                 'duration' => $this->construction->duration($planet, $type, $level + 1),
                 'missing' => $affordable || null === $stock ? null : $stock->shortfall($cost),
-                'state' => $building ? 'building' : ($affordable ? 'ready' : 'short'),
+                'requires' => $locked[$type->getCode()] ?? [],
+                'state' => match (true) {
+                    $building => 'building',
+                    isset($locked[$type->getCode()]) => 'locked',
+                    $affordable => 'ready',
+                    default => 'short',
+                },
             ];
         }
 
@@ -112,6 +122,8 @@ final class BuildingsController extends AbstractController
             $this->addFlash('success', \sprintf('Construction lancée : %s niveau %d.', $type->getName(), $item->getTargetLevel()));
         } catch (ConstructionInProgress $exception) {
             $this->addFlash('error', \sprintf('Une seule construction à la fois : %s est en cours.', $exception->current));
+        } catch (MissingPrerequisites $exception) {
+            $this->addFlash('error', \sprintf('%s est verrouillé : il requiert %s.', $type->getName(), MissingPrerequisites::describe($exception->missing)));
         } catch (InsufficientResources) {
             $this->addFlash('error', \sprintf('Ressources insuffisantes pour construire %s.', $type->getName()));
         }

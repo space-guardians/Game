@@ -1,0 +1,44 @@
+{# Fiche d'une technologie : paramètres, prérequis, puis aperçu du coût des premiers niveaux #}
+{% extends '@EasyAdmin/crud/detail.html.twig' %}
+
+{% block main %}
+    {{ parent() }}
+
+    <section class="sg-admin-preview" aria-labelledby="prerequisites-title">
+        <h2 id="prerequisites-title">Prérequis</h2>
+        {% if prerequisites is empty %}
+            <p>Aucun : recherchable dès le départ.</p>
+        {% else %}
+            <ul id="prerequis">
+                {% for prerequisite in prerequisites %}
+                    <li>{{ prerequisite.required }} niveau {{ prerequisite.level }}</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <p><a href="{{ path('admin_prerequisite_index') }}">Gérer les prérequis</a></p>
+    </section>
+
+    <section class="sg-admin-preview" aria-labelledby="levels-title">
+        <h2 id="levels-title">Aperçu des niveaux</h2>
+        <table class="table datagrid">
+            <thead>
+                <tr>
+                    <th scope="col" class="text-end">Niveau</th>
+                    <th scope="col" class="text-end">Métal</th>
+                    <th scope="col" class="text-end">Cristal</th>
+                    <th scope="col" class="text-end">Deutérium</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview_levels %}
+                    <tr>
+                        <td class="text-end">{{ row.level }}</td>
+                        <td class="text-end">{{ row.cost.metal|round|format_number }}</td>
+                        <td class="text-end">{{ row.cost.crystal|round|format_number }}</td>
+                        <td class="text-end">{{ row.cost.deuterium|round|format_number }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+{% endblock %}
