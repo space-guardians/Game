@@ -157,6 +157,8 @@ final class DashboardController extends AbstractDashboardController
 
         yield MenuItem::section('Contenu de jeu')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(BuildingTypeCrudController::class, 'Bâtiments')->setPermission(AdminRole::GameDesigner->value);
+        yield MenuItem::linkTo(TechnologyCrudController::class, 'Technologies')->setPermission(AdminRole::GameDesigner->value);
+        yield MenuItem::linkTo(PrerequisiteCrudController::class, 'Prérequis')->setPermission(AdminRole::GameDesigner->value);
 
         yield MenuItem::section('Exploitation')->setPermission(AdminRole::Admin->value);
         yield MenuItem::linkToRoute('Files de messages', null, 'admin_messenger_index')->setPermission(AdminRole::Admin->value);

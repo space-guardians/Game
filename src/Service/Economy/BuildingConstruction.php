@@ -11,17 +11,19 @@ use App\Enum\Economy\BuildingEffect;
 use App\Exception\Economy\ConstructionInProgress;
 use App\Exception\Economy\InsufficientResources;
 use App\Exception\Economy\NoCancellableConstruction;
+use App\Exception\Research\MissingPrerequisites;
 use App\Model\Economy\CancellationResult;
 use App\Model\Economy\EconomySettings;
 use App\Repository\BuildingQueueItemRepository;
 use App\Repository\BuildingTypeRepository;
+use App\Service\Research\PrerequisiteChecker;
 use App\Service\Scheduling\EventScheduler;
 use App\Service\Scheduling\ScheduledEventResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Lock\LockFactory;
 
 /**
- * Lance ou annule la construction du niveau suivant d'un bâtiment (§4.3) : une seule à la fois par planète, coût
+ * Lance ou annule la construction du niveau suivant d'un bâtiment (§4.3) : prérequis remplis (§4.4), une seule à la fois par planète, coût
  * débité au lancement (après consolidation des ressources), fin planifiée comme événement de jeu
  * (BuildingCompletedHandler), remboursement au prorata en cas d'annulation.
  * Sous le verrou de la planète, pour ne pas croiser une résolution d'événement ni un double clic.
@@ -38,10 +40,12 @@ final readonly class BuildingConstruction
         private EntityManagerInterface $entityManager,
         private LockFactory $lockFactory,
         private CancellationRefund $refund,
+        private PrerequisiteChecker $prerequisites,
     ) {}
 
     /**
      * @throws ConstructionInProgress
+     * @throws MissingPrerequisites
      * @throws InsufficientResources
      */
     public function start(Planet $planet, BuildingType $type): BuildingQueueItem
@@ -53,6 +57,10 @@ final readonly class BuildingConstruction
             $current = $this->queue->findActiveFor($planet);
             if (null !== $current) {
                 throw new ConstructionInProgress($current);
+            }
+            $missing = $this->prerequisites->missing($type, $planet);
+            if ([] !== $missing) {
+                throw new MissingPrerequisites($missing);
             }
 
             $targetLevel = $planet->buildingLevel($type) + 1;

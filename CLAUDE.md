@@ -63,7 +63,8 @@ Historique des données (`/admin/historique`, rôle `Admin`, §5.6.3) : `damienh
 - Les règles de jeu (production, coûts, trajectoires, combat) sont des **services PHP purs**, sans Doctrine ni HTTP, testables unitairement et réutilisables pour les simulations d'équilibrage.
 - Schéma de base : uniquement via migrations Doctrine générées (`doctrine:migrations:diff`), relues avant commit.
 - Chaque entité de configuration de jeu a son écran EasyAdmin dans la même PR (§5.6).
-- Contenu de jeu de départ (types de bâtiments…) : installé par une migration (données), réglable ensuite dans le panneau. Sa table s'ajoute à `CONTENT_TABLES` du `Makefile`, pour que `make fixtures` ne l'efface pas.
+- Contenu de jeu de départ (types de bâtiments, technologies, prérequis…) : installé par une migration (données), réglable ensuite dans le panneau. Sa table s'ajoute à `CONTENT_TABLES` du `Makefile`, pour que `make fixtures` ne l'efface pas.
+- Arbre technologique (§4.4) : `Technology` (contenu), niveaux par empire (`Research`, `Empire::researchLevel()`), prérequis croisés `Prerequisite` (cible et requis : bâtiment ou technologie). Vérification : `PrerequisiteRules` (pur) via `PrerequisiteChecker` (bâtiments de la planète, technologies de son empire) ; une cible verrouillée lève `MissingPrerequisites`.
 
 ### Twig, JS, CSS
 - Interface conforme à la [charte graphique](docs/charte-graphique.md) : couleurs et polices uniquement via les jetons `--sg-*` (`assets/styles/tokens.css`), composants de la charte en Twig Components (`templates/components/` : `Btn`, `Chip`, `AlertBanner`, `Icon`, `Logo`…), formulaires via le thème `templates/form/theme.html.twig`.

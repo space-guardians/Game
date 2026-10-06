@@ -37,16 +37,41 @@ final class BuildingsTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.sg-sidenav [aria-current="page"]', 'Bâtiments');
-        self::assertCount(10, $crawler->filter('.sg-entity'));
+        self::assertCount(11, $crawler->filter('.sg-entity'));
         $mine = $crawler->filter('.sg-entity')->first();
         self::assertStringContainsString('Mine de métal', $mine->text());
         self::assertStringContainsString('Niveau 1 : 1 min 48 s', $mine->text());
         self::assertStringContainsString('Disponible', $mine->text());
-        // Centrale à fusion : 900 métal, 360 cristal, 180 deutérium pour 500 / 500 / 0
+        // Usine de robots : 400 métal, 120 cristal, 200 deutérium pour 500 / 500 / 0
+        $robots = $crawler->filter('.sg-entity')->eq(8);
+        self::assertStringContainsString('Ressources insuffisantes', $robots->text());
+        self::assertStringContainsString('manque 200', $robots->text());
+        self::assertCount(1, $robots->filter('button[disabled]'));
+    }
+
+    public function testLockedBuildingShowsItsPrerequisites(): void
+    {
+        $this->login();
+
+        $crawler = $this->client->request('GET', '/batiments');
+
         $fusion = $crawler->filter('.sg-entity')->eq(4);
-        self::assertStringContainsString('Ressources insuffisantes', $fusion->text());
-        self::assertStringContainsString('manque 400', $fusion->text());
+        self::assertStringContainsString('Centrale à fusion', $fusion->text());
+        self::assertStringContainsString('Verrouillé', $fusion->filter('.sg-chip')->text());
+        self::assertStringContainsString('Requiert : Synthétiseur de deutérium 5, Énergie 3', preg_replace('/\s+/', ' ', $fusion->filter('.sg-entity__requires')->text()) ?? '');
         self::assertCount(1, $fusion->filter('button[disabled]'));
+    }
+
+    public function testLockedBuildingCannotBeBuilt(): void
+    {
+        $this->login();
+        $crawler = $this->client->request('GET', '/batiments');
+        $token = (string) $crawler->filter('.sg-entity')->eq(4)->filter('input[name="_token"]')->attr('value');
+
+        $this->client->request('POST', '/batiments/fusion_reactor/construire', ['_token' => $token]);
+
+        $this->client->followRedirect();
+        self::assertAnySelectorTextContains('.sg-alert', 'Centrale à fusion est verrouillé : il requiert Synthétiseur de deutérium niveau 5, Énergie niveau 3.');
     }
 
     public function testLaunchesConstruction(): void

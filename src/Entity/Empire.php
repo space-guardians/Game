@@ -7,6 +7,8 @@ namespace App\Entity;
 use App\Enum\Account\StartingOrientation;
 use App\Repository\EmpireRepository;
 use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -36,6 +38,10 @@ final class Empire
     #[ORM\JoinColumn(nullable: false)]
     private Planet $activePlanet;
 
+    /** @var Collection<int, Research> niveaux de recherche, valables pour toutes les planètes (§4.4) */
+    #[ORM\OneToMany(targetEntity: Research::class, mappedBy: 'empire', cascade: ['persist'])]
+    private Collection $researches;
+
     public function __construct(
         #[ORM\OneToOne]
         #[ORM\JoinColumn(nullable: false, unique: true, onDelete: 'CASCADE')]
@@ -54,6 +60,7 @@ final class Empire
         $this->name = self::normalizeName($name);
         $homePlanet->assignTo($this);
         $this->activePlanet = $homePlanet;
+        $this->researches = new ArrayCollection();
     }
 
     /** Espaces superflus retirés ; la casse est conservée mais ne distingue pas deux empires */
@@ -104,6 +111,32 @@ final class Empire
     public function isHomePlanet(Planet $planet): bool
     {
         return $planet === $this->homePlanet;
+    }
+
+    /** @return Collection<int, Research> */
+    public function getResearches(): Collection
+    {
+        return $this->researches;
+    }
+
+    public function researchLevel(Technology $technology): int
+    {
+        return $this->findResearch($technology)?->getLevel() ?? 0;
+    }
+
+    public function setResearchLevel(Technology $technology, int $level): void
+    {
+        $research = $this->findResearch($technology);
+        if (null === $research) {
+            $research = new Research($this, $technology);
+            $this->researches->add($research);
+        }
+        $research->setLevel($level);
+    }
+
+    private function findResearch(Technology $technology): ?Research
+    {
+        return $this->researches->findFirst(static fn(int $key, Research $research): bool => $research->getTechnology() === $technology);
     }
 
     public function getScore(): int
