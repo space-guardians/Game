@@ -934,6 +934,79 @@ a:hover {
     color: var(--sg-danger);
 }
 
+/* Élément de file (charte §8, QueueItem) : bâtiment en or */
+.sg-queue {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sg-queue-item {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px 18px;
+    background: var(--sg-panel-raised);
+    border: 1px solid var(--sg-line-strong);
+}
+
+.sg-queue-item--building {
+    border-color: var(--sg-gold);
+}
+
+.sg-queue-item__header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sg-queue-item__name {
+    margin: 0;
+    font-family: var(--sg-font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--sg-text);
+}
+
+.sg-queue-item__progress {
+    height: 4px;
+    background: var(--sg-track);
+}
+
+.sg-queue-item__progress > span {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: var(--sg-gold);
+}
+
+.sg-queue-item__times {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 32px;
+    margin: 0;
+    font-size: 13px;
+}
+
+.sg-queue-item__times dt {
+    color: var(--sg-text-3);
+}
+
+.sg-queue-item__times dd {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--sg-text);
+}
+
+.sg-queue-item__cancel {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
 /* Tableau de données (charte §9) */
 .sg-table {
     width: 100%;

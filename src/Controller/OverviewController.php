@@ -39,7 +39,6 @@ final class OverviewController extends AbstractController
             'planet' => $empire->getActivePlanet(),
             'resources' => $this->context->activeResources(),
             'building_types' => $this->buildingTypes->findAllOrdered(),
-            'construction' => $this->context->activeConstruction(),
         ]);
     }
 

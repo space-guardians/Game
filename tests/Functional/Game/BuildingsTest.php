@@ -70,7 +70,7 @@ final class BuildingsTest extends WebTestCase
         $crawler = $this->client->request('GET', '/batiments');
         $crawler = $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Construire niveau 1')->form());
         $crawler = $this->client->followRedirect();
-        self::assertStringContainsString('au prorata du temps restant (environ 100 % maintenant)', $crawler->filter('.sg-entity--building')->text());
+        self::assertStringContainsString('au prorata du temps restant (environ 100 % maintenant)', $crawler->filter('.sg-queue')->text());
 
         $this->client->submit($crawler->selectButton('Annuler la construction')->form());
 
@@ -78,6 +78,35 @@ final class BuildingsTest extends WebTestCase
         self::assertAnySelectorTextContains('.sg-alert', 'Construction annulée : 100 % du coût remboursé.');
         self::assertSelectorTextContains('.sg-topbar .sg-resource--metal', '500');
         self::assertNull(self::getContainer()->get(BuildingQueueItemRepository::class)->findActiveFor($empire->getHomePlanet()));
+    }
+
+    public function testQueueShowsLiveCountdown(): void
+    {
+        $this->login();
+        $crawler = $this->client->request('GET', '/batiments');
+        $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Construire niveau 1')->form());
+        $crawler = $this->client->followRedirect();
+
+        $item = $crawler->filter('.sg-queue [data-controller="countdown"]');
+        self::assertCount(1, $item);
+        self::assertSame((string) (strtotime('2026-10-06 10:00:00') * 1000), $item->attr('data-countdown-start-value'));
+        self::assertSame((string) (strtotime('2026-10-06 10:01:48') * 1000), $item->attr('data-countdown-end-value'));
+        self::assertStringContainsString('Mine de métal niv. 1', $item->text());
+        self::assertStringContainsString('1 min 48 s', $item->filter('[data-countdown-target="remaining"]')->text());
+        self::assertStringContainsString('10:01:48', $item->text());
+
+        $this->client->request('GET', '/');
+        self::assertSelectorTextContains('.sg-queue', 'Mine de métal niv. 1');
+        self::assertSelectorExists('.sg-queue a[href="/batiments"]');
+    }
+
+    public function testEmptyQueueSaysSo(): void
+    {
+        $this->login();
+
+        $this->client->request('GET', '/batiments');
+
+        self::assertSelectorTextContains('.sg-queue', 'Aucune construction en cours sur cette planète.');
     }
 
     public function testCancellingWithoutConstructionIsExplained(): void

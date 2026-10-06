@@ -100,16 +100,7 @@
 
         <section class="sg-panel sg-cut-14 sg-overview__wide" aria-labelledby="queues-title">
             <h2 id="queues-title" class="sg-section-title">Files en cours</h2>
-            {% if construction %}
-                <p>
-                    <twig:Chip label="Bâtiment" tone="gold" dot/>
-                    <strong>{{ construction.type.name }}</strong> niveau <span class="sg-mono">{{ construction.targetLevel }}</span> —
-                    fin à <span class="sg-mono">{{ construction.endsAt|date('H:i:s') }}</span>
-                    (<a href="{{ path('app_buildings') }}">Bâtiments</a>)
-                </p>
-            {% else %}
-                <p class="sg-empty">Aucune construction ni recherche en cours sur cette planète.</p>
-            {% endif %}
+            <twig:ConstructionQueue/>
         </section>
     </div>
 {% endblock %}
