@@ -6,6 +6,7 @@ namespace App\Service\Scheduling;
 
 use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
+use App\Enum\Scheduling\ScheduledEventStatus;
 use App\Message\ResolveScheduledEvent;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -47,5 +48,22 @@ final readonly class EventScheduler
         $delayMs = (int) ceil(max(0.0, (float) $event->getDueAt()->format('U.u') - (float) $now->format('U.u')) * 1000);
 
         $this->bus->dispatch(new ResolveScheduledEvent((int) $event->getId()), $delayMs > 0 ? [new DelayStamp($delayMs)] : []);
+    }
+
+    /**
+     * Relance un événement en échec ou en retard (panneau d'administration) : l'événement en échec repasse en
+     * attente, puis un réveil immédiat est envoyé.
+     */
+    public function retry(ScheduledEvent $event): void
+    {
+        if (ScheduledEventStatus::Failed === $event->getStatus()) {
+            $event->retry();
+            $this->entityManager->flush();
+        }
+        if (ScheduledEventStatus::Pending !== $event->getStatus()) {
+            throw new \LogicException(\sprintf('L\'événement %s n\'est ni en échec ni en attente.', $event));
+        }
+
+        $this->wake($event);
     }
 }

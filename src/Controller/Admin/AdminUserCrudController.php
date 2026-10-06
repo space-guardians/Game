@@ -39,6 +39,7 @@ use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 final class AdminUserCrudController extends AbstractCrudController
 {
     use HistoryActionTrait;
+    use SameOriginTrait;
 
     public function __construct(
         private readonly UserPasswordHasherInterface $passwordHasher,
@@ -143,9 +144,7 @@ final class AdminUserCrudController extends AbstractCrudController
         $this->denyAccessUnlessGranted(AdminRole::SuperAdmin->value);
         $admin = $context->getEntity()->getInstance();
         \assert($admin instanceof AdminUser);
-        if (!$this->comesFromThisSite($request)) {
-            throw new AccessDeniedException('Action à déclencher depuis le panneau d’administration.');
-        }
+        $this->denyUnlessSameOrigin($request);
         $this->denyOwnAccount($admin);
 
         $this->twoFactor->reset($admin);
@@ -167,12 +166,5 @@ final class AdminUserCrudController extends AbstractCrudController
         if ($this->isCurrentAdmin($admin)) {
             throw new AccessDeniedException('Un compte ne peut pas modifier ni supprimer son propre accès depuis cet écran.');
         }
-    }
-
-    private function comesFromThisSite(Request $request): bool
-    {
-        $origin = $request->headers->get('Origin') ?? $request->headers->get('Referer');
-
-        return null !== $origin && parse_url($origin, \PHP_URL_HOST) === $request->getHost();
     }
 }

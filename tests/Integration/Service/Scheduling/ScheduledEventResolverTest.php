@@ -166,6 +166,36 @@ final class ScheduledEventResolverTest extends KernelTestCase
         self::assertSame([], self::getContainer()->get(ScheduledEventRepository::class)->findDueIds($this->clock->now(), 10));
     }
 
+    public function testRetriedFailedEventIsWokenUpAndResolved(): void
+    {
+        $event = $this->scheduler()->schedule('type.inconnu', $this->clock->now(), PlanetFactory::createOne());
+        $this->resolver()->resolve((int) $event->getId());
+        $event = $this->reload($event);
+        self::assertSame(ScheduledEventStatus::Failed, $event->getStatus());
+        $this->transport()->reset();
+
+        $this->scheduler()->retry($event);
+
+        self::assertSame(ScheduledEventStatus::Pending, $this->reload($event)->getStatus());
+        $sent = $this->transport()->getSent();
+        self::assertCount(1, $sent);
+        self::assertEquals(new ResolveScheduledEvent((int) $event->getId()), $sent[0]->getMessage());
+        self::assertNull($sent[0]->last(DelayStamp::class));
+    }
+
+    public function testRetryOfLateEventOnlySendsWakeUp(): void
+    {
+        $event = $this->scheduler()->schedule('test.record', $this->clock->now()->modify('+1 minute'), PlanetFactory::createOne());
+        $this->transport()->reset();
+        $this->clock->sleep(10 * 60);
+
+        $this->scheduler()->retry($event);
+
+        self::assertCount(1, $this->transport()->getSent());
+        self::assertSame(1, $this->resolver()->resolve((int) $event->getId()));
+        self::assertSame(ScheduledEventStatus::Done, $this->reload($event)->getStatus());
+    }
+
     private function scheduler(): EventScheduler
     {
         return self::getContainer()->get(EventScheduler::class);
