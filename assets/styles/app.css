@@ -1114,3 +1114,88 @@ a:hover {
         grid-template-columns: minmax(0, 1fr);
     }
 }
+
+/* Arbre de recherche (§4.4) : nœuds positionnés côté serveur, liens en SVG ; seul cet écran défile horizontalement */
+.sg-techtree-scroll {
+    overflow-x: auto;
+    padding: 4px 0 12px;
+}
+
+.sg-techtree {
+    position: relative;
+}
+
+.sg-techtree__links {
+    position: absolute;
+    inset: 0;
+    overflow: visible;
+}
+
+.sg-techtree__link {
+    fill: none;
+    stroke: var(--sg-line-strong);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 4;
+}
+
+.sg-techtree__link.is-met {
+    stroke: var(--sg-gold);
+    stroke-dasharray: none;
+}
+
+.sg-technode {
+    position: absolute;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    box-sizing: border-box;
+    width: 200px;
+    height: 72px;
+    padding: 10px 14px;
+    background: var(--sg-panel-raised);
+    border: 1px solid var(--sg-line-strong);
+    color: var(--sg-text);
+    text-decoration: none;
+}
+
+.sg-technode:hover,
+.sg-technode:focus-visible {
+    border-color: var(--sg-text-3);
+}
+
+.sg-technode__name {
+    font-family: var(--sg-font-display);
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.sg-technode__meta {
+    font-size: 12px;
+    color: var(--sg-text-3);
+}
+
+.sg-technode--acquired {
+    border-color: var(--sg-gold);
+}
+
+.sg-technode--available,
+.sg-technode--researching {
+    border-color: var(--sg-cyan);
+}
+
+.sg-technode--locked {
+    border-style: dashed;
+    color: var(--sg-text-3);
+}
+
+.sg-technode__progress {
+    height: 3px;
+    background: var(--sg-track);
+}
+
+.sg-technode__bar {
+    display: block;
+    height: 100%;
+    background: var(--sg-cyan);
+}

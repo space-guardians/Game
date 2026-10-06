@@ -1,0 +1,11 @@
+{# Nœud de l'arbre de recherche (charte §8) : acquired (or), available (cyan), researching (cyan + barre), locked (pointillé).
+   Positionné en pixels par TechTreeLayout ; mène à la carte de la technologie. #}
+{% props name, state = 'locked', level = 0, x = 0, y = 0, href = null, progress = null %}
+{% set labels = {acquired: 'Acquise', available: 'Disponible', researching: 'En recherche', locked: 'Verrouillée'} %}
+<a {{ attributes.defaults({class: 'sg-technode sg-cut-10 sg-technode--' ~ state, href: href, style: 'left: ' ~ x ~ 'px; top: ' ~ y ~ 'px'}) }}>
+    <span class="sg-technode__name">{{ name }}</span>
+    <span class="sg-technode__meta"><span class="sg-mono">Niv. {{ level }}</span> · {{ labels[state] }}</span>
+    {% if progress is not null %}
+        <span class="sg-technode__progress" role="progressbar" aria-label="Avancement de la recherche" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ progress }}"><span class="sg-technode__bar" style="width: {{ progress }}%"></span></span>
+    {% endif %}
+</a>

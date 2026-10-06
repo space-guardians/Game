@@ -9,6 +9,7 @@ use App\Exception\Economy\InsufficientResources;
 use App\Exception\Research\MissingPrerequisites;
 use App\Exception\Research\NoCancellableResearch;
 use App\Exception\Research\ResearchInProgress;
+use App\Repository\PrerequisiteRepository;
 use App\Repository\ResearchQueueItemRepository;
 use App\Repository\TechnologyRepository;
 use App\Service\Account\GameContext;
@@ -16,6 +17,7 @@ use App\Service\Economy\CancellationRefund;
 use App\Service\Research\PrerequisiteChecker;
 use App\Service\Research\ResearchQueue;
 use App\Service\Research\ResearchRules;
+use App\Service\Research\TechTreeLayout;
 use Psr\Clock\ClockInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -24,8 +26,9 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
 /**
- * Écran « Recherche » (§4.4, §5.4) : technologies de l'empire, coût et durée du niveau suivant, prérequis,
- * lancement depuis la planète active, annulation. L'arbre graphique arrive avec #28.
+ * Écran « Recherche » (§4.4, §5.4) : arbre des technologies (nœuds reliés par leurs prérequis, positions calculées
+ * côté serveur), puis une carte par technologie : coût et durée du niveau suivant, prérequis, lancement depuis la
+ * planète active ; recherche en cours et annulation.
  */
 final class ResearchController extends AbstractController
 {
@@ -38,6 +41,8 @@ final class ResearchController extends AbstractController
         private readonly PrerequisiteChecker $prerequisites,
         private readonly ClockInterface $clock,
         private readonly CancellationRefund $refund,
+        private readonly TechTreeLayout $layout,
+        private readonly PrerequisiteRepository $prerequisiteRepository,
     ) {}
 
     #[Route('/recherche', name: 'app_research', methods: ['GET'])]
@@ -51,8 +56,13 @@ final class ResearchController extends AbstractController
         $current = $this->queueItems->findActiveFor($empire);
         $locked = $this->prerequisites->missingForTechnologies($empire);
 
+        $technologies = $this->technologies->findAllOrdered();
+        $now = $this->clock->now();
+
         $cards = [];
-        foreach ($this->technologies->findAllOrdered() as $technology) {
+        $levels = [];
+        foreach ($technologies as $technology) {
+            $levels[$technology->getCode()] = $empire->researchLevel($technology);
             $level = $empire->researchLevel($technology);
             $cost = $this->rules->cost($technology, $level + 1);
             $affordable = null !== $stock && $stock->covers($cost);
@@ -73,14 +83,18 @@ final class ResearchController extends AbstractController
         }
 
         return $this->render('research/index.html.twig', [
+            'tree' => $this->layout->layout($technologies, $this->prerequisiteRepository->findAllWithRelations()),
+            'levels' => $levels,
+            'locked' => array_keys($locked),
+            'progress' => null === $current ? null : (int) floor((1 - $this->refund->remainingShare($current->getStartedAt(), $current->getEndsAt(), $now)) * 100),
             'empire' => $empire,
             'planet' => $empire->getActivePlanet(),
             'cards' => $cards,
             'current' => $current,
             'laboratories' => $this->queue->laboratoryLevels($empire),
             // Heure du serveur pour le compte à rebours (décalage d'horloge du navigateur)
-            'now_ms' => (int) $this->clock->now()->format('Uv'),
-            'refund_share' => null === $current ? 0.0 : $this->refund->remainingShare($current->getStartedAt(), $current->getEndsAt(), $this->clock->now()),
+            'now_ms' => (int) $now->format('Uv'),
+            'refund_share' => null === $current ? 0.0 : $this->refund->remainingShare($current->getStartedAt(), $current->getEndsAt(), $now),
         ]);
     }
 

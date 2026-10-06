@@ -1,4 +1,4 @@
-{# Écran « Recherche » (§4.4) : recherche en cours de l'empire, puis une carte par technologie, lancée depuis la planète active #}
+{# Écran « Recherche » (§4.4) : recherche en cours de l'empire, arbre technologique, puis une carte par technologie, lancée depuis la planète active #}
 {% extends 'layout/app.html.twig' %}
 
 {% block title %}Recherche — Space Guardians{% endblock %}
@@ -55,10 +55,30 @@
         </p>
     </section>
 
+    <section class="sg-panel sg-cut-14" aria-labelledby="tree-title">
+        <h2 id="tree-title" class="sg-section-title">Arbre technologique</h2>
+        <div class="sg-techtree-scroll">
+            <div class="sg-techtree" style="width: {{ tree.width }}px; height: {{ tree.height }}px">
+                <svg class="sg-techtree__links" width="{{ tree.width }}" height="{{ tree.height }}" viewBox="0 0 {{ tree.width }} {{ tree.height }}" aria-hidden="true">
+                    {% for edge in tree.edges %}
+                        <path d="{{ edge.path }}" class="sg-techtree__link{{ levels[edge.from] >= edge.level ? ' is-met' }}" data-from="{{ edge.from }}" data-to="{{ edge.to }}"/>
+                    {% endfor %}
+                </svg>
+                {% for node in tree.nodes %}
+                    {% set code = node.technology.code %}
+                    {% set state = current and current.technology.code == code ? 'researching' : (levels[code] > 0 ? 'acquired' : (code in locked ? 'locked' : 'available')) %}
+                    <twig:TechNode name="{{ node.technology.name }}" state="{{ state }}" :level="levels[code]" :x="node.x" :y="node.y"
+                        href="#techno-{{ code }}" data-code="{{ code }}" :progress="state == 'researching' ? progress : null"/>
+                {% endfor %}
+            </div>
+        </div>
+        <p class="sg-field__help">Les liens relient une technologie à celles qu’elle débloque ; un lien plein est un prérequis rempli. Les bâtiments requis figurent sur les fiches ci-dessous.</p>
+    </section>
+
     <div class="sg-entities">
         {% for card in cards %}
             {% set technology = card.technology %}
-            <twig:EntityCard name="{{ technology.name }}" :level="card.level" state="{{ card.state }}" description="{{ technology.description }}">
+            <twig:EntityCard id="techno-{{ technology.code }}" name="{{ technology.name }}" :level="card.level" state="{{ card.state }}" description="{{ technology.description }}">
                 <h3 class="sg-entity__meta">Niveau {{ card.level + 1 }} : {{ card.duration|duration }}</h3>
                 <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
                 {% if card.requires is not empty %}
