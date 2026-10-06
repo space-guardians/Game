@@ -1,0 +1,76 @@
+{# Formation d'une flotte (§4.7) : grille avant / milieu / arrière × gauche / centre / droite #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Formation de {{ fleet.name }} — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · Flotte{% endblock %}
+{% block heading %}Formation de « {{ fleet.name }} »{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="grid-title">
+        <h2 id="grid-title" class="sg-section-title">Grille</h2>
+        <p class="sg-field__help">
+            Face à un adversaire de front — toujours le cas contre une flotte stationnée —, la ligne avant est engagée en
+            premier. Les flancs comptent quand plusieurs flottes en mouvement convergent.
+        </p>
+        <div class="sg-formation-grid" id="grille" role="table" aria-label="Vaisseaux par case">
+            <div role="row" class="sg-formation-grid__row">
+                <span role="columnheader"></span>
+                {% for column in columns %}<span role="columnheader" class="sg-formation-grid__head">{{ column.label }}</span>{% endfor %}
+            </div>
+            {% for row in rows %}
+                <div role="row" class="sg-formation-grid__row">
+                    <span role="rowheader" class="sg-formation-grid__head">{{ row.label }}</span>
+                    {% for column in columns %}
+                        {% set total = formation.total(row, column) %}
+                        <span role="cell" class="sg-formation-grid__cell sg-mono{{ total > 0 ? ' is-occupied' }}" data-cell="{{ row.value }}-{{ column.value }}">{{ total > 0 ? total|format_number : '·' }}</span>
+                    {% endfor %}
+                </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <form method="post" class="sg-panel sg-cut-14 sg-formation-form" aria-labelledby="layout-title">
+        <input type="hidden" name="_token" value="{{ csrf_token('formation-' ~ fleet.id) }}">
+        <h2 id="layout-title" class="sg-section-title">Répartition</h2>
+        {% if not fleet.stationed %}
+            <twig:AlertBanner variant="info">La flotte est en mission : sa formation se règle une fois stationnée.</twig:AlertBanner>
+        {% endif %}
+        <div class="sg-formation-form__scroll">
+            <table class="sg-table" id="repartition">
+                <thead>
+                    <tr>
+                        <th scope="col" rowspan="2">Vaisseau</th>
+                        {% for row in rows %}<th scope="colgroup" colspan="{{ columns|length }}">{{ row.label }}</th>{% endfor %}
+                    </tr>
+                    <tr>
+                        {% for row in rows %}{% for column in columns %}<th scope="col">{{ column.label }}</th>{% endfor %}{% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ships in fleet.ships %}
+                        {% set type = ships.type %}
+                        <tr>
+                            <th scope="row">{{ type.name }} <span class="sg-mono">({{ ships.quantity|format_number }})</span></th>
+                            {% for row in rows %}
+                                {% for column in columns %}
+                                    {% set key = row.value ~ '-' ~ column.value %}
+                                    {% set value = submitted is not null ? (submitted[type.code][key] ?? '') : formation.quantity(row, column, type) %}
+                                    <td>
+                                        <input class="sg-input sg-mono" type="number" min="0" max="{{ ships.quantity }}"
+                                            name="cells[{{ type.code }}][{{ key }}]" value="{{ value ?: '' }}" placeholder="0"
+                                            aria-label="{{ type.name }}, {{ row.label }} {{ column.label }}"{% if not fleet.stationed %} disabled{% endif %}>
+                                    </td>
+                                {% endfor %}
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p class="sg-field__help">Chaque vaisseau de la flotte occupe une case : la somme d’une ligne doit égaler le nombre de vaisseaux du type.</p>
+        <div class="sg-fleet__actions">
+            <twig:Btn type="submit" label="Enregistrer la formation" size="sm" :disabled="not fleet.stationed"/>
+            <a href="{{ path('app_fleet') }}">Retour aux flottes</a>
+        </div>
+    </form>
+{% endblock %}

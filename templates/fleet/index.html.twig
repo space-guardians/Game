@@ -111,6 +111,7 @@
                             {% if fleet.stationed %}
                                 <twig:Btn label="Envoyer" href="{{ path('app_fleet_dispatch', {id: fleet.id}) }}" size="sm"/>
                             {% endif %}
+                            <twig:Btn label="Formation" href="{{ path('app_fleet_formation', {id: fleet.id}) }}" variant="ghost" size="sm"/>
                             {% if fleet.atHome %}
                                 <form method="post" action="{{ path('app_fleet_disband', {id: fleet.id}) }}">
                                     <input type="hidden" name="_token" value="{{ csrf_token('disband-fleet-' ~ fleet.id) }}">

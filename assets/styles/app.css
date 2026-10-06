@@ -1340,3 +1340,45 @@ a:hover {
     align-items: flex-end;
     margin-top: 16px;
 }
+
+/* Formation (§4.7) : grille 3 × 3 et tableau de répartition (défilement horizontal sur petit écran) */
+.sg-formation-grid {
+    display: grid;
+    gap: 6px;
+    max-width: 420px;
+}
+
+.sg-formation-grid__row {
+    display: grid;
+    grid-template-columns: 6em repeat(3, 1fr);
+    gap: 6px;
+    align-items: center;
+}
+
+.sg-formation-grid__head {
+    font-size: 12px;
+    color: var(--sg-text-3);
+}
+
+.sg-formation-grid__cell {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 44px;
+    border: 1px dashed var(--sg-line-strong);
+    color: var(--sg-text-3);
+}
+
+.sg-formation-grid__cell.is-occupied {
+    border-style: solid;
+    border-color: var(--sg-cyan);
+    color: var(--sg-text);
+}
+
+.sg-formation-form__scroll {
+    overflow-x: auto;
+}
+
+.sg-formation-form .sg-table .sg-input {
+    width: 5em;
+}

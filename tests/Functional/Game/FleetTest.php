@@ -154,6 +154,54 @@ final class FleetTest extends WebTestCase
         self::assertSelectorTextContains('.sg-alert', 'Ordre 1 : ces coordonnées ne désignent ni une planète ni un système.');
     }
 
+    public function testAssembledFleetGetsDefaultFormationThatCanBeRearranged(): void
+    {
+        $this->login(['light_fighter' => 6, 'small_cargo' => 2]);
+        $crawler = $this->client->request('GET', '/flotte');
+        $this->client->submit($crawler->selectButton('Constituer la flotte')->form([
+            'name' => 'Escadre',
+            'ships[light_fighter]' => '6',
+            'ships[small_cargo]' => '2',
+        ]));
+        $fleet = self::getContainer()->get(FleetRepository::class)->findOneBy(['name' => 'Escadre']);
+        \assert($fleet instanceof Fleet);
+
+        // Par défaut : militaires devant au centre, civils derrière au centre
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/formation', $fleet->getId()));
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('#grille [data-cell="front-center"]', '6');
+        self::assertSelectorTextContains('#grille [data-cell="back-center"]', '2');
+
+        $this->client->submit($crawler->selectButton('Enregistrer la formation')->form([
+            'cells[light_fighter][front-center]' => '',
+            'cells[light_fighter][front-left]' => '3',
+            'cells[light_fighter][front-right]' => '3',
+        ]));
+        self::assertResponseRedirects();
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Formation de « Escadre » enregistrée.');
+        self::assertSelectorTextContains('#grille [data-cell="front-left"]', '3');
+        self::assertSelectorTextContains('#grille [data-cell="front-right"]', '3');
+        self::assertSelectorTextContains('#grille [data-cell="front-center"]', '·');
+    }
+
+    public function testFormationMustPlaceEveryShip(): void
+    {
+        $this->login(['light_fighter' => 6]);
+        $crawler = $this->client->request('GET', '/flotte');
+        $this->client->submit($crawler->selectButton('Constituer la flotte')->form(['name' => 'Escadre', 'ships[light_fighter]' => '6']));
+        $fleet = self::getContainer()->get(FleetRepository::class)->findOneBy(['name' => 'Escadre']);
+        \assert($fleet instanceof Fleet);
+
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/formation', $fleet->getId()));
+        $this->client->submit($crawler->selectButton('Enregistrer la formation')->form(['cells[light_fighter][front-center]' => '4']));
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('.sg-alert', 'Chasseur léger : 4 placé(s) sur 6.');
+        // La saisie est conservée pour correction
+        self::assertSame('4', $this->client->getCrawler()->filter('input[name="cells[light_fighter][front-center]"]')->attr('value'));
+    }
+
     public function testCannotDisbandAnotherEmpiresFleet(): void
     {
         $other = EmpireFactory::createOne();

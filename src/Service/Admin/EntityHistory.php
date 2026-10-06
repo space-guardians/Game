@@ -12,6 +12,8 @@ use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
 use App\Entity\FleetShip;
+use App\Entity\Formation;
+use App\Entity\FormationSlot;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
 use App\Entity\PlanetBuilding;
@@ -57,6 +59,8 @@ final readonly class EntityHistory
         Fleet::class => 'Flottes',
         FleetMovement::class => 'Déplacements de flottes',
         FleetOrder::class => 'Ordres de flottes',
+        Formation::class => 'Formations de flottes',
+        FormationSlot::class => 'Cases de formation',
         FleetShip::class => 'Vaisseaux des flottes',
         Galaxy::class => 'Galaxies',
         GalaxyShapeTemplate::class => 'Gabarits de forme',
