@@ -35,6 +35,7 @@ final class OverviewController extends AbstractController
         return $this->render('overview/index.html.twig', [
             'empire' => $empire,
             'planet' => $empire->getActivePlanet(),
+            'resources' => $this->context->activeResources(),
         ]);
     }
 

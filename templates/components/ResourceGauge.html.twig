@@ -1,0 +1,16 @@
+{# Ressource de la barre du haut (charte §8) : stock, débit horaire, jauge de stockage ; le contrôleur Stimulus
+   « resource-counter » poursuit le décompte entre deux chargements de page, plafonné par la capacité. #}
+{% props kind, label, amount, rate, capacity %}
+{% set full = amount >= capacity %}
+<div {{ attributes.defaults({class: 'sg-resource sg-resource--' ~ kind ~ (full ? ' is-full')}) }}
+    data-controller="resource-counter"
+    data-resource-counter-amount-value="{{ amount }}"
+    data-resource-counter-rate-value="{{ rate }}"
+    data-resource-counter-capacity-value="{{ capacity }}">
+    <span class="sg-resource__label">{{ label }}</span>
+    <span class="sg-resource__amount sg-mono" data-resource-counter-target="amount">{{ amount|round(0, 'floor')|format_number }}</span>
+    <span class="sg-resource__rate sg-mono">+{{ rate|round(0, 'floor')|format_number }}/h</span>
+    <span class="sg-resource__gauge" role="meter" aria-label="Stockage {{ label|lower }}" aria-valuemin="0" aria-valuemax="{{ capacity|round }}" aria-valuenow="{{ min(amount, capacity)|round }}">
+        <span data-resource-counter-target="gauge" style="width: {{ capacity > 0 ? min(100, amount / capacity * 100)|round(1) : 100 }}%"></span>
+    </span>
+</div>

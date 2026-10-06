@@ -12,6 +12,7 @@ use App\Exception\Universe\NoFreePlanet;
 use App\Model\Account\Registration;
 use App\Repository\EmpireRepository;
 use App\Repository\UserRepository;
+use App\Service\Economy\PlanetEconomy;
 use App\Service\Universe\HomePlanetAllocator;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -38,6 +39,7 @@ final readonly class PlayerRegistration
         private ClockInterface $clock,
         private AccountMailer $accountMailer,
         private LockFactory $lockFactory,
+        private PlanetEconomy $economy,
     ) {}
 
     /**
@@ -62,7 +64,10 @@ final readonly class PlayerRegistration
             $now = $this->clock->now();
             $user = new User($registration->email, $now);
             $user->setPassword($this->passwordHasher->hashPassword($user, $registration->plainPassword));
-            $empire = new Empire($user, $registration->empireName, $registration->orientation, $this->homePlanets->allocate($registration->orientation), $now);
+            $homePlanet = $this->homePlanets->allocate($registration->orientation);
+            $empire = new Empire($user, $registration->empireName, $registration->orientation, $homePlanet, $now);
+            // La planète mère commence à produire à la fondation, avec la dotation de départ
+            $homePlanet->storeResources($this->economy->startingResources(), $now);
 
             $this->entityManager->persist($user);
             $this->entityManager->persist($empire);
