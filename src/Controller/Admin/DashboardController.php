@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\AdminUser;
 use App\Enum\Admin\AdminRole;
+use App\Service\Admin\AdminIndicators;
 use App\Service\Admin\AdminTwoFactor;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminDashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
@@ -30,9 +31,17 @@ use Symfony\Component\Security\Http\Authentication\AuthenticationUtils;
 #[AdminDashboard(routePath: '/admin', routeName: 'admin')]
 final class DashboardController extends AbstractDashboardController
 {
+    public function __construct(
+        private readonly AdminIndicators $indicators,
+    ) {}
+
+    /** Indicateurs clés (§5.6.1) ; les alertes d'exploitation ne s'affichent qu'à partir du rôle Admin */
     public function index(): Response
     {
-        return $this->render('admin/dashboard.html.twig');
+        return $this->render('admin/dashboard.html.twig', [
+            'indicators' => $this->indicators->current(),
+            'late_after' => AdminIndicators::LATE_AFTER,
+        ]);
     }
 
     /**

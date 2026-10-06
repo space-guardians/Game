@@ -69,4 +69,49 @@ final class ScheduledEventRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * Événements en attente, par type.
+     *
+     * @return array<string, int>
+     */
+    public function countPendingByType(): array
+    {
+        /** @var list<array{type: string, total: int}> $rows */
+        $rows = $this->createQueryBuilder('e')
+            ->select('e.type, COUNT(e.id) AS total')
+            ->where('e.status = :pending')
+            ->setParameter('pending', ScheduledEventStatus::Pending)
+            ->groupBy('e.type')
+            ->orderBy('e.type')
+            ->getQuery()
+            ->getArrayResult();
+
+        return array_column($rows, 'total', 'type');
+    }
+
+    /** Événements en attente dont l'échéance est passée depuis avant $dueBefore : ni le réveil ni la vérification périodique ne les ont résolus */
+    public function countLate(\DateTimeImmutable $dueBefore): int
+    {
+        return (int) $this->createQueryBuilder('e')
+            ->select('COUNT(e.id)')
+            ->where('e.status = :pending')
+            ->andWhere('e.dueAt < :dueBefore')
+            ->setParameter('pending', ScheduledEventStatus::Pending)
+            ->setParameter('dueBefore', $dueBefore)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
+
+    public function countFailedSince(\DateTimeImmutable $since): int
+    {
+        return (int) $this->createQueryBuilder('e')
+            ->select('COUNT(e.id)')
+            ->where('e.status = :failed')
+            ->andWhere('e.resolvedAt >= :since')
+            ->setParameter('failed', ScheduledEventStatus::Failed)
+            ->setParameter('since', $since)
+            ->getQuery()
+            ->getSingleScalarResult();
+    }
 }

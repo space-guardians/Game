@@ -3,9 +3,52 @@
 {% block content_title %}Tableau de bord{% endblock %}
 
 {% block main %}
-    <p>Bienvenue dans le panneau d’administration de Space Guardians.</p>
     <p>
         Connecté en tant que <strong>{{ app.user.userIdentifier }}</strong> ({{ app.user.role.label }}).
     </p>
-    <p>Les sections (univers, joueurs, IA, contenu de jeu, quêtes et événements, modération, exploitation) arrivent au fil des phases du projet.</p>
+
+    <h2 class="h5 mt-4">Joueurs</h2>
+    <div class="sg-admin-indicators" id="indicateurs-joueurs">
+        {{ _self.indicator('Inscrits', indicators.registeredPlayers) }}
+        {{ _self.indicator('Actifs (24 h)', indicators.activeToday) }}
+        {{ _self.indicator('Actifs (7 jours)', indicators.activeThisWeek) }}
+        {{ _self.indicator('Nouveaux (24 h)', indicators.newToday) }}
+        {{ _self.indicator('Nouveaux (7 jours)', indicators.newThisWeek) }}
+    </div>
+
+    <h2 class="h5 mt-4">Événements de jeu en cours</h2>
+    <div class="sg-admin-indicators" id="indicateurs-evenements">
+        {{ _self.indicator('Total', indicators.pendingEventCount) }}
+        {% for label, count in indicators.pendingEvents %}
+            {{ _self.indicator(label, count) }}
+        {% endfor %}
+    </div>
+
+    {% if is_granted(constant('App\\Enum\\Admin\\AdminRole::Admin').value) %}
+        <h2 class="h5 mt-4">Alertes d’exploitation</h2>
+        <div id="alertes-exploitation">
+            {% if indicators.hasAlerts %}
+                <ul class="list-unstyled">
+                    {% if indicators.failedMessages > 0 %}
+                        <li class="alert alert-danger">{{ indicators.failedMessages }} message(s) Messenger en échec (file « failed »).</li>
+                    {% endif %}
+                    {% if indicators.lateEvents > 0 %}
+                        <li class="alert alert-warning">{{ indicators.lateEvents }} événement(s) planifié(s) en retard de plus de {{ late_after }} s : vérifier le worker.</li>
+                    {% endif %}
+                    {% if indicators.failedEvents > 0 %}
+                        <li class="alert alert-danger">{{ indicators.failedEvents }} événement(s) planifié(s) en échec ces 7 derniers jours.</li>
+                    {% endif %}
+                </ul>
+            {% else %}
+                <p class="alert alert-success">Aucune alerte.</p>
+            {% endif %}
+        </div>
+    {% endif %}
 {% endblock %}
+
+{% macro indicator(label, value) %}
+    <div class="sg-admin-indicator">
+        <span class="sg-admin-indicator-value">{{ value|format_number }}</span>
+        <span class="sg-admin-indicator-label">{{ label }}</span>
+    </div>
+{% endmacro %}
