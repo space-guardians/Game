@@ -14,6 +14,8 @@ use App\Entity\PlanetBuilding;
 use App\Entity\Prerequisite;
 use App\Entity\Research;
 use App\Entity\ResearchQueueItem;
+use App\Entity\ShipClass;
+use App\Entity\ShipType;
 use App\Entity\Technology;
 use App\Entity\User;
 use App\Enum\Admin\AuditOrigin;
@@ -52,6 +54,8 @@ final readonly class EntityHistory
         Prerequisite::class => 'Prérequis',
         Research::class => 'Recherches des empires',
         ResearchQueueItem::class => 'Recherches en cours',
+        ShipClass::class => 'Classes de vaisseaux',
+        ShipType::class => 'Types de vaisseaux',
         Technology::class => 'Technologies',
     ];
 
