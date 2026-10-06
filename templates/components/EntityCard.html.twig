@@ -1,7 +1,7 @@
-{# Carte d'entité (charte §8) : bâtiment, vaisseau, défense ; états ready, building, short, locked.
+{# Carte d'entité (charte §8) : bâtiment, technologie, vaisseau, défense ; états ready, building, researching, short, locked.
    Le contenu (coût, actions) est passé dans le bloc « content ». #}
 {% props name, state = 'ready', level = null, description = null %}
-{% set states = {ready: {label: 'Disponible', tone: 'green'}, building: {label: 'En construction', tone: 'gold'}, short: {label: 'Ressources insuffisantes', tone: 'red'}, locked: {label: 'Verrouillé', tone: 'neutral'}} %}
+{% set states = {ready: {label: 'Disponible', tone: 'green'}, building: {label: 'En construction', tone: 'gold'}, researching: {label: 'En recherche', tone: 'cyan'}, short: {label: 'Ressources insuffisantes', tone: 'red'}, locked: {label: 'Verrouillé', tone: 'neutral'}} %}
 <article {{ attributes.defaults({class: 'sg-entity sg-cut-14 sg-entity--' ~ state}) }}>
     <header class="sg-entity__header">
         <h2 class="sg-entity__name">{{ name }}</h2>

@@ -1,0 +1,11 @@
+{# Fin de recherche, poussée par Mercure : notification, puis rafraîchissement de la page ouverte (morphing) #}
+<turbo-stream action="append" target="sg-notifications">
+    <template>
+        <div class="sg-toast" data-controller="toast">
+            <twig:AlertBanner variant="success">
+                Recherche terminée : {{ technology }}{% if level %} niveau {{ level }}{% endif %}.
+            </twig:AlertBanner>
+        </div>
+    </template>
+</turbo-stream>
+<turbo-stream action="refresh"></turbo-stream>

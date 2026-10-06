@@ -8,6 +8,7 @@ use App\Model\Admin\DashboardIndicators;
 use App\Repository\ScheduledEventRepository;
 use App\Repository\UserRepository;
 use App\Service\Economy\BuildingCompletedHandler;
+use App\Service\Research\ResearchCompletedHandler;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\Transport\Receiver\MessageCountAwareInterface;
@@ -21,6 +22,7 @@ final readonly class AdminIndicators
     /** Libellés des types d'événements planifiés (ScheduledEventHandler::type()) */
     public const array EVENT_LABELS = [
         BuildingCompletedHandler::TYPE => 'Constructions en cours',
+        ResearchCompletedHandler::TYPE => 'Recherches en cours',
     ];
 
     /**

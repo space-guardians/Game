@@ -970,6 +970,11 @@ a:hover {
     border-color: var(--sg-gold);
 }
 
+/* Recherche : le cyan signale ce qui avance en temps réel (charte) */
+.sg-queue-item--research {
+    border-color: var(--sg-cyan);
+}
+
 .sg-queue-item__header {
     display: flex;
     align-items: center;
@@ -994,6 +999,10 @@ a:hover {
     width: 0;
     height: 100%;
     background: var(--sg-gold);
+}
+
+.sg-queue-item--research .sg-queue-item__progress > [data-countdown-target="bar"] {
+    background: var(--sg-cyan);
 }
 
 .sg-queue-item__times {
