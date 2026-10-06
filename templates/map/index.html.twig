@@ -1,0 +1,44 @@
+{# Carte de l'univers (§2.3, §5.5) : SVG zoomable piloté par le contrôleur Stimulus « galaxy-map » #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Carte — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · {{ galaxy.name }}{% endblock %}
+{% block heading %}Carte{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14 sg-map"
+        data-controller="galaxy-map"
+        data-galaxy-map-url-value="{{ path('app_map_data', {number: galaxy.number}) }}"
+        data-galaxy-map-center-x-value="{{ center.x }}"
+        data-galaxy-map-center-y-value="{{ center.y }}"
+        aria-labelledby="map-title">
+        <header class="sg-map__toolbar">
+            <h2 id="map-title" class="sg-section-title">Galaxie {{ galaxy.number }} — {{ galaxy.name }}</h2>
+            {% if galaxies|length > 1 %}
+                <form method="get" class="sg-map__galaxies">
+                    <label class="visually-hidden" for="galaxie">Galaxie</label>
+                    <select class="sg-input" id="galaxie" name="galaxie">
+                        {% for item in galaxies %}
+                            <option value="{{ item.number }}"{% if item is same as(galaxy) %} selected{% endif %}>Galaxie {{ item.number }} — {{ item.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <twig:Btn type="submit" label="Afficher" variant="ghost" size="sm"/>
+                </form>
+            {% endif %}
+            <twig:Btn label="Vue galaxie" variant="ghost" size="sm" data-action="galaxy-map#reset"/>
+        </header>
+        <svg class="sg-map__canvas" data-galaxy-map-target="svg" role="img" aria-label="Carte de la galaxie {{ galaxy.number }} : molette ou pincement pour zoomer, glisser pour se déplacer">
+            <g data-galaxy-map-target="world">
+                <g data-galaxy-map-target="systems"></g>
+                <g data-galaxy-map-target="planets"></g>
+            </g>
+        </svg>
+        <p class="sg-map__info" data-galaxy-map-target="info" aria-live="polite">Cliquez sur un système pour zoomer sur ses planètes.</p>
+        <p class="sg-field__help" data-galaxy-map-target="status" aria-live="polite">Chargement de la carte…</p>
+        <ul class="sg-map__legend">
+            <li><span class="sg-map__swatch is-mine"></span> Vos planètes</li>
+            <li><span class="sg-map__swatch is-occupied"></span> Planètes occupées</li>
+            <li><span class="sg-map__swatch"></span> Libres seulement</li>
+        </ul>
+    </section>
+{% endblock %}

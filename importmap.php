@@ -29,4 +29,13 @@ return [
     '@symfony/stimulus-bundle' => ['path' => './vendor/symfony/stimulus-bundle/assets/dist/loader.js'],
     '@hotwired/turbo' => ['version' => '8.0.23'],
     '@symfony/ux-live-component' => ['path' => './vendor/symfony/ux-live-component/assets/dist/live_controller.js'],
+    'd3-zoom' => ['version' => '3.0.0'],
+    'd3-selection' => ['version' => '3.0.0'],
+    'd3-dispatch' => ['version' => '3.0.1'],
+    'd3-drag' => ['version' => '3.0.0'],
+    'd3-interpolate' => ['version' => '3.0.1'],
+    'd3-transition' => ['version' => '3.0.1'],
+    'd3-color' => ['version' => '3.0.1'],
+    'd3-timer' => ['version' => '3.0.1'],
+    'd3-ease' => ['version' => '3.0.1'],
 ];
