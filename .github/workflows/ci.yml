@@ -130,8 +130,8 @@ jobs:
           ini-values: ${{ env.PHP_INI_VALUES }}
           coverage: none
       - uses: ramsey/composer-install@4.0.0
-      - name: Conteneur Symfony (pour phpstan-symfony)
-        run: bin/console cache:warmup --env=dev
+      - name: Conteneur Symfony de test (pour phpstan-symfony, qui analyse aussi les tests)
+        run: bin/console cache:warmup --env=test
       - name: Analyse
         run: vendor/bin/phpstan analyse --no-progress --error-format=json > var/phpstan.json || true
       - name: Rapport

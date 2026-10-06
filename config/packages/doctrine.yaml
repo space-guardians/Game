@@ -6,7 +6,8 @@ doctrine:
         # either here or in the DATABASE_URL env var (see .env file)
         #server_version: '16'
 
-        profiling_collect_backtrace: '%kernel.debug%'
+        # Pas de trace d'appel par requête : une génération de galaxie (~10 000 insertions) épuiserait la mémoire
+        profiling_collect_backtrace: false
     orm:
         validate_xml_mapping: true
         naming_strategy: doctrine.orm.naming_strategy.underscore

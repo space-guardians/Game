@@ -11,6 +11,7 @@ parameters:
         - config/reference.php
     tmpDir: var/cache/phpstan
     symfony:
-        containerXmlPath: var/cache/dev/App_KernelDevDebugContainer.xml
+        # Conteneur de test : les tests y récupèrent leurs doublures (tests/Fixtures)
+        containerXmlPath: var/cache/test/App_KernelTestDebugContainer.xml
     doctrine:
         objectManagerLoader: tests/object-manager.php

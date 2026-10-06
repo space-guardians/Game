@@ -40,7 +40,7 @@ twig-cs-fix: ## Corrige le style Twig
 	$(PHP) vendor/bin/twig-cs-fixer lint --fix
 
 stan: ## Analyse statique PHPStan (niveau 6)
-	$(CONSOLE) cache:warmup --env=dev
+	$(CONSOLE) cache:warmup --env=test
 	$(PHP) vendor/bin/phpstan analyse --memory-limit=1G
 
 lint: ## Composer, YAML, Twig, conteneur et mapping Doctrine
