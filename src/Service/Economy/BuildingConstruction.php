@@ -10,6 +10,8 @@ use App\Entity\Planet;
 use App\Enum\Economy\BuildingEffect;
 use App\Exception\Economy\ConstructionInProgress;
 use App\Exception\Economy\InsufficientResources;
+use App\Exception\Economy\NoCancellableConstruction;
+use App\Model\Economy\CancellationResult;
 use App\Model\Economy\EconomySettings;
 use App\Repository\BuildingQueueItemRepository;
 use App\Repository\BuildingTypeRepository;
@@ -19,8 +21,9 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Lock\LockFactory;
 
 /**
- * Lance la construction du niveau suivant d'un bâtiment (§4.3) : une seule à la fois par planète, coût débité
- * au lancement (après consolidation des ressources), fin planifiée comme événement de jeu (BuildingCompletedHandler).
+ * Lance ou annule la construction du niveau suivant d'un bâtiment (§4.3) : une seule à la fois par planète, coût
+ * débité au lancement (après consolidation des ressources), fin planifiée comme événement de jeu
+ * (BuildingCompletedHandler), remboursement au prorata en cas d'annulation.
  * Sous le verrou de la planète, pour ne pas croiser une résolution d'événement ni un double clic.
  */
 final readonly class BuildingConstruction
@@ -34,6 +37,7 @@ final readonly class BuildingConstruction
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
         private LockFactory $lockFactory,
+        private CancellationRefund $refund,
     ) {}
 
     /**
@@ -71,6 +75,45 @@ final readonly class BuildingConstruction
                 $this->entityManager->flush();
 
                 return $item;
+            });
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
+     * Annule la construction en cours (§4.3) : remboursement au prorata du temps restant, plafonné par la capacité
+     * de stockage courante ; l'événement de fin est annulé. Une construction déjà échue n'est plus annulable.
+     *
+     * @throws NoCancellableConstruction
+     */
+    public function cancel(Planet $planet): CancellationResult
+    {
+        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
+        $lock->acquire(true);
+
+        try {
+            $item = $this->queue->findActiveFor($planet) ?? throw NoCancellableConstruction::none();
+            $snapshot = $this->resources->settle($planet);
+            $now = $snapshot->at;
+            if ($item->getEndsAt() <= $now) {
+                throw NoCancellableConstruction::finished();
+            }
+
+            $share = $this->refund->remainingShare($item->getStartedAt(), $item->getEndsAt(), $now);
+            $refund = $item->getPaid()->times($share);
+            $stock = $this->refund->credit($snapshot->amounts, $refund, $snapshot->capacity);
+
+            return $this->entityManager->wrapInTransaction(function () use ($planet, $item, $stock, $now, $share, $refund, $snapshot): CancellationResult {
+                $planet->storeResources($stock, $now);
+                $item->getEvent()?->cancel($now);
+                $this->entityManager->remove($item);
+                $this->entityManager->flush();
+
+                $refunded = $stock->minus($snapshot->amounts);
+
+                // Ce qui n'a pas trouvé de place (shortfall : jamais négatif malgré les arrondis)
+                return new CancellationResult($share, $refunded, $refunded->shortfall($refund));
             });
         } finally {
             $lock->release();

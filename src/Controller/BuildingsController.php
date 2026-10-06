@@ -7,10 +7,13 @@ namespace App\Controller;
 use App\Entity\BuildingType;
 use App\Exception\Economy\ConstructionInProgress;
 use App\Exception\Economy\InsufficientResources;
+use App\Exception\Economy\NoCancellableConstruction;
 use App\Repository\BuildingTypeRepository;
 use App\Service\Account\GameContext;
 use App\Service\Economy\BuildingConstruction;
 use App\Service\Economy\BuildingRules;
+use App\Service\Economy\CancellationRefund;
+use Psr\Clock\ClockInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -28,6 +31,8 @@ final class BuildingsController extends AbstractController
         private readonly BuildingTypeRepository $buildingTypes,
         private readonly BuildingRules $rules,
         private readonly BuildingConstruction $construction,
+        private readonly CancellationRefund $refund,
+        private readonly ClockInterface $clock,
     ) {}
 
     #[Route('/batiments', name: 'app_buildings', methods: ['GET'])]
@@ -62,7 +67,37 @@ final class BuildingsController extends AbstractController
             'planet' => $planet,
             'cards' => $cards,
             'current' => $current,
+            // Part du coût rendue si l'annulation avait lieu maintenant (indicative : le temps continue de passer)
+            'refund_share' => null === $current ? null : $this->refund->remainingShare($current->getStartedAt(), $current->getEndsAt(), $this->clock->now()),
         ]);
+    }
+
+    #[Route('/batiments/annuler', name: 'app_buildings_cancel', methods: ['POST'])]
+    public function cancel(Request $request): Response
+    {
+        $empire = $this->context->empire();
+        if (null === $empire) {
+            return $this->redirectToRoute('app_home');
+        }
+        if (!$this->isCsrfTokenValid('cancel-construction', $request->request->getString('_token'))) {
+            $this->addFlash('error', 'La page a expiré : recommencez.');
+
+            return $this->redirectToRoute('app_buildings');
+        }
+
+        try {
+            $result = $this->construction->cancel($empire->getActivePlanet());
+            $lost = $result->lost->metal + $result->lost->crystal + $result->lost->deuterium;
+            $this->addFlash('success', \sprintf(
+                'Construction annulée : %d %% du coût remboursé%s.',
+                (int) floor($result->share * 100),
+                $lost >= 1 ? ', une partie a été perdue faute de place dans les dépôts' : '',
+            ));
+        } catch (NoCancellableConstruction $exception) {
+            $this->addFlash('error', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('app_buildings');
     }
 
     #[Route('/batiments/{code}/construire', name: 'app_buildings_build', methods: ['POST'])]

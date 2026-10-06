@@ -64,6 +64,38 @@ final class BuildingsTest extends WebTestCase
         self::assertNotNull(self::getContainer()->get(BuildingQueueItemRepository::class)->findActiveFor($empire->getHomePlanet()));
     }
 
+    public function testCancelsConstructionFromItsCard(): void
+    {
+        $empire = $this->login();
+        $crawler = $this->client->request('GET', '/batiments');
+        $crawler = $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Construire niveau 1')->form());
+        $crawler = $this->client->followRedirect();
+        self::assertStringContainsString('au prorata du temps restant (environ 100 % maintenant)', $crawler->filter('.sg-entity--building')->text());
+
+        $this->client->submit($crawler->selectButton('Annuler la construction')->form());
+
+        $this->client->followRedirect();
+        self::assertAnySelectorTextContains('.sg-alert', 'Construction annulée : 100 % du coût remboursé.');
+        self::assertSelectorTextContains('.sg-topbar .sg-resource--metal', '500');
+        self::assertNull(self::getContainer()->get(BuildingQueueItemRepository::class)->findActiveFor($empire->getHomePlanet()));
+    }
+
+    public function testCancellingWithoutConstructionIsExplained(): void
+    {
+        $this->login();
+        $crawler = $this->client->request('GET', '/batiments');
+        $crawler = $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Construire niveau 1')->form());
+        $crawler = $this->client->followRedirect();
+        $form = $crawler->selectButton('Annuler la construction')->form();
+        $this->client->submit($form);
+
+        // Deuxième envoi (double clic, onglet périmé) : plus rien à annuler
+        $this->client->submit($form);
+
+        $this->client->followRedirect();
+        self::assertAnySelectorTextContains('.sg-alert', 'Aucune construction en cours sur cette planète.');
+    }
+
     public function testSecondConstructionIsRefused(): void
     {
         $this->login();
