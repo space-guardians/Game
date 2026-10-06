@@ -1,0 +1,49 @@
+{# File de construction (charte §8, QueueItem bâtiment, or) : progression, temps restant, heure de fin.
+   « countdown » décompte, puis rafraîchit la page à l'échéance (Turbo). #}
+<div {{ attributes.defaults({class: 'sg-queue'}) }}>
+    {% set item = this.item %}
+    {% if item %}
+        {% set total = item.durationSeconds %}
+        <article class="sg-queue-item sg-queue-item--building sg-cut-10"
+            data-controller="countdown"
+            data-countdown-start-value="{{ item.startedAt.timestamp * 1000 }}"
+            data-countdown-end-value="{{ item.endsAt.timestamp * 1000 }}"
+            data-countdown-server-now-value="{{ this.nowMs }}">
+            <header class="sg-queue-item__header">
+                <twig:Chip label="Bâtiment" tone="gold" dot/>
+                <h3 class="sg-queue-item__name">{{ item.type.name }} <span class="sg-mono">niv. {{ item.targetLevel }}</span></h3>
+            </header>
+            <div class="sg-queue-item__progress" role="progressbar" aria-label="Avancement de la construction" aria-valuemin="0" aria-valuemax="100">
+                <span data-countdown-target="bar"></span>
+            </div>
+            <dl class="sg-queue-item__times">
+                <div>
+                    <dt>Temps restant</dt>
+                    <dd class="sg-mono" data-countdown-target="remaining">{{ max(0, item.endsAt.timestamp - this.nowMs // 1000)|duration }}</dd>
+                </div>
+                <div>
+                    <dt>Fin prévue</dt>
+                    <dd class="sg-mono">{{ item.endsAt|date('H:i:s') }}</dd>
+                </div>
+                <div>
+                    <dt>Durée</dt>
+                    <dd class="sg-mono">{{ total|duration }}</dd>
+                </div>
+            </dl>
+            {% if cancellable %}
+                <form method="post" action="{{ path('app_buildings_cancel') }}" class="sg-queue-item__cancel">
+                    <input type="hidden" name="_token" value="{{ csrf_token('cancel-construction') }}">
+                    <p class="sg-field__help">
+                        Annuler rend le coût au prorata du temps restant (environ {{ (this.refundShare * 100)|round(0, 'floor') }} % maintenant),
+                        dans la limite de vos dépôts : le reste est perdu.
+                    </p>
+                    <twig:Btn type="submit" label="Annuler la construction" variant="danger" size="sm"/>
+                </form>
+            {% else %}
+                <p class="sg-field__help"><a href="{{ path('app_buildings') }}">Gérer les constructions</a></p>
+            {% endif %}
+        </article>
+    {% else %}
+        <p class="sg-empty">Aucune construction en cours sur cette planète.</p>
+    {% endif %}
+</div>

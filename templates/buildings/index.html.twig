@@ -6,12 +6,11 @@
 {% block heading %}Bâtiments{% endblock %}
 
 {% block content %}
-    {% if current %}
-        <twig:AlertBanner variant="info">
-            Construction en cours : {{ current.type.name }} niveau {{ current.targetLevel }}, fin à {{ current.endsAt|date('H:i:s') }}.
-            Une seule construction à la fois par planète.
-        </twig:AlertBanner>
-    {% endif %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="queue-title">
+        <h2 id="queue-title" class="sg-section-title">File de construction</h2>
+        <twig:ConstructionQueue cancellable/>
+        <p class="sg-field__help">Une seule construction à la fois par planète.</p>
+    </section>
 
     <div class="sg-entities">
         {% for card in cards %}
@@ -20,15 +19,7 @@
                 <h3 class="sg-entity__meta">Niveau {{ card.level + 1 }} : {{ card.duration|duration }}</h3>
                 <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
                 {% if card.state == 'building' %}
-                    <p class="sg-entity__meta">Fin à <span class="sg-mono">{{ current.endsAt|date('H:i:s') }}</span></p>
-                    <form method="post" action="{{ path('app_buildings_cancel') }}">
-                        <input type="hidden" name="_token" value="{{ csrf_token('cancel-construction') }}">
-                        <p class="sg-entity__meta">
-                            Annuler rend le coût au prorata du temps restant (environ {{ (refund_share * 100)|round(0, 'floor') }} % maintenant),
-                            dans la limite de vos dépôts : le reste est perdu.
-                        </p>
-                        <twig:Btn type="submit" label="Annuler la construction" variant="danger" size="sm" full/>
-                    </form>
+                    <p class="sg-entity__meta">Fin à <span class="sg-mono">{{ current.endsAt|date('H:i:s') }}</span> — voir la file de construction</p>
                 {% else %}
                     <form method="post" action="{{ path('app_buildings_build', {code: type.code}) }}">
                         <input type="hidden" name="_token" value="{{ csrf_token('build-' ~ type.code) }}">

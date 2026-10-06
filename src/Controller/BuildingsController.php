@@ -12,8 +12,6 @@ use App\Repository\BuildingTypeRepository;
 use App\Service\Account\GameContext;
 use App\Service\Economy\BuildingConstruction;
 use App\Service\Economy\BuildingRules;
-use App\Service\Economy\CancellationRefund;
-use Psr\Clock\ClockInterface;
 use Symfony\Bridge\Doctrine\Attribute\MapEntity;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -31,8 +29,6 @@ final class BuildingsController extends AbstractController
         private readonly BuildingTypeRepository $buildingTypes,
         private readonly BuildingRules $rules,
         private readonly BuildingConstruction $construction,
-        private readonly CancellationRefund $refund,
-        private readonly ClockInterface $clock,
     ) {}
 
     #[Route('/batiments', name: 'app_buildings', methods: ['GET'])]
@@ -67,8 +63,6 @@ final class BuildingsController extends AbstractController
             'planet' => $planet,
             'cards' => $cards,
             'current' => $current,
-            // Part du coût rendue si l'annulation avait lieu maintenant (indicative : le temps continue de passer)
-            'refund_share' => null === $current ? null : $this->refund->remainingShare($current->getStartedAt(), $current->getEndsAt(), $this->clock->now()),
         ]);
     }
 
