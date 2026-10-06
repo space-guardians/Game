@@ -1,0 +1,25 @@
+{# Gabarit applicatif des écrans connectés (charte §4) : barre du haut, navigation à gauche, contenu fluide #}
+{% extends 'base.html.twig' %}
+
+{% block body %}
+    <div class="sg-app">
+        <twig:TopBar/>
+        <div class="sg-app__body">
+            <twig:SideNav current="{{ app.current_route }}"/>
+            <main class="sg-app__content" id="contenu">
+                {% for type, messages in app.flashes(['success', 'error', 'info']) %}
+                    {% for message in messages %}
+                        <twig:AlertBanner variant="{{ type }}">{{ message }}</twig:AlertBanner>
+                    {% endfor %}
+                {% endfor %}
+
+                <header class="sg-screen-header">
+                    <span class="sg-kicker">{% block kicker %}{% endblock %}</span>
+                    <h1>{% block heading %}{% endblock %}</h1>
+                </header>
+
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+    </div>
+{% endblock %}

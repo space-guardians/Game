@@ -39,6 +39,20 @@ final class EmpireTest extends TestCase
         $this->empire($planet, 'Second');
     }
 
+    public function testSwitchesOnlyToOwnPlanets(): void
+    {
+        $empire = $this->empire($this->planet(), 'Orion');
+        $colony = $this->planet();
+        $colony->assignTo($empire);
+
+        $empire->switchTo($colony);
+        self::assertSame($colony, $empire->getActivePlanet());
+        self::assertFalse($empire->isHomePlanet($colony));
+
+        $this->expectException(\DomainException::class);
+        $empire->switchTo($this->planet());
+    }
+
     private function empire(Planet $planet, string $name): Empire
     {
         return new Empire(new User($name . '@exemple.fr', new \DateTimeImmutable()), $name, StartingOrientation::Aggressive, $planet, new \DateTimeImmutable());

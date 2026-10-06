@@ -55,7 +55,8 @@ final class RegistrationTest extends WebTestCase
         self::assertEmailSubjectContains($email, 'Bienvenue parmi les Gardiens');
 
         $this->client->followRedirect();
-        self::assertSelectorTextContains('body', 'Connecté en tant que nouveau.gardien@exemple.fr');
+        self::assertSelectorTextContains('h1', 'Planète mère');
+        self::assertSelectorTextContains('.sg-topbar', 'Ordre d’Orion');
     }
 
     public function testFoundsEmpireOnHomePlanet(): void

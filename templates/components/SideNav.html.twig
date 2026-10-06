@@ -1,0 +1,32 @@
+{# Navigation (charte §8) : écrans du jeu, puis planètes de l'empire (sélecteur de planète active) #}
+<nav {{ attributes.defaults({class: 'sg-sidenav'}) }} aria-label="Navigation du jeu">
+    <ul class="sg-sidenav__items">
+        <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current == 'app_home' ? ' is-active' }}" href="{{ path('app_home') }}"{% if current == 'app_home' %} aria-current="page"{% endif %}>
+                <twig:Icon name="grid" size="18"/>
+                Vue d’ensemble
+            </a>
+        </li>
+    </ul>
+
+    {% if this.empire %}
+        <section class="sg-sidenav__planets" aria-labelledby="sidenav-planets">
+            <h2 id="sidenav-planets" class="sg-sidenav__title">Planètes</h2>
+            <ul>
+                {% for planet in this.planets %}
+                    {% set active = planet is same as(this.empire.activePlanet) %}
+                    <li>
+                        <form method="post" action="{{ path('app_active_planet') }}">
+                            <input type="hidden" name="planet" value="{{ planet.id }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('active-planet') }}">
+                            <button type="submit" class="sg-sidenav__planet{{ active ? ' is-active' }}"{% if active %} aria-current="true"{% endif %}>
+                                <span class="sg-sidenav__planet-name">{{ this.empire.isHomePlanet(planet) ? 'Planète mère' : 'Colonie' }}</span>
+                                <span class="sg-mono">{{ planet }}</span>
+                            </button>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+</nav>
