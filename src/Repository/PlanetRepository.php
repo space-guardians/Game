@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\Empire;
 use App\Entity\Galaxy;
 use App\Entity\Planet;
 use App\Model\Universe\PlanetCandidate;
@@ -18,6 +19,27 @@ final class PlanetRepository extends ServiceEntityRepository
     public function __construct(ManagerRegistry $registry)
     {
         parent::__construct($registry, Planet::class);
+    }
+
+    /**
+     * Planètes d'un empire, dans l'ordre des adresses.
+     *
+     * @return list<Planet>
+     */
+    public function findOwnedBy(Empire $empire): array
+    {
+        /** @var list<Planet> */
+        return $this->createQueryBuilder('p')
+            ->addSelect('s', 'g')
+            ->join('p.system', 's')
+            ->join('s.galaxy', 'g')
+            ->where('p.owner = :empire')
+            ->setParameter('empire', $empire)
+            ->orderBy('g.number')
+            ->addOrderBy('s.number')
+            ->addOrderBy('p.position.orbit')
+            ->getQuery()
+            ->getResult();
     }
 
     public function countOwnedIn(Galaxy $galaxy): int

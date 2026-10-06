@@ -1,0 +1,48 @@
+{# Vue d'ensemble de la planète active (§5.4). Ressources, files et alertes s'y ajoutent avec l'économie. #}
+{% extends 'layout/app.html.twig' %}
+
+{% set planet_label = empire.isHomePlanet(planet) ? 'Planète mère' : 'Colonie' %}
+{% set temperature = planet.temperature %}
+
+{% block title %}Vue d’ensemble — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · <span class="sg-mono">{{ planet }}</span>{% endblock %}
+{% block heading %}{{ planet_label }}{% endblock %}
+
+{% block content %}
+    <div class="sg-overview">
+        <section class="sg-panel sg-cut-14" aria-labelledby="planet-title">
+            <h2 id="planet-title" class="sg-section-title">Planète</h2>
+            <dl class="sg-facts">
+                <dt>Adresse</dt>
+                <dd class="sg-mono">{{ planet }}</dd>
+                <dt>Galaxie</dt>
+                <dd>{{ planet.system.galaxy.name }}</dd>
+                <dt>Système</dt>
+                <dd class="sg-mono">n° {{ planet.system.number }}</dd>
+                <dt>Orbite</dt>
+                <dd class="sg-mono">{{ planet.position.orbit }}</dd>
+                <dt>Température moyenne</dt>
+                <dd class="sg-mono">{{ temperature < 0 ? '−' ~ (-temperature) : temperature }} °C</dd>
+            </dl>
+        </section>
+
+        <section class="sg-panel sg-cut-14" aria-labelledby="empire-title">
+            <h2 id="empire-title" class="sg-section-title">Empire</h2>
+            <dl class="sg-facts">
+                <dt>Nom</dt>
+                <dd>{{ empire.name }}</dd>
+                <dt>Orientation</dt>
+                <dd><twig:Chip label="{{ empire.orientation.label }}" tone="{{ empire.orientation.value == 'aggressive' ? 'orange' : 'green' }}"/></dd>
+                <dt>Score</dt>
+                <dd class="sg-mono">{{ empire.score|format_number }}</dd>
+                <dt>Fondé le</dt>
+                <dd>{{ empire.foundedAt|format_date('long') }}</dd>
+            </dl>
+        </section>
+
+        <section class="sg-panel sg-cut-14 sg-overview__queues" aria-labelledby="queues-title">
+            <h2 id="queues-title" class="sg-section-title">Files en cours</h2>
+            <p class="sg-empty">Aucune construction ni recherche en cours sur cette planète.</p>
+        </section>
+    </div>
+{% endblock %}

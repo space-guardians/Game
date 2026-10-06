@@ -1,0 +1,22 @@
+{# Barre globale (charte §8) : logo, planète active, empire, déconnexion #}
+<header {{ attributes.defaults({class: 'sg-topbar'}) }}>
+    <twig:Logo class="sg-topbar__brand"/>
+
+    {% if this.empire %}
+        {% set planet = this.empire.activePlanet %}
+        <div class="sg-topbar__planet">
+            <span class="sg-topbar__label">Planète active</span>
+            <span class="sg-topbar__value">
+                {{ this.empire.isHomePlanet(planet) ? 'Planète mère' : 'Colonie' }}
+                <span class="sg-mono">{{ planet }}</span>
+            </span>
+        </div>
+    {% endif %}
+
+    <div class="sg-topbar__account">
+        {% if this.empire %}
+            <span class="sg-topbar__empire">{{ this.empire.name }}</span>
+        {% endif %}
+        <twig:Btn href="{{ path('app_logout') }}" label="Se déconnecter" variant="ghost" size="sm" icon="logout"/>
+    </div>
+</header>

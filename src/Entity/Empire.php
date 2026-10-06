@@ -92,6 +92,20 @@ final class Empire
         return $this->activePlanet;
     }
 
+    /** Planète pilotée par défaut (sélecteur de planète) : uniquement une planète de l'empire */
+    public function switchTo(Planet $planet): void
+    {
+        if ($planet->getOwner() !== $this) {
+            throw new \DomainException(\sprintf('La planète %s n\'appartient pas à l\'empire « %s ».', $planet, $this->name));
+        }
+        $this->activePlanet = $planet;
+    }
+
+    public function isHomePlanet(Planet $planet): bool
+    {
+        return $planet === $this->homePlanet;
+    }
+
     public function getScore(): int
     {
         return $this->score;
