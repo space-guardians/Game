@@ -114,4 +114,28 @@ final class ScheduledEventRepository extends ServiceEntityRepository
             ->getQuery()
             ->getSingleScalarResult();
     }
+
+    /**
+     * Derniers événements des planètes données, par échéance décroissante (fiche joueur du panneau).
+     *
+     * @param list<Planet> $planets
+     *
+     * @return list<ScheduledEvent>
+     */
+    public function findLatestForPlanets(array $planets, int $limit): array
+    {
+        if ([] === $planets) {
+            return [];
+        }
+
+        /** @var list<ScheduledEvent> */
+        return $this->createQueryBuilder('e')
+            ->where('e.planet IN (:planets)')
+            ->setParameter('planets', $planets)
+            ->orderBy('e.dueAt', 'DESC')
+            ->addOrderBy('e.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
 }
