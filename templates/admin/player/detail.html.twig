@@ -2,7 +2,7 @@
 {% extends '@EasyAdmin/crud/detail.html.twig' %}
 
 {# Libellés au singulier : un événement, pas un total comme au tableau de bord #}
-{% set event_labels = {'building.completed': 'Fin de construction', 'research.completed': 'Fin de recherche'} %}
+{% set event_labels = {'building.completed': 'Fin de construction', 'research.completed': 'Fin de recherche', 'shipyard.completed': 'Livraison du chantier spatial'} %}
 {% set can_read_history = is_granted(constant('App\\Enum\\Admin\\AdminRole::Admin').value) %}
 
 {% block main %}
@@ -107,6 +107,7 @@
                     <td>
                         {{ event_labels[event.type] ?? event.type }}
                         {% if event.payload.building is defined or event.payload.technology is defined %}: {{ event.payload.building ?? event.payload.technology }} niveau {{ event.payload.level ?? '?' }}{% endif %}
+                        {% if event.payload.ship is defined %}: {{ event.payload.quantity ?? '?' }} × {{ event.payload.ship }}{% endif %}
                     </td>
                     <td>{{ event.planet }}</td>
                     <td><span class="badge badge-{{ event.status.badge }}">{{ event.status.label }}</span></td>

@@ -48,6 +48,10 @@ final class Planet
     #[ORM\OneToMany(targetEntity: PlanetBuilding::class, mappedBy: 'planet', cascade: ['persist'])]
     private Collection $buildings;
 
+    /** @var Collection<int, PlanetShip> vaisseaux stationnés (inventaire) */
+    #[ORM\OneToMany(targetEntity: PlanetShip::class, mappedBy: 'planet', cascade: ['persist'])]
+    private Collection $ships;
+
     public function __construct(
         #[ORM\ManyToOne(inversedBy: 'planets')]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -60,6 +64,7 @@ final class Planet
     ) {
         $system->addPlanet($this);
         $this->buildings = new ArrayCollection();
+        $this->ships = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -112,6 +117,36 @@ final class Planet
     private function findBuilding(BuildingType $type): ?PlanetBuilding
     {
         return $this->buildings->findFirst(static fn(int $key, PlanetBuilding $building): bool => $building->getType() === $type);
+    }
+
+    /** @return Collection<int, PlanetShip> */
+    public function getShips(): Collection
+    {
+        return $this->ships;
+    }
+
+    public function shipCount(ShipType $type): int
+    {
+        return $this->findShips($type)?->getQuantity() ?? 0;
+    }
+
+    /** Ajoute des vaisseaux à l'inventaire (livraison du chantier spatial, retour de flotte…) */
+    public function addShips(ShipType $type, int $quantity): void
+    {
+        if ($quantity < 0) {
+            throw new \InvalidArgumentException('On n\'ajoute pas un nombre négatif de vaisseaux.');
+        }
+        $ships = $this->findShips($type);
+        if (null === $ships) {
+            $ships = new PlanetShip($this, $type);
+            $this->ships->add($ships);
+        }
+        $ships->setQuantity($ships->getQuantity() + $quantity);
+    }
+
+    private function findShips(ShipType $type): ?PlanetShip
+    {
+        return $this->ships->findFirst(static fn(int $key, PlanetShip $ships): bool => $ships->getType() === $type);
     }
 
     public function getResources(): Resources

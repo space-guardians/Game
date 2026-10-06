@@ -970,6 +970,15 @@ a:hover {
     border-color: var(--sg-gold);
 }
 
+/* Vaisseaux : violet (charte) ; commande en attente d'un poste : neutre */
+.sg-queue-item--ship {
+    border-color: var(--sg-violet);
+}
+
+.sg-queue-item--waiting {
+    border-style: dashed;
+}
+
 /* Recherche : le cyan signale ce qui avance en temps réel (charte) */
 .sg-queue-item--research {
     border-color: var(--sg-cyan);
@@ -1198,4 +1207,36 @@ a:hover {
     display: block;
     height: 100%;
     background: var(--sg-cyan);
+}
+
+.sg-queue-item--ship .sg-queue-item__progress > [data-countdown-target="bar"] {
+    background: var(--sg-violet);
+}
+
+/* Carte de vaisseau : caractéristiques en grille, commande (nombre + bouton) */
+.sg-entity__stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px 12px;
+    margin: 0;
+    font-size: 12px;
+}
+
+.sg-entity__stats dt {
+    color: var(--sg-text-3);
+}
+
+.sg-entity__stats dd {
+    margin: 0;
+    color: var(--sg-text);
+}
+
+.sg-entity__order {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.sg-entity__order .sg-input {
+    width: 7em;
 }

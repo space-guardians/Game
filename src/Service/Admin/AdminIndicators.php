@@ -8,6 +8,7 @@ use App\Model\Admin\DashboardIndicators;
 use App\Repository\ScheduledEventRepository;
 use App\Repository\UserRepository;
 use App\Service\Economy\BuildingCompletedHandler;
+use App\Service\Fleet\ShipyardOrderCompletedHandler;
 use App\Service\Research\ResearchCompletedHandler;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -23,6 +24,7 @@ final readonly class AdminIndicators
     public const array EVENT_LABELS = [
         BuildingCompletedHandler::TYPE => 'Constructions en cours',
         ResearchCompletedHandler::TYPE => 'Recherches en cours',
+        ShipyardOrderCompletedHandler::TYPE => 'Commandes du chantier spatial',
     ];
 
     /**

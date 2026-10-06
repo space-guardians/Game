@@ -1,0 +1,106 @@
+{# Écran « Chantier spatial » (§4.5) : commandes de la planète active, puis une carte par type de vaisseau #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Chantier spatial — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · <span class="sg-mono">{{ planet }}</span>{% endblock %}
+{% block heading %}Chantier spatial{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="shipyard-queue-title">
+        <h2 id="shipyard-queue-title" class="sg-section-title">Commandes</h2>
+        <div class="sg-queue sg-shipyard-queue">
+            {% for order in orders %}
+                {% if order.running(now) %}
+                    <article class="sg-queue-item sg-queue-item--ship sg-cut-10"
+                        data-controller="countdown"
+                        data-countdown-start-value="{{ order.startsAt.timestamp * 1000 }}"
+                        data-countdown-end-value="{{ order.endsAt.timestamp * 1000 }}"
+                        data-countdown-server-now-value="{{ now.format('Uv') }}">
+                        <header class="sg-queue-item__header">
+                            <twig:Chip label="Vaisseaux" tone="violet" dot/>
+                            <h3 class="sg-queue-item__name">{{ order.type.name }} <span class="sg-mono">× {{ order.quantity|format_number }}</span></h3>
+                        </header>
+                        <div class="sg-queue-item__progress" role="progressbar" aria-label="Avancement de la commande" aria-valuemin="0" aria-valuemax="100">
+                            <span data-countdown-target="bar"></span>
+                        </div>
+                        <dl class="sg-queue-item__times">
+                            <div>
+                                <dt>Temps restant</dt>
+                                <dd class="sg-mono" data-countdown-target="remaining">{{ max(0, order.endsAt.timestamp - now.timestamp)|duration }}</dd>
+                            </div>
+                            <div>
+                                <dt>Livraison</dt>
+                                <dd class="sg-mono">{{ order.endsAt|date('H:i:s') }}</dd>
+                            </div>
+                            <div>
+                                <dt>Poste</dt>
+                                <dd class="sg-mono">{{ order.slot + 1 }}</dd>
+                            </div>
+                        </dl>
+                    </article>
+                {% else %}
+                    <article class="sg-queue-item sg-queue-item--waiting sg-cut-10">
+                        <header class="sg-queue-item__header">
+                            <twig:Chip label="En attente" tone="neutral"/>
+                            <h3 class="sg-queue-item__name">{{ order.type.name }} <span class="sg-mono">× {{ order.quantity|format_number }}</span></h3>
+                        </header>
+                        <p class="sg-field__help">
+                            Poste <span class="sg-mono">{{ order.slot + 1 }}</span> : début à <span class="sg-mono">{{ order.startsAt|date('H:i:s') }}</span>,
+                            livraison à <span class="sg-mono">{{ order.endsAt|date('H:i:s') }}</span>.
+                        </p>
+                    </article>
+                {% endif %}
+            {% else %}
+                <p class="sg-empty">Aucune commande au chantier spatial de cette planète.</p>
+            {% endfor %}
+        </div>
+        <p class="sg-field__help">
+            {% if slots > 0 %}
+                Postes de construction : <span class="sg-mono">{{ slots }}</span> (un de plus tous les 4 niveaux du chantier).
+                Les commandes d’un même poste s’enchaînent ; chacune est payée à la commande et livrée en une fois.
+                Au plus {{ max_orders }} commandes à la fois.
+            {% else %}
+                Construisez un chantier spatial sur cette planète pour commander des vaisseaux.
+            {% endif %}
+        </p>
+    </section>
+
+    <div class="sg-entities">
+        {% for card in cards %}
+            {% set type = card.type %}
+            <twig:EntityCard id="vaisseau-{{ type.code }}" name="{{ type.name }}" state="{{ card.state }}" description="{{ type.description }}">
+                <p class="sg-entity__meta">
+                    {{ type.category.label }}{% if type.shipClass %} · {{ type.shipClass.name }}{% endif %}
+                    · En stock : <span class="sg-mono">{{ card.owned|format_number }}</span>
+                </p>
+                <dl class="sg-entity__stats">
+                    <div><dt>Attaque</dt><dd class="sg-mono">{{ type.attack|format_number }}</dd></div>
+                    <div><dt>Bouclier</dt><dd class="sg-mono">{{ type.shield|format_number }}</dd></div>
+                    <div><dt>Structure</dt><dd class="sg-mono">{{ type.structure|format_number }}</dd></div>
+                    <div><dt>Vitesse</dt><dd class="sg-mono">{{ type.speed|format_number }}</dd></div>
+                    <div><dt>Cargo</dt><dd class="sg-mono">{{ type.cargo|format_number }}</dd></div>
+                    <div><dt>Réservoir</dt><dd class="sg-mono">{{ type.fuelCapacity|format_number }}</dd></div>
+                </dl>
+                <h3 class="sg-entity__meta">Par vaisseau : {{ card.duration|duration }}</h3>
+                <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
+                {% if card.requires is not empty %}
+                    <p class="sg-entity__meta sg-entity__requires">Requiert :
+                        {% for prerequisite in card.requires %}
+                            <span class="sg-mono">{{ prerequisite.required.name }} {{ prerequisite.level }}</span>{{ not loop.last ? ',' }}
+                        {% endfor %}
+                    </p>
+                {% endif %}
+                <form method="post" action="{{ path('app_shipyard_order', {code: type.code}) }}" class="sg-entity__order">
+                    <input type="hidden" name="_token" value="{{ csrf_token('shipyard-' ~ type.code) }}">
+                    <label class="visually-hidden" for="quantite-{{ type.code }}">Nombre de {{ type.name }}</label>
+                    <input class="sg-input sg-mono" type="number" id="quantite-{{ type.code }}" name="quantity" value="1" min="1" max="{{ max_quantity }}" required{% if card.state == 'locked' %} disabled{% endif %}>
+                    <twig:Btn type="submit"
+                        label="{{ card.state == 'locked' ? 'Verrouillé' : 'Commander' }}"
+                        variant="{{ card.state == 'ready' ? 'primary' : 'ghost' }}"
+                        size="sm"
+                        :disabled="card.state != 'ready'"/>
+                </form>
+            </twig:EntityCard>
+        {% endfor %}
+    </div>
+{% endblock %}

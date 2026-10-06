@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\BuildingType;
 use App\Entity\Prerequisite;
+use App\Entity\ShipType;
 use App\Entity\Technology;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -21,10 +22,16 @@ final class PrerequisiteRepository extends ServiceEntityRepository
     }
 
     /** @return list<Prerequisite> */
-    public function findFor(BuildingType|Technology $target): array
+    public function findFor(BuildingType|Technology|ShipType $target): array
     {
+        $field = match (true) {
+            $target instanceof BuildingType => 'targetBuilding',
+            $target instanceof Technology => 'targetTechnology',
+            $target instanceof ShipType => 'targetShip',
+        };
+
         /** @var list<Prerequisite> */
-        return $this->findBy([$target instanceof BuildingType ? 'targetBuilding' : 'targetTechnology' => $target], ['id' => 'ASC']);
+        return $this->findBy([$field => $target], ['id' => 'ASC']);
     }
 
     /**
@@ -36,9 +43,10 @@ final class PrerequisiteRepository extends ServiceEntityRepository
     {
         /** @var list<Prerequisite> */
         return $this->createQueryBuilder('p')
-            ->addSelect('tb', 'tt', 'rb', 'rt')
+            ->addSelect('tb', 'tt', 'ts', 'rb', 'rt')
             ->leftJoin('p.targetBuilding', 'tb')
             ->leftJoin('p.targetTechnology', 'tt')
+            ->leftJoin('p.targetShip', 'ts')
             ->leftJoin('p.requiredBuilding', 'rb')
             ->leftJoin('p.requiredTechnology', 'rt')
             ->orderBy('p.id')

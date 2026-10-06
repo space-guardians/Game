@@ -11,11 +11,12 @@ use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 /**
- * Prérequis croisé (contenu de jeu, réglable dans le panneau) : pour construire un bâtiment ou rechercher une
- * technologie (la cible), il faut un bâtiment ou une technologie (le requis) à un niveau minimal.
+ * Prérequis croisé (contenu de jeu, réglable dans le panneau) : pour construire un bâtiment ou un vaisseau, ou
+ * rechercher une technologie (la cible), il faut un bâtiment ou une technologie (le requis) à un niveau minimal.
  * Ex. : centrale à fusion → synthétiseur de deutérium niveau 5 et énergie niveau 3.
  * Un bâtiment requis s'entend sur la planète concernée, une technologie au niveau de l'empire.
- * Une seule cible et un seul requis : contraintes CHECK posées par la migration (Doctrine ne les déclare pas).
+ * Une seule cible (bâtiment, technologie ou vaisseau) et un seul requis : contraintes CHECK posées par les
+ * migrations (Doctrine ne les déclare pas).
  *
  * @see §4.4 du cahier des charges
  */
@@ -38,6 +39,11 @@ final class Prerequisite implements \Stringable
     #[ORM\JoinColumn(onDelete: 'CASCADE')]
     private ?Technology $targetTechnology = null;
 
+    /** … ou type de vaisseau */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'CASCADE')]
+    private ?ShipType $targetShip = null;
+
     /** Requis : bâtiment… */
     #[ORM\ManyToOne]
     #[ORM\JoinColumn(onDelete: 'CASCADE')]
@@ -52,7 +58,7 @@ final class Prerequisite implements \Stringable
     #[Assert\Positive(message: 'Le niveau requis doit être d’au moins 1.')]
     private int $level = 1;
 
-    public static function of(BuildingType|Technology $target, BuildingType|Technology $required, int $level): self
+    public static function of(BuildingType|Technology|ShipType $target, BuildingType|Technology $required, int $level): self
     {
         $prerequisite = new self();
         $prerequisite->setTarget($target);
@@ -67,15 +73,16 @@ final class Prerequisite implements \Stringable
         return $this->id;
     }
 
-    public function getTarget(): BuildingType|Technology|null
+    public function getTarget(): BuildingType|Technology|ShipType|null
     {
-        return $this->targetBuilding ?? $this->targetTechnology;
+        return $this->targetBuilding ?? $this->targetTechnology ?? $this->targetShip;
     }
 
-    public function setTarget(BuildingType|Technology $target): void
+    public function setTarget(BuildingType|Technology|ShipType $target): void
     {
         $this->targetBuilding = $target instanceof BuildingType ? $target : null;
         $this->targetTechnology = $target instanceof Technology ? $target : null;
+        $this->targetShip = $target instanceof ShipType ? $target : null;
     }
 
     public function getRequired(): BuildingType|Technology|null
@@ -133,6 +140,16 @@ final class Prerequisite implements \Stringable
         $this->targetTechnology = $targetTechnology;
     }
 
+    public function getTargetShip(): ?ShipType
+    {
+        return $this->targetShip;
+    }
+
+    public function setTargetShip(?ShipType $targetShip): void
+    {
+        $this->targetShip = $targetShip;
+    }
+
     public function getRequiredBuilding(): ?BuildingType
     {
         return $this->requiredBuilding;
@@ -156,8 +173,8 @@ final class Prerequisite implements \Stringable
     #[Assert\Callback]
     public function validate(ExecutionContextInterface $context): void
     {
-        if ((null === $this->targetBuilding) === (null === $this->targetTechnology)) {
-            $context->buildViolation('Choisissez la cible : un bâtiment ou une technologie, pas les deux.')->atPath('targetBuilding')->addViolation();
+        if (1 !== \count(array_filter([$this->targetBuilding, $this->targetTechnology, $this->targetShip]))) {
+            $context->buildViolation('Choisissez une seule cible : un bâtiment, une technologie ou un vaisseau.')->atPath('targetBuilding')->addViolation();
         }
         if ((null === $this->requiredBuilding) === (null === $this->requiredTechnology)) {
             $context->buildViolation('Choisissez le requis : un bâtiment ou une technologie, pas les deux.')->atPath('requiredBuilding')->addViolation();
