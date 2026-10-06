@@ -71,7 +71,12 @@ final readonly class BuildingConstruction
                 $this->entityManager->persist($item);
                 $this->entityManager->flush();
                 // Planifié dans la même transaction : le réveil (transport Doctrine) n'existe que si tout est enregistré
-                $item->attachEvent($this->scheduler->schedule(BuildingCompletedHandler::TYPE, $endsAt, $planet, ['item' => $item->getId()]));
+                // Code et niveau recopiés : la construction quitte la file à sa fin, la notification en a besoin ensuite
+                $item->attachEvent($this->scheduler->schedule(BuildingCompletedHandler::TYPE, $endsAt, $planet, [
+                    'item' => $item->getId(),
+                    'building' => $type->getCode(),
+                    'level' => $targetLevel,
+                ]));
                 $this->entityManager->flush();
 
                 return $item;

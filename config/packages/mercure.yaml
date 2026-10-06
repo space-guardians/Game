@@ -6,6 +6,9 @@ mercure:
             public_url: '%env(MERCURE_PUBLIC_URL)%'
             # Hub Mercure v1 : JWT au format RFC 9068 (iss, sub, client_id, aud, exp)
             protocol_version: '1.0'
+            # Cookie d'autorisation des abonnements privés : le nom par défaut du protocole 1.0
+            # (« __Secure-mercure_access_token ») exige HTTPS ; le même nom est configuré côté hub (compose.yaml)
+            cookie_name: '%env(MERCURE_COOKIE_NAME)%'
             jwt:
                 secret: '%env(MERCURE_JWT_SECRET)%'
                 publish: '*'

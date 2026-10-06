@@ -6,7 +6,7 @@ namespace App\Service\Scheduling;
 
 use App\Entity\ScheduledEvent;
 use App\Enum\Scheduling\ScheduledEventStatus;
-use App\Model\Scheduling\GameTopics;
+use App\Event\ScheduledEventResolved;
 use App\Repository\ScheduledEventRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -15,15 +15,14 @@ use Psr\Container\ContainerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\DependencyInjection\Attribute\AutowireLocator;
 use Symfony\Component\Lock\LockFactory;
-use Symfony\Component\Mercure\HubInterface;
-use Symfony\Component\Mercure\Update;
+use Symfony\Contracts\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Résout les événements planifiés arrivés à échéance (§5.2) :
  * - sous un verrou par planète, pour qu'un événement ne soit jamais résolu deux fois et que ceux d'une même
  *   planète le soient l'un après l'autre, dans l'ordre de leurs échéances ;
  * - chacun dans sa transaction : un échec annule les modifications de son gestionnaire et le marque en échec ;
- * - puis publie la résolution sur Mercure, pour rafraîchir l'interface du joueur.
+ * - puis annonce la résolution (ScheduledEventResolved), dont les écouteurs informent le joueur via Mercure.
  */
 final readonly class ScheduledEventResolver
 {
@@ -33,7 +32,7 @@ final readonly class ScheduledEventResolver
         #[AutowireLocator(ScheduledEventHandler::TAG, defaultIndexMethod: 'type')]
         private ContainerInterface $handlers,
         private LockFactory $lockFactory,
-        private HubInterface $hub,
+        private EventDispatcherInterface $dispatcher,
         private EventScheduler $scheduler,
         private ClockInterface $clock,
         private LoggerInterface $logger,
@@ -111,7 +110,7 @@ final readonly class ScheduledEventResolver
             $event = $this->markFailed($eventId, $exception);
         }
 
-        $this->publish($event);
+        $this->announce($event);
 
         return true;
     }
@@ -135,27 +134,13 @@ final readonly class ScheduledEventResolver
         return $event;
     }
 
-    private function publish(ScheduledEvent $event): void
+    /** Après validation : les écouteurs informent le joueur ; leur échec n'annule pas la résolution */
+    private function announce(ScheduledEvent $event): void
     {
-        $planet = $event->getPlanet();
-        if (null === $planet) {
-            return;
-        }
-        $topics = [GameTopics::planet($planet)];
-        $owner = $planet->getOwner();
-        if (null !== $owner) {
-            $topics[] = GameTopics::empire($owner);
-        }
-
         try {
-            $this->hub->publish(new Update($topics, json_encode([
-                'event' => $event->getId(),
-                'type' => $event->getType(),
-                'status' => $event->getStatus()->value,
-            ], \JSON_THROW_ON_ERROR), private: true));
+            $this->dispatcher->dispatch(new ScheduledEventResolved($event));
         } catch (\Throwable $exception) {
-            // L'événement est résolu : un hub indisponible ne doit pas l'annuler, l'interface se rattrapera
-            $this->logger->warning('Publication Mercure impossible après l\'événement #{id}.', ['id' => $event->getId(), 'exception' => $exception]);
+            $this->logger->warning('Notification impossible après l\'événement #{id}.', ['id' => $event->getId(), 'exception' => $exception]);
         }
     }
 

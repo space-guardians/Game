@@ -1,8 +1,19 @@
 {# Gabarit applicatif des écrans connectés (charte §4) : barre du haut, navigation à gauche, contenu fluide #}
 {% extends 'base.html.twig' %}
 
+{# Rafraîchissements poussés (Turbo Stream « refresh ») : morphing, sans perdre la position de lecture #}
+{% block meta %}
+    <meta name="turbo-refresh-method" content="morph">
+    <meta name="turbo-refresh-scroll" content="preserve">
+{% endblock %}
+
 {% block body %}
     <div class="sg-app">
+        {% if player_topics() is not empty %}
+            {# Notifications en direct du joueur (§5.2) : topic privé de son empire, Turbo Streams via Mercure #}
+            <twig:Turbo:Stream:From :topics="player_topics()" private/>
+        {% endif %}
+        <div id="sg-notifications" class="sg-toasts" aria-live="polite" data-turbo-permanent></div>
         <twig:TopBar/>
         <div class="sg-app__body">
             <twig:SideNav current="{{ app.current_route }}"/>

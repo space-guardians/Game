@@ -7,6 +7,7 @@ namespace App\Tests\Integration\Service\Scheduling;
 use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
 use App\Enum\Scheduling\ScheduledEventStatus;
+use App\Event\ScheduledEventResolved;
 use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
 use App\Message\ResolveDueEvents;
@@ -22,6 +23,7 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\ClockInterface;
 use Symfony\Component\Clock\Test\ClockSensitiveTrait;
+use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 use Symfony\Component\Messenger\Stamp\DelayStamp;
 use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 use Zenstruck\Foundry\Test\Factories;
@@ -70,8 +72,15 @@ final class ScheduledEventResolverTest extends KernelTestCase
         self::assertSame(60_000, $wakeUps[1]->last(DelayStamp::class)?->getDelay());
     }
 
-    public function testResolvesDueEventsOfPlanetInDueOrderAndPublishesThem(): void
+    public function testResolvesDueEventsOfPlanetInDueOrderAndAnnouncesThem(): void
     {
+        $announced = [];
+        self::getContainer()->get(EventDispatcherInterface::class)->addListener(
+            ScheduledEventResolved::class,
+            static function (ScheduledEventResolved $resolved) use (&$announced): void {
+                $announced[] = [$resolved->event->getId(), $resolved->event->getStatus()];
+            },
+        );
         $empire = EmpireFactory::createOne();
         $planet = $empire->getHomePlanet();
         $temperature = $planet->getTemperature();
@@ -89,11 +98,9 @@ final class ScheduledEventResolverTest extends KernelTestCase
         self::assertSame(ScheduledEventStatus::Pending, $this->reload($future)->getStatus());
         self::assertSame($temperature + 2, $this->temperature($planet));
 
-        $updates = self::getContainer()->get(PublishedUpdates::class)->all();
-        self::assertCount(2, $updates);
-        self::assertSame(['/planet/' . $planet->getId(), '/empire/' . $empire->getId()], $updates[0]->getTopics());
-        self::assertTrue($updates[0]->isPrivate());
-        self::assertSame(['event' => $early->getId(), 'type' => 'test.record', 'status' => 'done'], json_decode($updates[0]->getData(), true));
+        // Annoncés après validation, dans l'ordre ; seuls les types notifiés publient sur Mercure
+        self::assertSame([[$early->getId(), ScheduledEventStatus::Done], [$late->getId(), ScheduledEventStatus::Done]], $announced);
+        self::assertSame([], self::getContainer()->get(PublishedUpdates::class)->all());
     }
 
     public function testNeverResolvesTwice(): void

@@ -25,7 +25,7 @@ Docker Compose (`compose.yaml`, image PHP construite depuis le `Dockerfile`, cib
 | `mailer` | Mailpit (SMTP + interface) | http://localhost:8125 (`MAILPIT_PORT`) |
 | `worker` | Consomme la file Messenger `async` (e-mails, générations de galaxie, réveils des événements planifiés…) et les tâches récurrentes `scheduler_default` ; `docker compose restart worker` après une modification du code | — |
 
-**Mercure** : hub v1, protocole 1.0. Les JWT suivent la RFC 9068 (`iss`, `sub`, `client_id`, `aud`, `exp`) ; l'émetteur `MERCURE_JWT_ISSUER` doit figurer dans `MERCURE_TRUSTED_ISSUERS` du hub, et l'audience est l'URL publique, épinglée par `resource_identifier`. Un abonnement utilise le paramètre `match` (plus `topic`). En test, `MockHub` partout sauf `tests/Integration/MercureHubTest.php`, qui valide la configuration contre le vrai hub.
+**Mercure** : hub v1, protocole 1.0. Les JWT suivent la RFC 9068 (`iss`, `sub`, `client_id`, `aud`, `exp`) ; l'émetteur `MERCURE_JWT_ISSUER` doit figurer dans `MERCURE_TRUSTED_ISSUERS` du hub, et l'audience est l'URL publique, épinglée par `resource_identifier`. Un abonnement utilise le paramètre `match` (plus `topic`). En test, `MockHub` partout sauf `tests/Integration/MercureHubTest.php`, qui valide la configuration contre le vrai hub. Notifications du joueur : topics privés `/empire/{id}` et `/planet/{id}` (`GameTopics`), auxquels le gabarit applicatif s'abonne (`<twig:Turbo:Stream:From … private/>`) ; un écouteur de `ScheduledEventResolved` publie un Turbo Stream (gabarits `templates/streams/`). Cookie d'abonnement : `MERCURE_COOKIE_NAME` (sans préfixe `__Secure-` en HTTP), même nom côté hub.
 
 Le conteneur `php` tourne avec l'UID/GID de l'hôte (`UID`, `GID`, 1000 par défaut) : les fichiers générés t'appartiennent.
 
