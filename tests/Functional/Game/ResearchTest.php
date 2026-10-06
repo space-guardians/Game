@@ -8,6 +8,7 @@ use App\Entity\Empire;
 use App\Factory\EmpireFactory;
 use App\Model\Economy\Resources;
 use App\Repository\BuildingTypeRepository;
+use App\Repository\TechnologyRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -45,6 +46,42 @@ final class ResearchTest extends WebTestCase
         self::assertStringContainsString('Verrouillé', $energy->filter('.sg-chip')->text());
         self::assertStringContainsString('Laboratoire de recherche 1', $energy->filter('.sg-entity__requires')->text());
         self::assertSelectorTextContains('.sg-research-queue', 'Aucune recherche en cours dans l’empire.');
+    }
+
+    public function testShowsTechTreeWithStates(): void
+    {
+        $empire = $this->login(laboratory: 1);
+        $energy = self::getContainer()->get(TechnologyRepository::class)->findOneByCode('energy');
+        \assert(null !== $energy);
+        $empire->setResearchLevel($energy, 1);
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $crawler = $this->client->request('GET', '/recherche');
+
+        self::assertCount(10, $crawler->filter('.sg-techtree .sg-technode'));
+        self::assertSelectorTextContains('.sg-technode[data-code="energy"]', 'Acquise');
+        self::assertSelectorExists('.sg-technode--acquired[data-code="energy"][href="#techno-energy"]');
+        self::assertSelectorExists('.sg-technode--available[data-code="computer"]');
+        self::assertSelectorExists('.sg-technode--locked[data-code="weapons"]');
+        self::assertSelectorExists('#techno-weapons.sg-entity');
+        // Énergie 1 remplit la propulsion à combustion (énergie 1) mais pas le bouclier (énergie 3)
+        self::assertSelectorExists('.sg-techtree__link.is-met[data-from="energy"][data-to="combustion_drive"]');
+        self::assertSelectorExists('.sg-techtree__link:not(.is-met)[data-from="energy"][data-to="shielding"]');
+        // Liens entre technologies seulement : combustion, impulsion, bouclier, hyperespace (2), astrophysique (2)
+        self::assertCount(7, $crawler->filter('.sg-techtree__link'));
+    }
+
+    public function testResearchingNodeShowsProgress(): void
+    {
+        $clock = self::mockTime('2026-10-06 10:00:00');
+        $this->login(laboratory: 1);
+        $crawler = $this->client->request('GET', '/recherche');
+        $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Rechercher niveau 1')->form());
+        $clock->sleep(360);
+
+        $this->client->request('GET', '/recherche');
+
+        self::assertSelectorExists('.sg-technode--researching[data-code="energy"] [aria-valuenow="25"]');
     }
 
     public function testLaunchesResearchFromActivePlanet(): void
