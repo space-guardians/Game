@@ -18,6 +18,7 @@ use App\Model\Fleet\SpacePosition;
 use App\Repository\ShipTypeRepository;
 use App\Repository\TechnologyRepository;
 use App\Service\Fleet\FleetTravel;
+use App\Service\Fleet\FuelRules;
 use App\Service\Fleet\TrajectoryPlanner;
 use App\Service\Fleet\TravelRules;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -94,6 +95,6 @@ final class FleetTravelTest extends KernelTestCase
     /** Construit ici : aucun service ne l'utilise encore, le conteneur le retire (#33 l'utilisera) */
     private function travel(): FleetTravel
     {
-        return new FleetTravel(new TrajectoryPlanner(), new TravelRules(), self::getContainer()->get(EconomySettings::class));
+        return new FleetTravel(new TrajectoryPlanner(), new TravelRules(), self::getContainer()->get(EconomySettings::class), new FuelRules());
     }
 }

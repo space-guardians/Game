@@ -12,8 +12,8 @@ use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Enchaînement des ordres d'une flotte (§4.6) : lance le déplacement vers la destination du prochain ordre à venir,
- * dont l'arrivée est planifiée comme événement de jeu (FleetArrivalHandler). Sans ordre à venir, la flotte reste
- * stationnée là où elle est : il n'y a pas de retour implicite.
+ * dont l'arrivée — ou la panne de carburant en chemin — est planifiée comme événement de jeu (FleetArrivalHandler).
+ * Sans ordre à venir, la flotte reste stationnée là où elle est : il n'y a pas de retour implicite.
  */
 final readonly class FleetMovements
 {
@@ -21,6 +21,7 @@ final readonly class FleetMovements
         private FleetTravel $travel,
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
+        private FuelRules $fuel,
     ) {}
 
     /** Lance l'ordre suivant à l'heure donnée (fin du précédent, ou départ de la mission) ; null s'il n'y en a plus */
@@ -36,14 +37,24 @@ final readonly class FleetMovements
         $origin = $fleet->getLocation();
         $destination = $order->getDestination();
         $plan = $this->travel->plan($fleet, $destination->toPosition(), $speedPercent);
-        $movement = new FleetMovement($fleet, $order, $origin, $speedPercent, $departure, $plan->arrivalFrom($departure));
+
+        // Carburant brûlé au départ ; s'il ne couvre pas le trajet, la panne survient là où le réservoir se vide (§4.6.3)
+        $consumption = $this->travel->fuelFor($fleet, $plan);
+        $reach = $this->fuel->reach($fleet->getFuel(), $consumption);
+        $fleet->burn($consumption);
+        $arrival = $reach < 1.0
+            ? $departure->modify(\sprintf('+%d seconds', (int) floor($plan->durationSeconds * $reach)))
+            : $plan->arrivalFrom($departure);
+
+        $movement = new FleetMovement($fleet, $order, $origin, $speedPercent, $departure, $arrival);
+        $movement->strandsAt($reach);
         $order->start();
         $fleet->depart();
         $this->entityManager->persist($movement);
         $this->entityManager->flush();
 
         // Planète visée : sous son verrou à l'arrivée (déchargement, comme une fin de construction)
-        $planet = null === $destination->planetId ? null : $this->entityManager->find(Planet::class, $destination->planetId);
+        $planet = null === $destination->planetId || $movement->isStranding() ? null : $this->entityManager->find(Planet::class, $destination->planetId);
         $movement->attachEvent($this->scheduler->schedule(FleetArrivalHandler::TYPE, $movement->getArrivesAt(), $planet, [
             'movement' => $movement->getId(),
             'fleet' => $fleet->getId(),

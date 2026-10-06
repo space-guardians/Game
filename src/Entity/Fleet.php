@@ -66,6 +66,10 @@ final class Fleet implements \Stringable
     #[ORM\Column]
     private float $cargoDeuterium = 0.0;
 
+    /** Deutérium dans les réservoirs, brûlé par les trajets (§4.6.3) ; distinct de la cargaison */
+    #[ORM\Column]
+    private float $fuel = 0.0;
+
     public function __construct(
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -172,6 +176,73 @@ final class Fleet implements \Stringable
     public function station(): void
     {
         $this->status = FleetStatus::Stationed;
+    }
+
+    /** Panne de carburant : immobilisée à la position où le réservoir s'est vidé, jusqu'à un ravitaillement */
+    public function strand(SpaceLocation $location): void
+    {
+        $this->location = $location;
+        $this->planet = null;
+        $this->fuel = 0.0;
+        $this->status = FleetStatus::Stranded;
+    }
+
+    public function isStranded(): bool
+    {
+        return FleetStatus::Stranded === $this->status;
+    }
+
+    public function getFuel(): float
+    {
+        return $this->fuel;
+    }
+
+    /** Capacité totale des réservoirs */
+    public function tankCapacity(): int
+    {
+        $capacity = 0;
+        foreach ($this->ships as $ships) {
+            $capacity += $ships->getType()->getFuelCapacity() * $ships->getQuantity();
+        }
+
+        return $capacity;
+    }
+
+    /** Remplit les réservoirs ; renvoie le carburant effectivement accepté (dans la limite de la capacité) */
+    public function refuel(float $amount): float
+    {
+        $accepted = max(0.0, min($amount, $this->tankCapacity() - $this->fuel));
+        $this->fuel += $accepted;
+        // Ravitaillée, une flotte en panne peut repartir : elle redevient stationnée là où elle est
+        if ($accepted > 0.0 && $this->isStranded()) {
+            $this->status = FleetStatus::Stationed;
+        }
+
+        return $accepted;
+    }
+
+    /** Brûle le carburant d'un trajet (au plus ce qui reste) */
+    public function burn(float $amount): void
+    {
+        $this->fuel = max(0.0, $this->fuel - $amount);
+    }
+
+    /** Vide les réservoirs (dissolution : le carburant rejoint la planète) */
+    public function drain(): float
+    {
+        $fuel = $this->fuel;
+        $this->fuel = 0.0;
+
+        return $fuel;
+    }
+
+    /** Retire du deutérium de la cargaison (livraison d'un ravitaillement) ; renvoie la quantité retirée */
+    public function takeCargoDeuterium(float $amount): float
+    {
+        $taken = max(0.0, min($amount, $this->cargoDeuterium));
+        $this->cargoDeuterium -= $taken;
+
+        return $taken;
     }
 
     public function getCargo(): Resources

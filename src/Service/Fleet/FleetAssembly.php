@@ -8,6 +8,7 @@ use App\Entity\Fleet;
 use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Exception\Fleet\InvalidFleetComposition;
+use App\Model\Economy\Resources;
 use App\Repository\FleetRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Scheduling\ScheduledEventResolver;
@@ -92,7 +93,8 @@ final readonly class FleetAssembly
     }
 
     /**
-     * Dissout une flotte stationnée sur une planète de son empire : ses vaisseaux et sa cargaison rejoignent la planète.
+     * Dissout une flotte stationnée sur une planète de son empire : ses vaisseaux, sa cargaison et son carburant
+     * rejoignent la planète.
      *
      * @throws InvalidFleetComposition
      */
@@ -110,7 +112,7 @@ final readonly class FleetAssembly
                 foreach ($fleet->getShips() as $ships) {
                     $planet->addShips($ships->getType(), $ships->getQuantity());
                 }
-                $cargo = $fleet->unload();
+                $cargo = $fleet->unload()->plus(new Resources(0, 0, $fleet->drain()));
                 if ($cargo->metal + $cargo->crystal + $cargo->deuterium > 0) {
                     $snapshot = $this->resources->settle($planet);
                     $planet->storeResources($snapshot->amounts->plus($cargo), $snapshot->at);

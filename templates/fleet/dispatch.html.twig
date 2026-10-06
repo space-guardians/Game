@@ -38,7 +38,20 @@
                 </tr>
             </thead>
             <tbody>
-                {% for index in 0..(form_steps - 1) %}
+                {% set first = rescued ? 1 : 0 %}
+                {% if rescued %}
+                    {# Ravitaillement : vise la position exacte de la flotte en panne (§4.6.3) #}
+                    <tr id="ordre-ravitaillement">
+                        <th scope="row">1</th>
+                        <td colspan="3">Flotte « {{ rescued.name }} », en panne</td>
+                        <td>
+                            Ravitaillement
+                            <input type="hidden" name="steps[0][action]" value="refuel">
+                            <input type="hidden" name="steps[0][fleet]" value="{{ rescued.id }}">
+                        </td>
+                    </tr>
+                {% endif %}
+                {% for index in first..(form_steps - 1) %}
                     {% set row = submitted.steps[index] ?? null %}
                     {# Retour suggéré au point de départ : dernier ordre, prérempli (§4.6) #}
                     {% set suggested = row is null and loop.last and origin %}
@@ -50,7 +63,7 @@
                         <td>
                             <select class="sg-input" name="steps[{{ index }}][action]" aria-label="Action de l’ordre {{ index + 1 }}">
                                 <option value="">— Aucun —</option>
-                                {% for action in actions %}
+                                {% for action in actions|filter(action => action.targetsCoordinates) %}
                                     <option value="{{ action.value }}"{% if (row.action ?? (suggested ? 'station' : (index == 0 ? 'transport' : ''))) == action.value %} selected{% endif %}>{{ action.label }}</option>
                                 {% endfor %}
                             </select>
@@ -73,6 +86,20 @@
             </div>
         {% else %}
             <p class="sg-field__help">Une flotte ne charge des ressources que stationnée sur une planète de son empire.</p>
+        {% endif %}
+
+        <h2 class="sg-section-title">Carburant</h2>
+        <p class="sg-field__help">
+            Réservoirs : <span class="sg-mono" id="reservoirs">{{ fleet.fuel|round(0, 'floor')|format_number }} / {{ fleet.tankCapacity|format_number }}</span> de deutérium.
+            Chaque trajet en consomme selon la distance, la vitesse et les vaisseaux ; si les réservoirs se vident en route, la
+            flotte tombe en panne là où elle se trouve, jusqu’à un ravitaillement. Le plein au-delà du nécessaire sert aux
+            trajets suivants.{% if rescued %} Le ravitaillement livre le <strong>deutérium de la cargaison</strong>.{% endif %}
+        </p>
+        {% if stock %}
+            <div class="sg-field">
+                <label class="sg-field__label" for="carburant">Deutérium à mettre dans les réservoirs</label>
+                <input class="sg-input sg-mono" type="number" min="0" id="carburant" name="fuel" value="{{ submitted.fuel ?? suggested_fuel }}">
+            </div>
         {% endif %}
 
         <div class="sg-dispatch-form__footer">

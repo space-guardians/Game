@@ -22,7 +22,8 @@ use Symfony\Component\Lock\LockFactory;
 
 /**
  * Envoi d'une flotte en mission (§4.6) : un carnet d'ordres « se déplacer puis agir », exécutés l'un après l'autre,
- * et une cargaison chargée sur la planète de départ. La flotte part aussitôt vers la destination du premier ordre.
+ * une cargaison et du carburant (§4.6.3) chargés sur la planète de départ. La flotte part aussitôt vers la destination
+ * du premier ordre ; si ses réservoirs ne suffisent pas, elle tombera en panne en chemin.
  */
 final readonly class FleetDispatch
 {
@@ -39,10 +40,11 @@ final readonly class FleetDispatch
 
     /**
      * @param list<MissionStep> $steps
+     * @param float             $fuel  deutérium à mettre dans les réservoirs, pris sur la planète de départ
      *
      * @throws InvalidFleetMission
      */
-    public function dispatch(Fleet $fleet, array $steps, int $speedPercent, Resources $cargo): FleetMovement
+    public function dispatch(Fleet $fleet, array $steps, int $speedPercent, Resources $cargo, float $fuel = 0.0): FleetMovement
     {
         if (!\in_array($speedPercent, TravelRules::SPEED_PERCENTS, true)) {
             throw new InvalidFleetMission('Choisissez une vitesse entre 10 et 100 %.');
@@ -58,6 +60,9 @@ final readonly class FleetDispatch
             if (FleetAction::Colonize === $step->action) {
                 ++$colonizations;
             }
+            if (FleetAction::Refuel === $step->action) {
+                $this->checkRefuelTarget($fleet, $step, $rank + 1);
+            }
         }
         // Chaque « Coloniser » consomme un colonisateur de la flotte
         if ($colonizations > $this->colonyShips($fleet)) {
@@ -65,7 +70,7 @@ final readonly class FleetDispatch
         }
 
         $planet = $fleet->getPlanet();
-        $loading = $cargo->metal + $cargo->crystal + $cargo->deuterium > 0;
+        $loading = $cargo->metal + $cargo->crystal + $cargo->deuterium > 0 || $fuel > 0;
         $lock = $this->lockFactory->createLock(null === $planet ? 'fleet-' . $fleet->getId() : ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
         $lock->acquire(true);
 
@@ -79,17 +84,24 @@ final readonly class FleetDispatch
             if ($loading && $cargo->metal + $cargo->crystal + $cargo->deuterium > $fleet->cargo()) {
                 throw new InvalidFleetMission(\sprintf('Cargaison trop lourde : la flotte emporte au plus %d.', $fleet->cargo()));
             }
+            if ($fuel < 0 || $fleet->getFuel() + $fuel > $fleet->tankCapacity() + 1e-6) {
+                throw new InvalidFleetMission(\sprintf('Réservoirs trop petits : ils contiennent au plus %d de deutérium.', $fleet->tankCapacity()));
+            }
+            // Partir réservoirs vides, c'est tomber en panne aussitôt : refusé ; au-delà, la panne en route reste possible
+            if ($fleet->getFuel() + $fuel <= 0.0) {
+                throw new InvalidFleetMission('Réservoirs vides : chargez du carburant pour partir.');
+            }
 
-            return $this->entityManager->wrapInTransaction(function () use ($fleet, $steps, $speedPercent, $cargo, $planet, $loading): FleetMovement {
+            return $this->entityManager->wrapInTransaction(function () use ($fleet, $steps, $speedPercent, $cargo, $fuel, $planet, $loading): FleetMovement {
                 $now = $this->clock->now();
                 if ($loading) {
-                    $this->load($fleet, $planet, $cargo);
+                    $this->load($fleet, $planet, $cargo, $fuel);
                 }
 
                 $fleet->replaceOrders();
                 $this->entityManager->flush();
                 foreach ($steps as $rank => $step) {
-                    $fleet->addOrder(new FleetOrder($fleet, $rank + 1, SpaceLocation::of($step->destination), $step->action, mb_substr($step->label, 0, 60)));
+                    $fleet->addOrder(new FleetOrder($fleet, $rank + 1, SpaceLocation::of($step->destination), $step->action, mb_substr($step->label, 0, 60), $step->targetFleetId));
                 }
 
                 $movement = $this->movements->launchNext($fleet, $now, $speedPercent);
@@ -114,13 +126,27 @@ final readonly class FleetDispatch
         return $count;
     }
 
-    private function load(Fleet $fleet, Planet $planet, Resources $cargo): void
+    /** Ravitaillement : une flotte de l'empire, autre que celle-ci, immobilisée en panne (§4.6.3) */
+    private function checkRefuelTarget(Fleet $fleet, MissionStep $step, int $rank): void
+    {
+        $target = null === $step->targetFleetId ? null : $this->entityManager->find(Fleet::class, $step->targetFleetId);
+        if (!$target instanceof Fleet || $target === $fleet || $target->getEmpire() !== $fleet->getEmpire()) {
+            throw new InvalidFleetMission(\sprintf('Ordre %d : choisissez une flotte de l’empire à ravitailler.', $rank));
+        }
+        if (!$target->isStranded()) {
+            throw new InvalidFleetMission(\sprintf('Ordre %d : la flotte « %s » n’est pas en panne de carburant.', $rank, $target->getName()));
+        }
+    }
+
+    private function load(Fleet $fleet, Planet $planet, Resources $cargo, float $fuel): void
     {
         $snapshot = $this->resources->settle($planet);
-        if (!$snapshot->amounts->covers($cargo)) {
-            throw new InvalidFleetMission('La planète n’a pas les ressources à charger.');
+        $taken = $cargo->plus(new Resources(0, 0, $fuel));
+        if (!$snapshot->amounts->covers($taken)) {
+            throw new InvalidFleetMission('La planète n’a pas les ressources à charger (cargaison et carburant).');
         }
-        $planet->storeResources($snapshot->amounts->minus($cargo), $snapshot->at);
+        $planet->storeResources($snapshot->amounts->minus($taken), $snapshot->at);
         $fleet->load($cargo);
+        $fleet->refuel($fuel);
     }
 }

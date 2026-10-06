@@ -284,6 +284,8 @@ final class FleetMissionTest extends KernelTestCase
             \assert($type instanceof ShipType);
             $fleet->addShips($type, $quantity);
         }
+        // Réservoirs pleins : ces trajets ne tombent pas en panne
+        $fleet->refuel($fleet->tankCapacity());
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $entityManager->persist($fleet);
         $entityManager->flush();

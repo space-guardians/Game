@@ -6,10 +6,12 @@ namespace App\Tests\Functional\Game;
 
 use App\Entity\Empire;
 use App\Entity\Fleet;
+use App\Entity\GlobalPosition;
 use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
 use App\Factory\EmpireFactory;
+use App\Model\Economy\Resources;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\FleetRepository;
 use App\Repository\ShipTypeRepository;
@@ -108,6 +110,7 @@ final class FleetTest extends WebTestCase
         $home = $empire->getHomePlanet();
         $fleet = new Fleet($empire, 'Escadre Orion', $home, new \DateTimeImmutable());
         $fleet->addShips($this->ship('light_fighter'), 4);
+        $fleet->refuel(1000);
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $entityManager->persist($fleet);
         $entityManager->flush();
@@ -162,6 +165,7 @@ final class FleetTest extends WebTestCase
         $home = $empire->getHomePlanet();
         $fleet = new Fleet($empire, 'Escadre', $home, new \DateTimeImmutable());
         $fleet->addShips($this->ship('light_fighter'), 1);
+        $fleet->refuel(400);
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $entityManager->persist($fleet);
         $entityManager->flush();
@@ -180,6 +184,39 @@ final class FleetTest extends WebTestCase
         $this->client->followRedirect();
         // Un seul ordre : pas de retour implicite, la flotte restera au niveau du système
         self::assertSelectorCount(1, '#flottes .sg-fleet__order');
+    }
+
+    public function testStrandedFleetCanBeRescuedByAnotherFleet(): void
+    {
+        $empire = $this->login();
+        $home = $empire->getHomePlanet();
+        $home->storeResources(new Resources(1000, 1000, 5000), new \DateTimeImmutable());
+        $stranded = new Fleet($empire, 'Égarée', $home, new \DateTimeImmutable());
+        $stranded->addShips($this->ship('light_fighter'), 2);
+        $stranded->strand(SpaceLocation::of(SpacePosition::deepSpace((int) $home->getSystem()->getGalaxy()->getId(), new GlobalPosition(0, 0))));
+        $rescuer = new Fleet($empire, 'Citerne', $home, new \DateTimeImmutable());
+        $rescuer->addShips($this->ship('small_cargo'), 1);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($stranded);
+        $entityManager->persist($rescuer);
+        $entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/flotte');
+        self::assertSelectorTextContains(\sprintf('#flotte-%d', $stranded->getId()), 'En panne de carburant');
+        $this->client->click($crawler->selectLink('Ravitailler avec « Citerne »')->link());
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('#ordre-ravitaillement', 'Flotte « Égarée », en panne');
+        // Plein proposé : réservoirs de la citerne (400), dans la limite du deutérium de la planète
+        self::assertSame('400', $this->client->getCrawler()->filter('#carburant')->attr('value'));
+
+        $this->client->submit($this->client->getCrawler()->selectButton('Envoyer la flotte')->form([
+            'cargo[deuterium]' => '500',
+            'steps[2][action]' => '',
+        ]));
+        self::assertResponseRedirects('/flotte');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Flotte « Citerne » en route vers flotte « Égarée »');
     }
 
     public function testUnknownCoordinatesAreRefused(): void
