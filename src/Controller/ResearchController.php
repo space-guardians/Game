@@ -7,10 +7,12 @@ namespace App\Controller;
 use App\Entity\Technology;
 use App\Exception\Economy\InsufficientResources;
 use App\Exception\Research\MissingPrerequisites;
+use App\Exception\Research\NoCancellableResearch;
 use App\Exception\Research\ResearchInProgress;
 use App\Repository\ResearchQueueItemRepository;
 use App\Repository\TechnologyRepository;
 use App\Service\Account\GameContext;
+use App\Service\Economy\CancellationRefund;
 use App\Service\Research\PrerequisiteChecker;
 use App\Service\Research\ResearchQueue;
 use App\Service\Research\ResearchRules;
@@ -23,7 +25,7 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Écran « Recherche » (§4.4, §5.4) : technologies de l'empire, coût et durée du niveau suivant, prérequis,
- * lancement depuis la planète active. L'arbre graphique arrive avec #28.
+ * lancement depuis la planète active, annulation. L'arbre graphique arrive avec #28.
  */
 final class ResearchController extends AbstractController
 {
@@ -35,6 +37,7 @@ final class ResearchController extends AbstractController
         private readonly ResearchQueueItemRepository $queueItems,
         private readonly PrerequisiteChecker $prerequisites,
         private readonly ClockInterface $clock,
+        private readonly CancellationRefund $refund,
     ) {}
 
     #[Route('/recherche', name: 'app_research', methods: ['GET'])]
@@ -77,7 +80,36 @@ final class ResearchController extends AbstractController
             'laboratories' => $this->queue->laboratoryLevels($empire),
             // Heure du serveur pour le compte à rebours (décalage d'horloge du navigateur)
             'now_ms' => (int) $this->clock->now()->format('Uv'),
+            'refund_share' => null === $current ? 0.0 : $this->refund->remainingShare($current->getStartedAt(), $current->getEndsAt(), $this->clock->now()),
         ]);
+    }
+
+    #[Route('/recherche/annuler', name: 'app_research_cancel', methods: ['POST'])]
+    public function cancel(Request $request): Response
+    {
+        $empire = $this->context->empire();
+        if (null === $empire) {
+            return $this->redirectToRoute('app_home');
+        }
+        if (!$this->isCsrfTokenValid('cancel-research', $request->request->getString('_token'))) {
+            $this->addFlash('error', 'La page a expiré : recommencez.');
+
+            return $this->redirectToRoute('app_research');
+        }
+
+        try {
+            $result = $this->queue->cancel($empire);
+            $lost = $result->lost->metal + $result->lost->crystal + $result->lost->deuterium;
+            $this->addFlash('success', \sprintf(
+                'Recherche annulée : %d %% du coût remboursé sur la planète de lancement%s.',
+                (int) floor($result->share * 100),
+                $lost >= 1 ? ', une partie a été perdue faute de place dans ses dépôts' : '',
+            ));
+        } catch (NoCancellableResearch $exception) {
+            $this->addFlash('error', $exception->getMessage());
+        }
+
+        return $this->redirectToRoute('app_research');
     }
 
     #[Route('/recherche/{code}/lancer', name: 'app_research_start', methods: ['POST'])]

@@ -67,6 +67,40 @@ final class ResearchTest extends WebTestCase
         self::assertSelectorTextContains('.sg-entity:nth-child(2) button[disabled]', 'Recherche en cours');
     }
 
+    public function testCancelsResearchWithProrataRefund(): void
+    {
+        $clock = self::mockTime('2026-10-06 10:00:00');
+        $this->login(laboratory: 1);
+        $crawler = $this->client->request('GET', '/recherche');
+        $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Rechercher niveau 1')->form());
+        $clock->sleep(360);
+
+        $crawler = $this->client->request('GET', '/recherche');
+        self::assertSelectorTextContains('.sg-research-queue', 'environ 75 % maintenant');
+        $this->client->submit($crawler->selectButton('Annuler la recherche')->form());
+
+        self::assertResponseRedirects('/recherche');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Recherche annulée : 75 % du coût remboursé sur la planète de lancement.');
+        self::assertSelectorTextContains('.sg-research-queue', 'Aucune recherche en cours dans l’empire.');
+    }
+
+    public function testCancellingWithoutResearchIsExplained(): void
+    {
+        $this->login(laboratory: 1);
+        $crawler = $this->client->request('GET', '/recherche');
+        $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Rechercher niveau 1')->form());
+        $crawler = $this->client->followRedirect();
+        $form = $crawler->selectButton('Annuler la recherche')->form();
+        $this->client->submit($form);
+
+        // Deuxième envoi (double clic, onglet périmé) : plus rien à annuler
+        $this->client->submit($form);
+
+        $this->client->followRedirect();
+        self::assertAnySelectorTextContains('.sg-alert', 'Aucune recherche en cours dans l’empire.');
+    }
+
     public function testLockedTechnologyCannotBeResearched(): void
     {
         $this->login(laboratory: 1);

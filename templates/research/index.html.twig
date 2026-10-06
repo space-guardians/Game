@@ -36,6 +36,14 @@
                             <dd class="sg-mono">{{ current.planet }}</dd>
                         </div>
                     </dl>
+                    <form method="post" action="{{ path('app_research_cancel') }}" class="sg-queue-item__cancel">
+                        <input type="hidden" name="_token" value="{{ csrf_token('cancel-research') }}">
+                        <p class="sg-field__help">
+                            Annuler rend le coût au prorata du temps restant (environ {{ (refund_share * 100)|round(0, 'floor') }} % maintenant)
+                            à la planète de lancement, dans la limite de ses dépôts : le reste est perdu.
+                        </p>
+                        <twig:Btn type="submit" label="Annuler la recherche" variant="danger" size="sm"/>
+                    </form>
                 </article>
             {% else %}
                 <p class="sg-empty">Aucune recherche en cours dans l’empire.</p>
