@@ -2,7 +2,8 @@ import { Controller } from '@hotwired/stimulus';
 
 /*
  * Décompte en direct d'une ressource (§4.2) : le serveur donne le stock au chargement de la page, le débit horaire
- * et la capacité ; l'affichage avance chaque seconde, sans dépasser la capacité (l'excédent est perdu).
+ * et la capacité ; l'affichage avance chaque seconde, sans dépasser la capacité (l'excédent est perdu) ni
+ * descendre sous zéro (deutérium consommé par la fusion).
  */
 export default class extends Controller {
     static targets = ['amount', 'gauge'];
@@ -21,7 +22,8 @@ export default class extends Controller {
     render() {
         const hours = (Date.now() - this.startedAt) / 3_600_000;
         const ceiling = Math.max(this.capacityValue, this.amountValue);
-        const amount = Math.min(this.amountValue + this.rateValue * hours, ceiling);
+        // Débit positif plafonné par le stockage ; débit négatif (fusion) jusqu'à 0
+        const amount = Math.max(0, Math.min(this.amountValue + this.rateValue * hours, ceiling));
 
         this.amountTarget.textContent = this.format.format(Math.floor(amount));
         if (this.hasGaugeTarget && this.capacityValue > 0) {

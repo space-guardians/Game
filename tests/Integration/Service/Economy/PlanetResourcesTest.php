@@ -8,6 +8,7 @@ use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
 use App\Message\ConsolidateResources;
 use App\MessageHandler\ConsolidateResourcesHandler;
+use App\Model\Economy\ResourceRates;
 use App\Model\Economy\Resources;
 use App\Repository\PlanetRepository;
 use App\Service\Economy\PlanetResources;
@@ -42,7 +43,7 @@ final class PlanetResourcesTest extends KernelTestCase
 
         // Production de base : 30 métal et 15 cristal par heure
         self::assertEquals(new Resources(560, 530, 0), $snapshot->amounts);
-        self::assertEquals(new Resources(30, 15, 0), $snapshot->hourlyProduction);
+        self::assertEquals(new ResourceRates(30, 15, 0), $snapshot->hourlyProduction);
         self::assertEquals(new Resources(10_000, 10_000, 10_000), $snapshot->capacity);
         self::assertEquals(new Resources(500, 500, 0), $planet->getResources(), 'Lecture seule');
     }

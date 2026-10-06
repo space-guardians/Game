@@ -22,6 +22,12 @@
                     :rate="attribute(resources.hourlyProduction, kind)"
                     :capacity="attribute(resources.capacity, kind)"/>
             {% endfor %}
+            {% set balance = resources.output.energyBalance %}
+            <div class="sg-resource sg-resource--energy{{ balance < 0 ? ' is-deficit' }}">
+                <span class="sg-resource__label">Énergie</span>
+                <span class="sg-resource__amount sg-mono">{{ balance < 0 ? '−' }}{{ balance|abs|round(0, 'floor')|format_number }}</span>
+                <span class="sg-resource__rate sg-mono">{{ resources.output.energyProduced|round(0, 'floor')|format_number }} produits</span>
+            </div>
         </div>
     {% endif %}
 

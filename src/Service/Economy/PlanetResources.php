@@ -27,15 +27,13 @@ final readonly class PlanetResources
     public function snapshot(Planet $planet): ResourceSnapshot
     {
         $now = $this->now();
-        $production = $this->economy->hourlyProduction($planet);
-        $capacity = $this->economy->capacity($planet);
+        $output = $this->economy->output($planet);
         $updatedAt = $planet->getResourcesUpdatedAt();
         $hours = null === $updatedAt ? 0.0 : ($now->getTimestamp() - $updatedAt->getTimestamp()) / 3600;
 
         return new ResourceSnapshot(
-            $this->accumulator->accumulate($planet->getResources(), $production, $capacity, $hours),
-            $production,
-            $capacity,
+            $this->accumulator->accumulate($planet->getResources(), $output->hourlyProduction, $output->capacity, $hours),
+            $output,
             $now,
         );
     }
