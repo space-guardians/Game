@@ -1,0 +1,91 @@
+{# Envoi d'une flotte en mission (§4.6) : carnet d'ordres « se déplacer puis agir », cargaison, vitesse #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Envoyer {{ fleet.name }} — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · Flotte{% endblock %}
+{% block heading %}Envoyer « {{ fleet.name }} »{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="fleet-summary-title">
+        <h2 id="fleet-summary-title" class="sg-section-title">Flotte</h2>
+        <p class="sg-entity__meta">
+            {{ fleet.shipCount|format_number }} vaisseau(x)
+            · Cargo <span class="sg-mono">{{ fleet.cargo|format_number }}</span>
+            · Vitesse <span class="sg-mono">{{ fleet.slowestSpeed|format_number }}</span>
+            {% if origin %}· Stationnée en <span class="sg-mono">{{ origin }}</span>{% endif %}
+        </p>
+        {% if not fleet.stationed %}
+            <twig:AlertBanner variant="info">Cette flotte exécute déjà une mission : elle ne peut pas repartir avant de l’avoir terminée.</twig:AlertBanner>
+        {% endif %}
+    </section>
+
+    <form method="post" class="sg-panel sg-cut-14 sg-dispatch-form" aria-labelledby="orders-title">
+        <input type="hidden" name="_token" value="{{ csrf_token('dispatch-fleet-' ~ fleet.id) }}">
+        <h2 id="orders-title" class="sg-section-title">Carnet d’ordres</h2>
+        <p class="sg-field__help">
+            Chaque ordre : se rendre à des coordonnées (galaxie : système : position), puis agir. Sans position, la flotte vise
+            le système entier. Les ordres s’enchaînent ; il n’y a pas de retour automatique : le dernier ordre propose de
+            stationner au point de départ, à modifier ou retirer.
+        </p>
+        <table class="sg-table" id="ordres">
+            <thead>
+                <tr>
+                    <th scope="col">Ordre</th>
+                    <th scope="col">Galaxie</th>
+                    <th scope="col">Système</th>
+                    <th scope="col">Position</th>
+                    <th scope="col">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for index in 0..(form_steps - 1) %}
+                    {% set row = submitted.steps[index] ?? null %}
+                    {# Retour suggéré au point de départ : dernier ordre, prérempli (§4.6) #}
+                    {% set suggested = row is null and loop.last and origin %}
+                    <tr>
+                        <th scope="row">{{ index + 1 }}</th>
+                        <td><input class="sg-input sg-mono" type="number" min="1" name="steps[{{ index }}][galaxy]" aria-label="Galaxie de l’ordre {{ index + 1 }}" value="{{ row.galaxy ?? (suggested ? origin.galaxy) }}"></td>
+                        <td><input class="sg-input sg-mono" type="number" min="1" name="steps[{{ index }}][system]" aria-label="Système de l’ordre {{ index + 1 }}" value="{{ row.system ?? (suggested ? origin.system) }}"></td>
+                        <td><input class="sg-input sg-mono" type="number" min="1" name="steps[{{ index }}][position]" aria-label="Position de l’ordre {{ index + 1 }}" placeholder="—" value="{{ row.position ?? (suggested ? origin.position) }}"></td>
+                        <td>
+                            <select class="sg-input" name="steps[{{ index }}][action]" aria-label="Action de l’ordre {{ index + 1 }}">
+                                <option value="">— Aucun —</option>
+                                {% for action in actions %}
+                                    <option value="{{ action.value }}"{% if (row.action ?? (suggested ? 'station' : (index == 0 ? 'transport' : ''))) == action.value %} selected{% endif %}>{{ action.label }}</option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2 class="sg-section-title">Cargaison</h2>
+        {% if stock %}
+            <p class="sg-field__help">Chargée sur la planète de départ, déchargée en entier par le premier « Transport de ressources ». Capacité : <span class="sg-mono">{{ fleet.cargo|format_number }}</span>.</p>
+            <div class="sg-dispatch-form__cargo">
+                {% for key, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+                    <div class="sg-field">
+                        <label class="sg-field__label" for="cargaison-{{ key }}">{{ label }} <span class="sg-mono">(disponible : {{ attribute(stock, key)|round(0, 'floor')|format_number }})</span></label>
+                        <input class="sg-input sg-mono" type="number" min="0" id="cargaison-{{ key }}" name="cargo[{{ key }}]" value="{{ submitted.cargo[key] ?? 0 }}">
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="sg-field__help">Une flotte ne charge des ressources que stationnée sur une planète de son empire.</p>
+        {% endif %}
+
+        <div class="sg-dispatch-form__footer">
+            <div class="sg-field">
+                <label class="sg-field__label" for="vitesse">Vitesse</label>
+                <select class="sg-input" id="vitesse" name="speed">
+                    {% for speed in speeds|reverse %}
+                        <option value="{{ speed }}"{% if (submitted.speed ?? 100) == speed %} selected{% endif %}>{{ speed }} %</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <twig:Btn type="submit" label="Envoyer la flotte" variant="primary" size="sm" :disabled="not fleet.stationed"/>
+            <a href="{{ path('app_fleet') }}">Annuler</a>
+        </div>
+    </form>
+{% endblock %}

@@ -9,6 +9,8 @@ use App\Entity\BuildingQueueItem;
 use App\Entity\BuildingType;
 use App\Entity\Empire;
 use App\Entity\Fleet;
+use App\Entity\FleetMovement;
+use App\Entity\FleetOrder;
 use App\Entity\FleetShip;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
@@ -53,6 +55,8 @@ final readonly class EntityHistory
         BuildingType::class => 'Types de bâtiments',
         Empire::class => 'Empires',
         Fleet::class => 'Flottes',
+        FleetMovement::class => 'Déplacements de flottes',
+        FleetOrder::class => 'Ordres de flottes',
         FleetShip::class => 'Vaisseaux des flottes',
         Galaxy::class => 'Galaxies',
         GalaxyShapeTemplate::class => 'Gabarits de forme',

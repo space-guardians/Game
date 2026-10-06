@@ -21,15 +21,15 @@ final readonly class FleetTravel
         private EconomySettings $settings,
     ) {}
 
-    /** Position actuelle d'une flotte stationnée */
+    /** Position actuelle d'une flotte stationnée (ou point de départ de son déplacement en cours) */
     public function positionOf(Fleet $fleet): SpacePosition
     {
-        return SpacePosition::planet($fleet->getPlanet());
+        return $fleet->getLocation()->toPosition();
     }
 
-    public function plan(Fleet $fleet, SpacePosition $destination, int $speedPercent = 100): TravelPlan
+    public function plan(Fleet $fleet, SpacePosition $destination, int $speedPercent = 100, ?SpacePosition $from = null): TravelPlan
     {
-        $trajectory = $this->planner->plan($this->positionOf($fleet), $destination);
+        $trajectory = $this->planner->plan($from ?? $this->positionOf($fleet), $destination);
         $speed = $this->speed($fleet);
 
         return new TravelPlan(
