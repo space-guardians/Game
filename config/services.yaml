@@ -10,10 +10,14 @@ parameters:
     # Déconnexion du panneau d'administration après 30 minutes sans activité (§5.6.2)
     app.admin_idle_timeout: 1800
 
-    # Économie (§4.2) : valeurs de base, avant mines et dépôts (#20) ; reprises d'OGame, à équilibrer (§7)
+    # Économie (§4.2) : production naturelle d'une planète habitée, en plus des mines ; reprises d'OGame, à équilibrer (§7).
+    # Coûts et effets des bâtiments : types de bâtiments, réglables dans le panneau (/admin/batiments).
     app.economy.base_hourly_production: { metal: 30, crystal: 15, deuterium: 0 }
-    app.economy.base_capacity: { metal: 10000, crystal: 10000, deuterium: 10000 }
     app.economy.starting_resources: { metal: 500, crystal: 500, deuterium: 0 }
+    # Bonus des mines selon l'orbite (§2.2) : métal sur les orbites centrales, cristal près de l'étoile
+    app.economy.orbit_bonuses:
+        metal: { 6: 0.17, 7: 0.23, 8: 0.35, 9: 0.23, 10: 0.17 }
+        crystal: { 1: 0.4, 2: 0.3, 3: 0.2 }
     app.economy.universe_speed: 1.0
 
 services:
@@ -33,7 +37,7 @@ services:
     App\Model\Economy\EconomySettings:
         arguments:
             $baseHourlyProduction: '%app.economy.base_hourly_production%'
-            $baseCapacity: '%app.economy.base_capacity%'
+            $orbitBonuses: '%app.economy.orbit_bonuses%'
             $startingResources: '%app.economy.starting_resources%'
             $universeSpeed: '%app.economy.universe_speed%'
 

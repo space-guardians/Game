@@ -836,6 +836,15 @@ a:hover {
     background: var(--sg-deut);
 }
 
+.sg-resource--energy .sg-resource__amount {
+    color: var(--sg-energy);
+}
+
+.sg-resource.is-deficit .sg-resource__amount,
+.sg-table .is-deficit {
+    color: var(--sg-danger);
+}
+
 .sg-resource.is-full .sg-resource__gauge > span {
     background: var(--sg-warning);
 }
@@ -887,6 +896,10 @@ a:hover {
 
 .sg-dot--deuterium {
     background: var(--sg-deut);
+}
+
+.sg-dot--energy {
+    background: var(--sg-energy);
 }
 
 @media (max-width: 900px) {

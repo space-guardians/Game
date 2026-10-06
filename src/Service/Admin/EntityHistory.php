@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Service\Admin;
 
 use App\Entity\AdminUser;
+use App\Entity\BuildingType;
 use App\Entity\Empire;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
+use App\Entity\PlanetBuilding;
 use App\Entity\User;
 use App\Enum\Admin\AuditOrigin;
 use App\Model\Admin\AuditedEntity;
@@ -36,9 +38,11 @@ final readonly class EntityHistory
     public const array LABELS = [
         User::class => 'Joueurs',
         AdminUser::class => 'Comptes d’administration',
+        BuildingType::class => 'Types de bâtiments',
         Empire::class => 'Empires',
         Galaxy::class => 'Galaxies',
         GalaxyShapeTemplate::class => 'Gabarits de forme',
+        PlanetBuilding::class => 'Bâtiments des planètes',
     ];
 
     public const array TYPE_LABELS = [

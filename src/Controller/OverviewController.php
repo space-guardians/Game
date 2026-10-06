@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Planet;
+use App\Repository\BuildingTypeRepository;
 use App\Service\Account\GameContext;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -21,6 +22,7 @@ final class OverviewController extends AbstractController
     public function __construct(
         private readonly GameContext $context,
         private readonly EntityManagerInterface $entityManager,
+        private readonly BuildingTypeRepository $buildingTypes,
     ) {}
 
     #[Route('/', name: 'app_home', methods: ['GET'])]
@@ -36,6 +38,7 @@ final class OverviewController extends AbstractController
             'empire' => $empire,
             'planet' => $empire->getActivePlanet(),
             'resources' => $this->context->activeResources(),
+            'building_types' => $this->buildingTypes->findAllOrdered(),
         ]);
     }
 

@@ -6,6 +6,8 @@ namespace App\Entity;
 
 use App\Model\Economy\Resources;
 use App\Repository\PlanetRepository;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
@@ -42,6 +44,10 @@ final class Planet
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $resourcesUpdatedAt = null;
 
+    /** @var Collection<int, PlanetBuilding> */
+    #[ORM\OneToMany(targetEntity: PlanetBuilding::class, mappedBy: 'planet', cascade: ['persist'])]
+    private Collection $buildings;
+
     public function __construct(
         #[ORM\ManyToOne(inversedBy: 'planets')]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -53,6 +59,7 @@ final class Planet
         private int $temperature,
     ) {
         $system->addPlanet($this);
+        $this->buildings = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -78,6 +85,33 @@ final class Planet
     public function getOwner(): ?Empire
     {
         return $this->owner;
+    }
+
+    /** @return Collection<int, PlanetBuilding> */
+    public function getBuildings(): Collection
+    {
+        return $this->buildings;
+    }
+
+    public function buildingLevel(BuildingType $type): int
+    {
+        return $this->findBuilding($type)?->getLevel() ?? 0;
+    }
+
+    /** Fixe le niveau d'un bâtiment ; consolider les ressources avant (la production change avec le niveau) */
+    public function setBuildingLevel(BuildingType $type, int $level): void
+    {
+        $building = $this->findBuilding($type);
+        if (null === $building) {
+            $building = new PlanetBuilding($this, $type);
+            $this->buildings->add($building);
+        }
+        $building->setLevel($level);
+    }
+
+    private function findBuilding(BuildingType $type): ?PlanetBuilding
+    {
+        return $this->buildings->findFirst(static fn(int $key, PlanetBuilding $building): bool => $building->getType() === $type);
     }
 
     public function getResources(): Resources

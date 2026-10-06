@@ -1,0 +1,38 @@
+{# Fiche d'un type de bâtiment : paramètres, puis aperçu des premiers niveaux calculés par les formules du jeu #}
+{% extends '@EasyAdmin/crud/detail.html.twig' %}
+
+{% block main %}
+    {{ parent() }}
+
+    {% set type = entity.instance %}
+    <section class="sg-admin-preview" aria-labelledby="levels-title">
+        <h2 id="levels-title">Aperçu des niveaux</h2>
+        <p>{{ type.effect.isStorage ? 'Capacité de stockage' : 'Effet par heure' }} calculé avec les paramètres enregistrés{{ type.effect.isStorage ? '' : ', pour une planète à ' ~ preview_temperature ~ ' °C, sans bonus d’orbite ni vitesse d’univers' }}.</p>
+        <table class="table datagrid">
+            <thead>
+                <tr>
+                    <th scope="col" class="text-end">Niveau</th>
+                    <th scope="col" class="text-end">Métal</th>
+                    <th scope="col" class="text-end">Cristal</th>
+                    <th scope="col" class="text-end">Deutérium</th>
+                    <th scope="col" class="text-end">{{ type.effect.label }}</th>
+                    <th scope="col" class="text-end">Énergie consommée</th>
+                    <th scope="col" class="text-end">Deutérium consommé (/h)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in preview_levels %}
+                    <tr>
+                        <td class="text-end">{{ row.level }}</td>
+                        <td class="text-end">{{ row.cost.metal|round|format_number }}</td>
+                        <td class="text-end">{{ row.cost.crystal|round|format_number }}</td>
+                        <td class="text-end">{{ row.cost.deuterium|round|format_number }}</td>
+                        <td class="text-end">{{ row.output|round|format_number }}</td>
+                        <td class="text-end">{{ row.energy|round|format_number }}</td>
+                        <td class="text-end">{{ row.deuterium|round|format_number }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+{% endblock %}

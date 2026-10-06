@@ -63,6 +63,8 @@ final class OverviewTest extends WebTestCase
         self::assertSame('10000', $metal->attr('data-resource-counter-capacity-value'));
         self::assertSelectorTextContains('.sg-topbar .sg-resource--crystal', '530');
         self::assertSelectorTextContains('.sg-overview .sg-table', '+15/h');
+        self::assertSelectorTextContains('.sg-topbar .sg-resource--energy', 'Énergie');
+        self::assertSelectorTextContains('#buildings-title + .sg-table', 'Mine de métal');
     }
 
     public function testSwitchesActivePlanet(): void
