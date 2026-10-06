@@ -557,7 +557,7 @@ a:hover {
 .sg-topbar {
     display: flex;
     align-items: center;
-    gap: 32px;
+    gap: 24px;
     min-height: 64px;
     padding: 0 24px;
     background: var(--sg-panel-deep);
@@ -584,6 +584,7 @@ a:hover {
 .sg-topbar__value {
     display: flex;
     gap: 8px;
+    white-space: nowrap;
     font-family: var(--sg-font-display);
     font-size: 15px;
     font-weight: 600;
@@ -598,6 +599,7 @@ a:hover {
 }
 
 .sg-topbar__empire {
+    white-space: nowrap;
     font-family: var(--sg-font-display);
     font-weight: 600;
     color: var(--sg-gold);
@@ -765,14 +767,14 @@ a:hover {
 .sg-topbar__resources {
     display: flex;
     flex-wrap: wrap;
-    gap: 8px 24px;
+    gap: 8px 18px;
 }
 
 .sg-resource {
     display: grid;
     grid-template-columns: auto auto;
-    gap: 2px 10px;
-    min-width: 120px;
+    gap: 2px 8px;
+    min-width: 96px;
     align-items: baseline;
 }
 
@@ -847,6 +849,89 @@ a:hover {
 
 .sg-resource.is-full .sg-resource__gauge > span {
     background: var(--sg-warning);
+}
+
+/* Cartes d'entité (charte §8) : bâtiments, vaisseaux, défenses */
+.sg-entities {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px;
+}
+
+.sg-entity {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 18px;
+    background: var(--sg-panel);
+    border: 1px solid var(--sg-line);
+}
+
+.sg-entity--building {
+    border-color: var(--sg-gold);
+}
+
+.sg-entity__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+}
+
+.sg-entity__name {
+    margin: 0;
+    font-family: var(--sg-font-display);
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--sg-text);
+}
+
+.sg-entity__level {
+    white-space: nowrap;
+    color: var(--sg-gold);
+}
+
+.sg-entity__description {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.45;
+    color: var(--sg-text-2);
+}
+
+.sg-entity__meta {
+    margin: 0;
+    font-size: 13px;
+    color: var(--sg-text-3);
+}
+
+.sg-entity form {
+    margin-top: auto;
+}
+
+.sg-cost {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+}
+
+.sg-cost__item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--sg-text);
+}
+
+.sg-cost__label {
+    color: var(--sg-text-3);
+}
+
+.sg-cost__item.is-short,
+.sg-cost__item.is-short .sg-cost__label {
+    color: var(--sg-danger);
 }
 
 /* Tableau de données (charte §9) */

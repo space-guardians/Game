@@ -7,6 +7,12 @@
                 Vue d’ensemble
             </a>
         </li>
+        <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_buildings' ? ' is-active' }}" href="{{ path('app_buildings') }}"{% if current starts with 'app_buildings' %} aria-current="page"{% endif %}>
+                <twig:Icon name="building" size="18"/>
+                Bâtiments
+            </a>
+        </li>
     </ul>
 
     {% if this.empire %}

@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Service\Account;
 
+use App\Entity\BuildingQueueItem;
 use App\Entity\Empire;
 use App\Entity\Planet;
 use App\Entity\User;
 use App\Model\Economy\ResourceSnapshot;
+use App\Repository\BuildingQueueItemRepository;
 use App\Repository\EmpireRepository;
 use App\Repository\PlanetRepository;
 use App\Service\Economy\PlanetResources;
@@ -27,11 +29,15 @@ final class GameContext implements ResetInterface
 
     private ?ResourceSnapshot $resources = null;
 
+    private ?BuildingQueueItem $construction = null;
+    private bool $constructionLoaded = false;
+
     public function __construct(
         private readonly Security $security,
         private readonly EmpireRepository $empires,
         private readonly PlanetRepository $planetRepository,
         private readonly PlanetResources $planetResources,
+        private readonly BuildingQueueItemRepository $buildingQueue,
     ) {}
 
     public function empire(): ?Empire
@@ -61,9 +67,23 @@ final class GameContext implements ResetInterface
         return $this->resources ??= null === $empire ? null : $this->planetResources->snapshot($empire->getActivePlanet());
     }
 
+    /** Construction en cours sur la planète active */
+    public function activeConstruction(): ?BuildingQueueItem
+    {
+        if (!$this->constructionLoaded) {
+            $empire = $this->empire();
+            $this->construction = null === $empire ? null : $this->buildingQueue->findActiveFor($empire->getActivePlanet());
+            $this->constructionLoaded = true;
+        }
+
+        return $this->construction;
+    }
+
     public function reset(): void
     {
         $this->resources = null;
+        $this->construction = null;
+        $this->constructionLoaded = false;
         $this->empire = null;
         $this->empireLoaded = false;
         $this->planets = null;
