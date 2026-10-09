@@ -21,6 +21,7 @@ use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\FleetMovementRepository;
 use App\Repository\ShipTypeRepository;
+use App\Repository\TechnologyRepository;
 use App\Service\Fleet\FleetArrivalHandler;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Scheduling\ScheduledEventResolver;
@@ -179,6 +180,47 @@ final class FleetMissionTest extends KernelTestCase
         self::assertSame(FleetStatus::Stationed, $fleet->getStatus());
     }
 
+    public function testColoniesAreLimitedByAstrophysicsWhenDispatching(): void
+    {
+        $empire = $this->empire(astrophysics: 2);
+        $this->colonyOf($empire);
+        $fleet = $this->fleet($empire, ['colony_ship' => 1]);
+
+        // Niveau 2 : une colonie, déjà fondée ; le niveau 3 en ouvre une deuxième
+        $this->expectExceptionObject(new InvalidFleetMission('Limite de colonies atteinte : 1 sur 1 permise(s) par l’astrophysique niveau 2. Recherchez le niveau 3 pour un emplacement de plus.'));
+
+        $this->dispatch()->dispatch($fleet, [new MissionStep(SpacePosition::planet($this->freePlanetNear($empire)), FleetAction::Colonize, 'cible')], 100, new Resources());
+    }
+
+    public function testWithoutAstrophysicsNoColonyCanBeFounded(): void
+    {
+        $empire = $this->empire(astrophysics: 0);
+        $fleet = $this->fleet($empire, ['colony_ship' => 1]);
+
+        $this->expectExceptionObject(new InvalidFleetMission('Limite de colonies atteinte : 0 sur 0 permise(s) par l’astrophysique niveau 0. Recherchez le niveau 1 pour un emplacement de plus.'));
+
+        $this->dispatch()->dispatch($fleet, [new MissionStep(SpacePosition::planet($this->freePlanetNear($empire)), FleetAction::Colonize, 'cible')], 100, new Resources());
+    }
+
+    public function testColonyLimitIsCheckedAgainOnArrival(): void
+    {
+        $empire = $this->empire();
+        $fleet = $this->fleet($empire, ['colony_ship' => 1]);
+        $target = $this->freePlanetNear($empire);
+        $movement = $this->dispatch()->dispatch($fleet, [new MissionStep(SpacePosition::planet($target), FleetAction::Colonize, 'cible')], 100, new Resources());
+        // Pendant le vol, une autre colonie occupe le seul emplacement
+        $this->colonyOf($empire);
+
+        $this->clock->sleep($movement->getDurationSeconds());
+        $this->resolve((int) $movement->getEvent()?->getId());
+
+        $fleet = $this->reload($fleet);
+        self::assertSame(FleetOrderStatus::Failed, $fleet->getOrders()[0]?->getStatus());
+        self::assertStringContainsString('Limite de colonies atteinte : 1 sur 1', (string) $fleet->getOrders()[0]->getFailure());
+        self::assertNull($this->reloadPlanet($target)->getOwner());
+        self::assertSame(1, $fleet->shipCount($this->ship('colony_ship')));
+    }
+
     public function testColonizingNeedsAColonyShipPerOrder(): void
     {
         $empire = $this->empire();
@@ -232,10 +274,14 @@ final class FleetMissionTest extends KernelTestCase
         $this->dispatch()->dispatch($fleet, [new MissionStep(SpacePosition::planet($this->colonyOf($empire)), FleetAction::Station, 'colonie')], 55, new Resources());
     }
 
-    private function empire(): Empire
+    /** Empire dont l'astrophysique ouvre des emplacements de colonisation (niveau 1 : une colonie) */
+    private function empire(int $astrophysics = 1): Empire
     {
         $empire = EmpireFactory::createOne(['foundedAt' => $this->clock->now()]);
         $empire->getHomePlanet()->storeResources(new Resources(10_000, 10_000, 10_000), $this->clock->now());
+        $technology = self::getContainer()->get(TechnologyRepository::class)->findOneByCode('astrophysics');
+        \assert(null !== $technology);
+        $empire->setResearchLevel($technology, $astrophysics);
         self::getContainer()->get(EntityManagerInterface::class)->flush();
 
         return $empire;

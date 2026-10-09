@@ -27,6 +27,13 @@
             le système entier. Les ordres s’enchaînent ; il n’y a pas de retour automatique : le dernier ordre propose de
             stationner au point de départ, à modifier ou retirer.
         </p>
+        {% if colony_slots %}
+            <p class="sg-field__help" id="emplacements-colonies">
+                Colonies : <span class="sg-mono">{{ colony_slots.colonies }} / {{ colony_slots.max }}</span>
+                (astrophysique niveau {{ colony_slots.astrophysicsLevel }}).
+                {% if colony_slots.free == 0 %}Aucun emplacement libre : « Coloniser » échouera ; l’astrophysique niveau {{ colony_slots.nextLevel }} en ouvre un.{% endif %}
+            </p>
+        {% endif %}
         <table class="sg-table" id="ordres">
             <thead>
                 <tr>

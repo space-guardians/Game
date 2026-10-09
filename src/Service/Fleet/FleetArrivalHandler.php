@@ -17,6 +17,7 @@ use App\Model\Fleet\SpacePosition;
 use App\Service\Economy\PlanetResources;
 use App\Service\Exploration\Explorations;
 use App\Service\Scheduling\ScheduledEventHandler;
+use App\Service\Universe\ColonyLimit;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -39,6 +40,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private PlanetResources $resources,
         private TrajectoryPlanner $planner,
         private Explorations $explorations,
+        private ColonyLimit $colonyLimit,
     ) {}
 
     public static function type(): string
@@ -173,8 +175,8 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
     }
 
     /**
-     * Fonde une colonie sur une planète libre : elle rejoint l'empire, reçoit la cargaison, et un colonisateur est
-     * consommé. Renvoie la raison d'un échec, ou null.
+     * Fonde une colonie sur une planète libre, dans la limite des emplacements de l'empire (§4.1) : elle rejoint
+     * l'empire, reçoit la cargaison, et un colonisateur est consommé. Renvoie la raison d'un échec, ou null.
      */
     private function colonize(Fleet $fleet, ?Planet $planet, \DateTimeImmutable $arrival): ?string
     {
@@ -192,6 +194,10 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         }
         if (null === $colonyShip) {
             return 'Plus de colonisateur dans la flotte.';
+        }
+        $refusal = $this->colonyLimit->slots($fleet->getEmpire())->refusal();
+        if (null !== $refusal) {
+            return $refusal;
         }
 
         $planet->assignTo($fleet->getEmpire());

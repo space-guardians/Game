@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Fleet;
+use App\Entity\ShipType;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FormationColumn;
 use App\Enum\Fleet\FormationRow;
@@ -24,6 +25,7 @@ use App\Service\Fleet\FleetAssembly;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Fleet\Formations;
 use App\Service\Fleet\TravelRules;
+use App\Service\Universe\ColonyLimit;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -47,6 +49,7 @@ final class FleetController extends AbstractController
         private readonly ClockInterface $clock,
         private readonly Formations $formations,
         private readonly ExplorationEventInstanceRepository $explorationEvents,
+        private readonly ColonyLimit $colonyLimit,
     ) {}
 
     /** Ordres proposés dans le formulaire d'envoi ; le dernier suggère le retour au point de départ (§4.6) */
@@ -192,6 +195,8 @@ final class FleetController extends AbstractController
             'rescued' => $rescued,
             // Plein proposé : réservoirs complétés, dans la limite du deutérium de la planète
             'suggested_fuel' => null === $stock ? 0 : (int) floor(min($fleet->tankCapacity() - $fleet->getFuel(), $stock->deuterium)),
+            // Emplacements de colonisation (§4.1), utiles quand la flotte emporte un colonisateur
+            'colony_slots' => ($fleet->shipCounts()[ShipType::COLONY_SHIP] ?? 0) > 0 ? $this->colonyLimit->slots($empire) : null,
             'form_steps' => self::FORM_STEPS,
             'actions' => FleetAction::cases(),
             'speeds' => TravelRules::SPEED_PERCENTS,
