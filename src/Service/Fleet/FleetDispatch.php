@@ -16,6 +16,7 @@ use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
 use App\Service\Economy\PlanetResources;
 use App\Service\Scheduling\ScheduledEventResolver;
+use App\Service\Universe\ColonyLimit;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Lock\LockFactory;
@@ -36,6 +37,7 @@ final readonly class FleetDispatch
         private EntityManagerInterface $entityManager,
         private LockFactory $lockFactory,
         private ClockInterface $clock,
+        private ColonyLimit $colonyLimit,
     ) {}
 
     /**
@@ -70,6 +72,11 @@ final readonly class FleetDispatch
         // Chaque « Coloniser » consomme un colonisateur de la flotte
         if ($colonizations > $this->colonyShips($fleet)) {
             throw new InvalidFleetMission(\sprintf('« Coloniser » consomme un colonisateur : il en faut %d dans la flotte.', $colonizations));
+        }
+        // Emplacements libres d'après l'astrophysique (§4.1) ; vérifié à nouveau à l'arrivée
+        $refusal = $colonizations > 0 ? $this->colonyLimit->slots($fleet->getEmpire())->refusal($colonizations) : null;
+        if (null !== $refusal) {
+            throw new InvalidFleetMission($refusal);
         }
 
         $planet = $fleet->getPlanet();

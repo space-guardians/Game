@@ -104,6 +104,22 @@ final class FleetTest extends WebTestCase
         self::assertSelectorTextContains('.sg-alert', 'Flotte « Flotte 1 » constituée');
     }
 
+    public function testDispatchScreenShowsColonySlotsForAColonyShip(): void
+    {
+        $empire = $this->login();
+        $fleet = new Fleet($empire, 'Pionniers', $empire->getHomePlanet(), new \DateTimeImmutable());
+        $fleet->addShips($this->ship('colony_ship'), 1);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($fleet);
+        $entityManager->flush();
+
+        $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+
+        // Sans astrophysique : aucun emplacement (§4.1)
+        self::assertSelectorTextContains('#emplacements-colonies', 'Colonies : 0 / 0 (astrophysique niveau 0).');
+        self::assertSelectorTextContains('#emplacements-colonies', 'l’astrophysique niveau 1 en ouvre un');
+    }
+
     public function testDispatchesFleetWithSuggestedReturnOrder(): void
     {
         $empire = $this->login(['light_fighter' => 4]);

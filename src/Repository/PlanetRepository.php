@@ -42,6 +42,12 @@ final class PlanetRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** Planètes d'un empire, planète mère comprise */
+    public function countOwnedBy(Empire $empire): int
+    {
+        return $this->count(['owner' => $empire]);
+    }
+
     /**
      * Planètes habitées dont le stock n'a pas été consolidé depuis la date donnée, par identifiant croissant.
      *
