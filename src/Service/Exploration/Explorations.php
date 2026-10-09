@@ -184,7 +184,7 @@ final readonly class Explorations
         $next = $outcome->getNextQuest();
         if ($fleet->isEmpty()) {
             $report[] = 'La flotte est perdue.';
-        } elseif (null !== $next && $next->isActive()) {
+        } elseif (null !== $next && $next->isPublished()) {
             $unmet = $this->rules->unmetConditions($next, $this->contextOf($fleet));
             if ($depth >= self::MAX_CHAIN) {
                 $report[] = 'La piste s’arrête là.';

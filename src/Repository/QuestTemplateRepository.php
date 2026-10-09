@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\QuestTemplate;
+use App\Enum\Exploration\QuestStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -24,7 +25,7 @@ final class QuestTemplateRepository extends ServiceEntityRepository
     }
 
     /**
-     * Quêtes actives pouvant apparaître d'elles-mêmes en exploration (probabilité non nulle), dans un ordre stable
+     * Quêtes publiées pouvant apparaître d'elles-mêmes en exploration (probabilité non nulle), dans un ordre stable
      * pour le tirage.
      *
      * @return list<QuestTemplate>
@@ -32,7 +33,8 @@ final class QuestTemplateRepository extends ServiceEntityRepository
     public function findSpontaneous(): array
     {
         return $this->createQueryBuilder('q')
-            ->andWhere('q.active = true')
+            ->andWhere('q.status = :published')
+            ->setParameter('published', QuestStatus::Published)
             ->andWhere('q.chance > 0')
             ->orderBy('q.id', 'ASC')
             ->getQuery()

@@ -14,6 +14,7 @@ use App\Entity\ScheduledEvent;
 use App\Entity\ShipType;
 use App\Entity\StarSystem;
 use App\Enum\Exploration\ExplorationEventStatus;
+use App\Enum\Exploration\QuestStatus;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Enum\Fleet\FleetStatus;
@@ -58,7 +59,7 @@ final class ExplorationTest extends KernelTestCase
         self::bootKernel();
         $this->clock = self::mockTime('2026-10-09 10:00:00');
         // Contenu de départ écarté : chaque test pose ses propres quêtes
-        $this->entityManager()->createQuery('UPDATE ' . QuestTemplate::class . ' q SET q.active = false')->execute();
+        $this->entityManager()->createQuery('UPDATE ' . QuestTemplate::class . ' q SET q.status = :archived')->setParameter('archived', QuestStatus::Archived)->execute();
     }
 
     public function testExplorationCannotTargetAPlanet(): void
@@ -103,7 +104,7 @@ final class ExplorationTest extends KernelTestCase
     {
         $astrophysics = self::getContainer()->get(TechnologyRepository::class)->findOneByCode('astrophysics');
         QuestTemplateFactory::createOne(['requiredTechnology' => $astrophysics, 'requiredTechnologyLevel' => 5]);
-        QuestTemplateFactory::createOne(['active' => false]);
+        QuestTemplateFactory::createOne(['status' => QuestStatus::Draft]);
         $empire = $this->empire();
         $fleet = $this->fleet($empire, ['light_fighter' => 10]);
 

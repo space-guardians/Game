@@ -1,0 +1,135 @@
+{# Fiche d'une quête : arbre de chaînage, quêtes qui y mènent, puis test sur une flotte de test avant publication #}
+{% extends '@EasyAdmin/crud/detail.html.twig' %}
+
+{% macro quest(template) %}
+    <a href="{{ ea_url().setController('App\\Controller\\Admin\\QuestTemplateCrudController').setAction('detail').setEntityId(template.id) }}">{{ template.name }}</a>
+    <span class="badge badge-{{ template.status.badge }}">{{ template.status.label }}</span>
+    <small class="text-muted">
+        {%- if template.playerChoice %} choix du joueur, réponse sous {{ template.responseMinutes }} min{% else %} automatique{% endif -%}
+    </small>
+{% endmacro %}
+
+{% macro chain(node) %}
+    {% import _self as m %}
+    {% if node.loop %}
+        <em>boucle : retour à « {{ node.template.name }} »</em>
+    {% elseif node.truncated %}
+        <em>chaîne trop longue : « {{ node.template.name }} » n’est pas développée</em>
+    {% elseif node.branches is not empty %}
+        <ul>
+            {% for branch in node.branches %}
+                <li>
+                    {{ branch.outcome.label }} →
+                    {% if branch.next %}
+                        {{ m.quest(branch.next.template) }}
+                        {% if not branch.next.template.published %}<small class="text-danger">non publiée : la chaîne s’arrêtera ici en jeu</small>{% endif %}
+                        {{ m.chain(branch.next) }}
+                    {% else %}
+                        <span class="text-muted">fin</span>
+                    {% endif %}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endmacro %}
+
+{% import _self as m %}
+
+{% block detail_fields %}
+    {{ parent() }}
+
+    {% set quest = entity.instance %}
+
+    <section class="sg-admin-preview" aria-labelledby="chain-title">
+        <h2 id="chain-title">Chaînage</h2>
+        <div id="chainage">
+            <p>{{ m.quest(quest) }}</p>
+            {{ m.chain(chain) }}
+        </div>
+        <h3>Déclenchée par</h3>
+        {% if predecessors is empty %}
+            <p id="declencheurs">Aucune quête : {{ quest.chance > 0 ? 'elle apparaît d’elle-même en exploration (' ~ quest.chance ~ ' %).' : 'probabilité nulle, elle n’apparaîtra jamais.' }}</p>
+        {% else %}
+            <ul id="declencheurs">
+                {% for outcome in predecessors %}
+                    <li>{{ m.quest(outcome.template) }}, issue « {{ outcome.label }} »</li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+
+    <section class="sg-admin-preview" aria-labelledby="test-title">
+        <h2 id="test-title">Test avant publication</h2>
+        <p>Simulez la quête sur une flotte de test : déclenchement, chance de chaque issue, effets et quête suivante. Rien n’est enregistré. Par défaut, la plus petite flotte qui remplit les conditions.</p>
+        <form method="get" id="test-quete">
+            <div class="row">
+                <fieldset class="col-md-4">
+                    <legend class="h6">Technologies de l’empire</legend>
+                    {% for technology in test_technologies %}
+                        <label class="d-flex justify-content-between gap-2 mb-1">{{ technology.name }}
+                            <input class="form-control form-control-sm w-auto" type="number" min="0" name="test[technologies][{{ technology.code }}]" value="{{ test_fleet.technologies[technology.code] ?? 0 }}">
+                        </label>
+                    {% endfor %}
+                </fieldset>
+                <fieldset class="col-md-4">
+                    <legend class="h6">Vaisseaux envoyés</legend>
+                    {% for type in test_ship_types %}
+                        <label class="d-flex justify-content-between gap-2 mb-1">{{ type.name }}
+                            <input class="form-control form-control-sm w-auto" type="number" min="0" name="test[ships][{{ type.code }}]" value="{{ test_fleet.ships[type.code] ?? 0 }}">
+                        </label>
+                    {% endfor %}
+                </fieldset>
+                <fieldset class="col-md-4">
+                    <legend class="h6">Cargaison</legend>
+                    {% for key, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+                        <label class="d-flex justify-content-between gap-2 mb-1">{{ label }}
+                            <input class="form-control form-control-sm w-auto" type="number" min="0" name="test[cargo][{{ key }}]" value="{{ attribute(test_fleet.cargo, key)|round }}">
+                        </label>
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary mt-2">Simuler</button>
+                </fieldset>
+            </div>
+        </form>
+
+        <div id="resultat-test" class="mt-3">
+            {% if simulation.triggers %}
+                <p class="text-success">Cette flotte peut déclencher la quête{% if quest.chance > 0 %} ({{ quest.chance }} % de chances à chaque exploration){% endif %}.</p>
+            {% else %}
+                <p class="text-danger">Cette flotte ne déclenche pas la quête : il manque {{ simulation.unmet|join(' ; ') }}.</p>
+            {% endif %}
+            <table class="table datagrid">
+                <thead>
+                    <tr>
+                        <th scope="col">Issue</th>
+                        <th scope="col" class="text-end">Chance</th>
+                        <th scope="col">Vaisseaux perdus</th>
+                        <th scope="col">Cargaison ensuite</th>
+                        <th scope="col">Quête suivante</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for result in simulation.outcomes %}
+                        <tr>
+                            <th scope="row">{{ result.outcome.label }}</th>
+                            <td class="text-end">{{ result.probability is null ? 'au choix' : (result.probability * 100)|round(1) ~ ' %' }}</td>
+                            <td>
+                                {%- if result.fleetLost %}<strong class="text-danger">flotte perdue</strong>
+                                {%- elseif result.losses is empty %}aucun
+                                {%- else %}{% for code, count in result.losses %}{{ count }} × {{ code }}{{ not loop.last ? ', ' }}{% endfor %}{% endif -%}
+                            </td>
+                            <td>{{ result.cargo.metal|round|format_number }} / {{ result.cargo.crystal|round|format_number }} / {{ result.cargo.deuterium|round|format_number }}</td>
+                            <td>
+                                {%- if result.next is null %}<span class="text-muted">—</span>
+                                {%- elseif result.chains %}{{ result.next.name }} : s’enchaîne
+                                {%- elseif not result.next.published %}{{ result.next.name }} : non publiée
+                                {%- elseif result.fleetLost %}{{ result.next.name }} : flotte perdue
+                                {%- else %}{{ result.next.name }} : il manquerait {{ result.nextUnmet|join(' ; ') }}{% endif -%}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="text-muted small">Cargaison : métal / cristal / deutérium.</p>
+        </div>
+    </section>
+{% endblock detail_fields %}
