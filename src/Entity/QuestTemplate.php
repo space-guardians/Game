@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\Exploration\QuestResolution;
+use App\Enum\Exploration\QuestStatus;
 use App\Model\Economy\Resources;
 use App\Repository\QuestTemplateRepository;
 use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
@@ -50,9 +51,9 @@ final class QuestTemplate implements \Stringable
     #[Assert\NotBlank(message: 'Rédigez le texte de la quête.')]
     private string $text = '';
 
-    /** Seules les quêtes actives apparaissent ou s'enchaînent */
-    #[ORM\Column]
-    private bool $active = true;
+    /** Seules les quêtes publiées apparaissent ou s'enchaînent ; une nouvelle quête est un brouillon */
+    #[ORM\Column(length: 20, enumType: QuestStatus::class)]
+    private QuestStatus $status = QuestStatus::Draft;
 
     #[ORM\Column(length: 20, enumType: QuestResolution::class)]
     private QuestResolution $resolution = QuestResolution::Automatic;
@@ -147,14 +148,19 @@ final class QuestTemplate implements \Stringable
         $this->text = trim((string) $text);
     }
 
-    public function isActive(): bool
+    public function getStatus(): QuestStatus
     {
-        return $this->active;
+        return $this->status;
     }
 
-    public function setActive(bool $active): void
+    public function setStatus(QuestStatus $status): void
     {
-        $this->active = $active;
+        $this->status = $status;
+    }
+
+    public function isPublished(): bool
+    {
+        return QuestStatus::Published === $this->status;
     }
 
     public function getResolution(): QuestResolution

@@ -6,10 +6,11 @@ namespace App\Factory;
 
 use App\Entity\QuestTemplate;
 use App\Enum\Exploration\QuestResolution;
+use App\Enum\Exploration\QuestStatus;
 use Zenstruck\Foundry\Persistence\PersistentObjectFactory;
 
 /**
- * Quêtes d'exploration : par défaut automatique, toujours déclenchée (100 %), avec une issue sans effet.
+ * Quêtes d'exploration : par défaut publiée, automatique, toujours déclenchée (100 %), avec une issue sans effet.
  *
  * @extends PersistentObjectFactory<QuestTemplate>
  */
@@ -33,6 +34,7 @@ final class QuestTemplateFactory extends PersistentObjectFactory
             'name' => 'Quête ' . self::faker()->word(),
             'text' => 'Il se passe quelque chose.',
             'resolution' => QuestResolution::Automatic,
+            'status' => QuestStatus::Published,
             'chance' => 100,
             'outcomes' => QuestOutcomeFactory::new()->many(1),
         ];

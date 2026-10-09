@@ -7,8 +7,10 @@ namespace App\Tests\Functional\Admin;
 use App\Entity\QuestTemplate;
 use App\Enum\Admin\AdminRole;
 use App\Enum\Exploration\QuestResolution;
+use App\Enum\Exploration\QuestStatus;
 use App\Factory\AdminUserFactory;
 use App\Repository\QuestTemplateRepository;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -83,6 +85,73 @@ final class QuestAdminTest extends WebTestCase
         $crawler = $this->client->request('GET', '/admin/quetes/' . $quest->getId());
         // Séparateur des milliers : espace fine insécable
         self::assertMatchesRegularExpression('/\+1\D000 métal/u', $crawler->filter('body')->text());
+    }
+
+    public function testNewQuestIsADraft(): void
+    {
+        $this->loginAs(AdminRole::GameDesigner);
+
+        $this->client->request('GET', '/admin/quetes/new');
+
+        self::assertSame(QuestStatus::Draft->value, $this->client->getCrawler()->filter('select[name="QuestTemplate[status]"] option[selected]')->attr('value'));
+    }
+
+    public function testDetailShowsTheChainBothWays(): void
+    {
+        $this->loginAs(AdminRole::GameDesigner);
+
+        $this->client->request('GET', '/admin/quetes/' . $this->quest('distress_signal')->getId());
+
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('#chainage', 'Enquêter → Convoi de secours');
+        self::assertSelectorTextContains('#chainage', 'réponse sous 120 min');
+        self::assertSelectorTextContains('#chainage', 'Ignorer le signal → fin');
+        self::assertSelectorTextContains('#declencheurs', 'elle apparaît d’elle-même en exploration (8 %)');
+
+        $this->client->request('GET', '/admin/quetes/' . $this->quest('relief_convoy')->getId());
+        self::assertSelectorTextContains('#declencheurs', 'Signal de détresse');
+        self::assertSelectorTextContains('#declencheurs', 'issue « Enquêter »');
+    }
+
+    public function testUnpublishedSuccessorIsFlagged(): void
+    {
+        $this->loginAs(AdminRole::GameDesigner);
+        $relief = $this->quest('relief_convoy');
+        $relief->setStatus(QuestStatus::Draft);
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+
+        $this->client->request('GET', '/admin/quetes/' . $this->quest('distress_signal')->getId());
+
+        self::assertSelectorTextContains('#chainage', 'non publiée : la chaîne s’arrêtera ici en jeu');
+    }
+
+    public function testQuestIsTestedOnAMinimalFleetThenOnAChosenOne(): void
+    {
+        $this->loginAs(AdminRole::GameDesigner);
+        $id = $this->quest('distress_signal')->getId();
+
+        // Flotte minimale : un transporteur léger, vide ; la suite exige 1 000 de deutérium en cargaison
+        $this->client->request('GET', '/admin/quetes/' . $id);
+        self::assertSelectorTextContains('#resultat-test', 'Cette flotte peut déclencher la quête (8 % de chances à chaque exploration).');
+        self::assertSelectorTextContains('#resultat-test', 'au choix');
+        self::assertSelectorTextContains('#resultat-test', 'Convoi de secours : il manquerait en cargaison : 1000 de deutérium');
+
+        $this->client->submitForm('Simuler', ['test[cargo][deuterium]' => '1500'], 'GET');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('#resultat-test', 'Convoi de secours : s’enchaîne');
+    }
+
+    public function testTestShowsDrawChancesAndLosses(): void
+    {
+        $this->loginAs(AdminRole::GameDesigner);
+        $id = $this->quest('derelict_convoy')->getId();
+
+        $this->client->request('GET', '/admin/quetes/' . $id, ['test' => ['ships' => ['light_fighter' => 20, 'small_cargo' => 1]]]);
+
+        // Poids 3 et 1 ; le champ de mines détruit 10 % de chaque type
+        self::assertSelectorTextContains('#resultat-test', '75 %');
+        self::assertSelectorTextContains('#resultat-test', '25 %');
+        self::assertSelectorTextContains('#resultat-test', '2 × light_fighter');
     }
 
     public function testAQuestNeedsAnOutcome(): void
