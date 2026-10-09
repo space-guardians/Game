@@ -50,6 +50,12 @@ when@test:
             autowire: true
             autoconfigure: true
 
+        # Moteur de combat : branché aux batailles programmées avec #45 ; d'ici là, retiré du conteneur faute d'usage
+        App\Service\Combat\CombatEngine:
+            public: true
+        App\Service\Combat\CombatGroups:
+            public: true
+
         # Doublures de test : gestionnaires d'événements planifiés factices, publications Mercure enregistrées
         App\Tests\Fixtures\:
             resource: '../tests/Fixtures/'
