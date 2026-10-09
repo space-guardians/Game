@@ -57,6 +57,9 @@ final readonly class FleetDispatch
             if ($step->action->requiresPlanet() && null === $step->destination->planetId) {
                 throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » doit viser une planète.', $rank + 1, $step->action->label()));
             }
+            if ($step->action->forbidsPlanet() && null !== $step->destination->planetId) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » ne peut pas viser une planète : visez un système (sans position).', $rank + 1, $step->action->label()));
+            }
             if (FleetAction::Colonize === $step->action) {
                 ++$colonizations;
             }

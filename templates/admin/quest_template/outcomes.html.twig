@@ -1,0 +1,32 @@
+{# Issues d'une quête sur sa fiche : poids, effets, quête suivante #}
+{% macro delta(value, label) %}
+    {%- if value != 0 %}<span class="text-nowrap">{{ value > 0 ? '+' }}{{ value|format_number }} {{ label }}</span> {% endif -%}
+{% endmacro %}
+
+{% if field.value is empty %}
+    <span class="text-muted">Aucune issue</span>
+{% else %}
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th scope="col">Issue</th>
+                <th scope="col">Poids</th>
+                <th scope="col">Effets</th>
+                <th scope="col">Quête suivante</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for outcome in field.value %}
+                <tr>
+                    <th scope="row">{{ outcome.label }}<br><small class="text-muted">{{ outcome.text }}</small></th>
+                    <td>{{ outcome.weight }}</td>
+                    <td>
+                        {{ _self.delta(outcome.metal, 'métal') }}{{ _self.delta(outcome.crystal, 'cristal') }}{{ _self.delta(outcome.deuterium, 'deutérium') }}
+                        {%- if outcome.shipLossPercent > 0 %}<span class="text-nowrap">−{{ outcome.shipLossPercent }} % de vaisseaux</span>{% endif %}
+                    </td>
+                    <td>{{ outcome.nextQuest ?? '—' }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+{% endif %}

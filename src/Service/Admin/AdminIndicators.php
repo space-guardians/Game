@@ -8,6 +8,7 @@ use App\Model\Admin\DashboardIndicators;
 use App\Repository\ScheduledEventRepository;
 use App\Repository\UserRepository;
 use App\Service\Economy\BuildingCompletedHandler;
+use App\Service\Exploration\ExplorationExpiryHandler;
 use App\Service\Fleet\FleetArrivalHandler;
 use App\Service\Fleet\ShipyardOrderCompletedHandler;
 use App\Service\Research\ResearchCompletedHandler;
@@ -27,6 +28,7 @@ final readonly class AdminIndicators
         ResearchCompletedHandler::TYPE => 'Recherches en cours',
         ShipyardOrderCompletedHandler::TYPE => 'Commandes du chantier spatial',
         FleetArrivalHandler::TYPE => 'Flottes en vol',
+        ExplorationExpiryHandler::TYPE => 'Décisions d’exploration attendues',
     ];
 
     /**
