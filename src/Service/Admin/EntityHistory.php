@@ -7,6 +7,7 @@ namespace App\Service\Admin;
 use App\Entity\AdminUser;
 use App\Entity\BuildingQueueItem;
 use App\Entity\BuildingType;
+use App\Entity\ClassMatchup;
 use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
@@ -57,6 +58,7 @@ final readonly class EntityHistory
         AdminUser::class => 'Comptes d’administration',
         BuildingQueueItem::class => 'Constructions en cours',
         BuildingType::class => 'Types de bâtiments',
+        ClassMatchup::class => 'Matrice des classes',
         Empire::class => 'Empires',
         Fleet::class => 'Flottes',
         FleetMovement::class => 'Déplacements de flottes',

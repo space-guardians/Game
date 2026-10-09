@@ -1,0 +1,48 @@
+{# Matrice des classes (§4.7) : multiplicateur de dégâts, classe attaquante en ligne, classe visée en colonne #}
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block page_title 'Matrice des classes' %}
+{% block content_title 'Matrice des classes' %}
+
+{% block main %}
+    <p>
+        Multiplicateur des dégâts infligés par un vaisseau de la classe en ligne à un vaisseau de la classe en colonne,
+        de {{ min|format_number }} à {{ max|format_number }}. Vide ou 1 : neutre. Les vaisseaux civils, sans classe, sont
+        toujours neutres. Exemple : 1,5 = +50 % de dégâts, 0,75 = −25 %.
+    </p>
+
+    {% if classes is empty %}
+        <p class="text-muted">Aucune classe de vaisseau. <a href="{{ ea_url().setController('App\\Controller\\Admin\\ShipClassCrudController').setAction('index') }}">Créer des classes</a></p>
+    {% else %}
+        <form method="post" action="{{ path('admin_class_matchup_save') }}" id="matrice">
+            <input type="hidden" name="_token" value="{{ csrf_token('admin_class_matchup_save') }}">
+            <table class="table datagrid">
+                <thead>
+                    <tr>
+                        <th scope="col">Attaquante ↓ / visée →</th>
+                        {% for defender in classes %}
+                            <th scope="col" class="text-center">{{ defender.name }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attacker in classes %}
+                        <tr>
+                            <th scope="row">{{ attacker.name }}</th>
+                            {% for defender in classes %}
+                                <td class="text-center">
+                                    <input class="form-control form-control-sm text-center" type="text" inputmode="decimal" size="4"
+                                        name="matrix[{{ attacker.code }}][{{ defender.code }}]"
+                                        aria-label="{{ attacker.name }} contre {{ defender.name }}"
+                                        placeholder="1"
+                                        value="{{ values[attacker.code][defender.code] ?? '' }}">
+                                </td>
+                            {% endfor %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <button type="submit" class="btn btn-primary">Enregistrer la matrice</button>
+        </form>
+    {% endif %}
+{% endblock %}
