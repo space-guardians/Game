@@ -88,6 +88,12 @@
                             · Vitesse <span class="sg-mono">{{ fleet.slowestSpeed|format_number }}</span>
                             · Carburant <span class="sg-mono">{{ fleet.fuel|round(0, 'floor')|format_number }} / {{ fleet.tankCapacity|format_number }}</span>
                         </p>
+                        {% if awaiting[fleet.id] is defined %}
+                            <twig:AlertBanner variant="info">
+                                Exploration : « {{ awaiting[fleet.id].title }} » attend votre décision ; la flotte reste sur place d’ici là.
+                                <a href="{{ path('app_exploration', {_fragment: 'evenement-' ~ awaiting[fleet.id].id}) }}">Décider</a>
+                            </twig:AlertBanner>
+                        {% endif %}
                         {% if fleet.stranded %}
                             <twig:AlertBanner variant="error">En panne de carburant, immobilisée dans l’espace : envoyez une autre flotte la ravitailler.</twig:AlertBanner>
                             {% set rescuers = fleets|filter(other => other.atHome and other.id != fleet.id) %}

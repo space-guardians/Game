@@ -14,6 +14,7 @@ use App\Exception\Fleet\InvalidFormation;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\FormationCell;
 use App\Model\Fleet\MissionStep;
+use App\Repository\ExplorationEventInstanceRepository;
 use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
 use App\Repository\ShipTypeRepository;
@@ -45,6 +46,7 @@ final class FleetController extends AbstractController
         private readonly DestinationResolver $destinations,
         private readonly ClockInterface $clock,
         private readonly Formations $formations,
+        private readonly ExplorationEventInstanceRepository $explorationEvents,
     ) {}
 
     /** Ordres proposés dans le formulaire d'envoi ; le dernier suggère le retour au point de départ (§4.6) */
@@ -79,6 +81,7 @@ final class FleetController extends AbstractController
             'hangar' => $hangar,
             'fleets' => $fleets,
             'movements' => $movements,
+            'awaiting' => $this->explorationEvents->findAwaitingByFleet($empire),
             'now' => $this->clock->now(),
             'name_max_length' => Fleet::NAME_MAX_LENGTH,
         ]);

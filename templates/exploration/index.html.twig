@@ -1,0 +1,53 @@
+{# Écran « Exploration » (§4.6.4) : quêtes et événements vécus par les flottes, décisions attendues #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Exploration — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}Exploration{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="exploration-title">
+        <h2 id="exploration-title" class="sg-section-title">Journal d’exploration</h2>
+        <p class="sg-field__help">
+            Envoyez une flotte en « Exploration » vers un système ou un point de l’espace (pas une planète) : à son arrivée, une
+            quête ou un événement peut survenir, selon vos technologies, les vaisseaux envoyés et la cargaison. Certains se
+            règlent d’eux-mêmes ; d’autres attendent votre décision, et la flotte reste sur place d’ici là.
+        </p>
+        {% if events is empty %}
+            <p class="sg-empty">Aucun événement pour l’instant. <a href="{{ path('app_fleet') }}">Envoyer une flotte en exploration</a></p>
+        {% else %}
+            <ul class="sg-explorations" id="evenements">
+                {% for event in events %}
+                    <li class="sg-exploration sg-cut-10" id="evenement-{{ event.id }}">
+                        <header class="sg-exploration__header">
+                            <h3 class="sg-exploration__title">{{ event.title }}</h3>
+                            <twig:Chip label="{{ event.status.label }}" tone="{{ event.status.tone }}" dot/>
+                        </header>
+                        <p class="sg-entity__meta">
+                            <span class="sg-mono">{{ event.locationLabel }}</span>
+                            · {{ event.fleet ? 'Flotte « ' ~ event.fleet.name ~ ' »' : 'Flotte disparue' }}
+                            · {{ event.createdAt|date('d/m H:i') }}
+                        </p>
+                        <p class="sg-exploration__text">{{ event.text }}</p>
+                        {% if event.awaitingChoice %}
+                            <form method="post" action="{{ path('app_exploration_choose', {id: event.id}) }}" class="sg-exploration__choices">
+                                <input type="hidden" name="_token" value="{{ csrf_token('exploration-' ~ event.id) }}">
+                                {% for outcome in event.template.outcomes ?? [] %}
+                                    <twig:Btn type="submit" name="outcome" value="{{ outcome.id }}" label="{{ outcome.label }}" variant="{{ loop.first ? 'primary' : 'ghost' }}" size="sm"/>
+                                {% endfor %}
+                            </form>
+                            {% if event.expiresAt %}
+                                <p class="sg-field__help">Décision attendue avant <span class="sg-mono">{{ event.expiresAt|date('d/m H:i') }}</span> ; passé ce délai, l’occasion est perdue.</p>
+                            {% endif %}
+                        {% elseif event.report %}
+                            <div class="sg-exploration__report">
+                                {% if event.outcomeLabel %}<p><strong>{{ event.outcomeLabel }}</strong></p>{% endif %}
+                                {{ event.report|nl2br }}
+                            </div>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+{% endblock %}

@@ -1478,3 +1478,51 @@ a:hover {
 .sg-map__swatch.is-mine {
     background: var(--sg-gold);
 }
+
+/* Exploration : journal des quêtes et événements, décisions attendues */
+.sg-explorations {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sg-exploration {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    padding: 14px 16px;
+    background: var(--sg-panel-raised);
+    border: 1px solid var(--sg-line-strong);
+}
+
+.sg-exploration__header {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.sg-exploration__title {
+    margin: 0;
+    font-family: var(--sg-font-display);
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.sg-exploration__text,
+.sg-exploration__report p {
+    margin: 0;
+}
+
+.sg-exploration__report {
+    color: var(--sg-text-2);
+}
+
+.sg-exploration__choices {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}

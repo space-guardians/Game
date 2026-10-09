@@ -19,6 +19,8 @@ use App\Entity\GalaxyShapeTemplate;
 use App\Entity\PlanetBuilding;
 use App\Entity\PlanetShip;
 use App\Entity\Prerequisite;
+use App\Entity\QuestOutcome;
+use App\Entity\QuestTemplate;
 use App\Entity\Research;
 use App\Entity\ResearchQueueItem;
 use App\Entity\ShipClass;
@@ -67,6 +69,8 @@ final readonly class EntityHistory
         PlanetBuilding::class => 'Bâtiments des planètes',
         PlanetShip::class => 'Vaisseaux des planètes',
         Prerequisite::class => 'Prérequis',
+        QuestOutcome::class => 'Issues de quêtes',
+        QuestTemplate::class => 'Gabarits de quêtes',
         Research::class => 'Recherches des empires',
         ResearchQueueItem::class => 'Recherches en cours',
         ShipClass::class => 'Classes de vaisseaux',

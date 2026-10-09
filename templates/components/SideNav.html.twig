@@ -32,6 +32,12 @@
             </a>
         </li>
         <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_exploration' ? ' is-active' }}" href="{{ path('app_exploration') }}"{% if current starts with 'app_exploration' %} aria-current="page"{% endif %}>
+                <twig:Icon name="compass" size="18"/>
+                Exploration
+            </a>
+        </li>
+        <li>
             <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_map' ? ' is-active' }}" href="{{ path('app_map') }}"{% if current starts with 'app_map' %} aria-current="page"{% endif %}>
                 <twig:Icon name="planet" size="18"/>
                 Carte

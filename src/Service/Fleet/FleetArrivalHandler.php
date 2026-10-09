@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Fleet;
 
+use App\Entity\ExplorationEventInstance;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
@@ -14,14 +15,16 @@ use App\Entity\SpaceLocation;
 use App\Enum\Fleet\FleetAction;
 use App\Model\Fleet\SpacePosition;
 use App\Service\Economy\PlanetResources;
+use App\Service\Exploration\Explorations;
 use App\Service\Scheduling\ScheduledEventHandler;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Arrivée d'une flotte à la destination de son ordre en cours (§4.6) : elle s'y place, effectue l'action de l'ordre,
  * puis part aussitôt vers le suivant — ou reste stationnée sur place s'il n'y en a plus. Une flotte vidée par la
- * colonisation (colonisateur seul) disparaît. Une panne de carburant l'immobilise en chemin (§4.6.3). Appelé par le résolveur, sous
- * verrou (de la planète visée le cas échéant) et dans une transaction.
+ * colonisation (colonisateur seul) disparaît. Une panne de carburant l'immobilise en chemin (§4.6.3). Une exploration
+ * dont la quête attend le choix du joueur la retient sur place (§4.6.4). Appelé par le résolveur, sous verrou (de la
+ * planète visée le cas échéant) et dans une transaction.
  */
 final readonly class FleetArrivalHandler implements ScheduledEventHandler
 {
@@ -35,6 +38,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private FleetMovements $movements,
         private PlanetResources $resources,
         private TrajectoryPlanner $planner,
+        private Explorations $explorations,
     ) {}
 
     public static function type(): string
@@ -62,13 +66,23 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $planet = null === $destination->planetId ? null : $this->entityManager->find(Planet::class, $destination->planetId);
         $fleet->arriveAt($destination, $planet);
 
-        $this->act($fleet, $order, $planet, $arrival);
-
         $speedPercent = $movement->getSpeedPercent();
+        $awaiting = $this->act($fleet, $order, $planet, $arrival, $speedPercent);
+
         $this->entityManager->remove($movement);
         if ($fleet->isEmpty()) {
-            // Plus aucun vaisseau (colonisateur seul, consommé) : la flotte disparaît avec ses ordres restants
+            // Plus aucun vaisseau (colonisateur seul consommé, flotte perdue en exploration) : elle disparaît avec ses
+            // ordres restants
+            $this->entityManager->flush();
+            $this->explorations->forget($fleet);
             $this->entityManager->remove($fleet);
+            $this->entityManager->flush();
+
+            return;
+        }
+        if (null !== $awaiting) {
+            // Décision attendue : la flotte reste sur place, ses ordres restants reprendront ensuite
+            $fleet->station();
             $this->entityManager->flush();
 
             return;
@@ -90,14 +104,16 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $this->entityManager->flush();
     }
 
-    private function act(Fleet $fleet, FleetOrder $order, ?Planet $planet, \DateTimeImmutable $arrival): void
+    /** Effectue l'action de l'ordre ; renvoie l'événement d'exploration qui attend le choix du joueur, le cas échéant */
+    private function act(Fleet $fleet, FleetOrder $order, ?Planet $planet, \DateTimeImmutable $arrival, int $speedPercent): ?ExplorationEventInstance
     {
+        $awaiting = null;
         switch ($order->getAction()) {
             case FleetAction::Transport:
                 if (null === $planet || null === $planet->getOwner()) {
                     $order->fail('Plus de planète habitée à cette position : la cargaison reste à bord.', $arrival);
 
-                    return;
+                    return null;
                 }
                 // Production consolidée jusqu'à l'arrivée, puis déchargement (le stock peut dépasser les dépôts)
                 $snapshot = $this->resources->settle($planet, $arrival);
@@ -110,19 +126,24 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 if (null !== $failure) {
                     $order->fail($failure, $arrival);
 
-                    return;
+                    return null;
                 }
+                break;
+            case FleetAction::Explore:
+                $awaiting = $this->explorations->explore($fleet, $order->getDestination(), $order->getDestinationLabel(), $arrival, $speedPercent);
                 break;
             case FleetAction::Colonize:
                 $failure = $this->colonize($fleet, $planet, $arrival);
                 if (null !== $failure) {
                     $order->fail($failure, $arrival);
 
-                    return;
+                    return null;
                 }
                 break;
         }
         $order->complete($arrival);
+
+        return $awaiting;
     }
 
     /**

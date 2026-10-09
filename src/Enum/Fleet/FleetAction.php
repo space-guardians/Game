@@ -9,7 +9,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Action effectuée à l'arrivée d'un ordre « se déplacer puis agir » (§4.6). Les autres actions (espionnage,
- * recyclage, exploration, bataille) arrivent avec leurs phases.
+ * recyclage, bataille) arrivent avec leurs phases.
  */
 enum FleetAction: string implements TranslatableInterface
 {
@@ -21,6 +21,8 @@ enum FleetAction: string implements TranslatableInterface
     case Colonize = 'colonize';
     /** Livre le deutérium de la cargaison à une flotte immobilisée sur place (§4.6.3) */
     case Refuel = 'refuel';
+    /** Résolution d'exploration : une quête ou un événement peut apparaître (§4.6.4) ; ne cible pas de planète */
+    case Explore = 'explore';
 
     public function label(): string
     {
@@ -29,12 +31,18 @@ enum FleetAction: string implements TranslatableInterface
             self::Station => 'Stationner',
             self::Colonize => 'Coloniser',
             self::Refuel => 'Ravitaillement',
+            self::Explore => 'Exploration',
         };
     }
 
     public function requiresPlanet(): bool
     {
         return self::Transport === $this || self::Colonize === $this;
+    }
+
+    public function forbidsPlanet(): bool
+    {
+        return self::Explore === $this;
     }
 
     /** Action saisie par coordonnées ; le ravitaillement, lui, vise une flotte (sa position exacte) */
