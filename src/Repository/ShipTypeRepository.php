@@ -25,6 +25,26 @@ final class ShipTypeRepository extends ServiceEntityRepository
         return $this->findBy([], ['sortOrder' => 'ASC', 'id' => 'ASC']);
     }
 
+    /**
+     * Vaisseaux proprement dits (civils et militaires), sans les défenses.
+     *
+     * @return list<ShipType>
+     */
+    public function findShipsOrdered(): array
+    {
+        return array_values(array_filter($this->findAllOrdered(), static fn(ShipType $type): bool => !$type->isDefense()));
+    }
+
+    /**
+     * Défenses planétaires (§4.8).
+     *
+     * @return list<ShipType>
+     */
+    public function findDefensesOrdered(): array
+    {
+        return array_values(array_filter($this->findAllOrdered(), static fn(ShipType $type): bool => $type->isDefense()));
+    }
+
     public function findOneByCode(string $code): ?ShipType
     {
         return $this->findOneBy(['code' => $code]);

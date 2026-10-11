@@ -7,6 +7,7 @@ namespace App\Service\Combat;
 use App\Entity\Battle;
 use App\Entity\CombatReport;
 use App\Entity\Fleet;
+use App\Entity\Planet;
 use App\Enum\Combat\AttackAngle;
 use App\Model\Combat\CombatResult;
 use App\Model\Economy\Resources;
@@ -38,9 +39,10 @@ final class CombatReports implements ResetInterface
     /**
      * @param list<Fleet>                $fleets flottes engagées, pour les noms de flotte et d'empire
      * @param array<string, AttackAngle> $angles par camp
-     * @param Resources|null             $debris champ de débris formé par la bataille
+     * @param Resources|null             $debris   champ de débris formé par la bataille
+     * @param Planet|null                $defended planète dont les défenses ont combattu
      */
-    public function write(Battle $battle, CombatResult $result, array $fleets, array $angles, ?Resources $debris = null): CombatReport
+    public function write(Battle $battle, CombatResult $result, array $fleets, array $angles, ?Resources $debris = null, ?Planet $defended = null): CombatReport
     {
         $byId = [];
         foreach ($fleets as $fleet) {
@@ -49,10 +51,11 @@ final class CombatReports implements ResetInterface
         $groups = [];
         foreach ($result->groups as $group) {
             $fleet = null === $group->fleetId ? null : ($byId[$group->fleetId] ?? null);
+            // Groupe sans flotte : défenses de la planète attaquée
             $groups[] = [
                 'side' => $group->side->value,
-                'fleet' => $fleet?->getName() ?? '—',
-                'empire' => $fleet?->getEmpire()->getName() ?? '—',
+                'fleet' => $fleet?->getName() ?? (null !== $defended ? 'Défenses planétaires' : '—'),
+                'empire' => $fleet?->getEmpire()->getName() ?? $defended?->getOwner()?->getName() ?? '—',
                 'type' => $group->typeName,
                 'class' => $group->classCode,
                 'row' => $group->row->value,

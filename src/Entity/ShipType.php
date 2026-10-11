@@ -76,9 +76,9 @@ final class ShipType implements \Stringable
     #[Assert\Positive]
     private int $structure = 1;
 
-    /** Vitesse de base, avant la technologie de propulsion */
+    /** Vitesse de base, avant la technologie de propulsion ; 0 pour une défense, immobile */
     #[ORM\Column]
-    #[Assert\Positive]
+    #[Assert\PositiveOrZero]
     private int $speed = 1;
 
     /** Capacité de cargo (ressources transportables) */
@@ -117,6 +117,12 @@ final class ShipType implements \Stringable
     #[Assert\Callback]
     public function validateClass(ExecutionContextInterface $context): void
     {
+        if (ShipCategory::Defense !== $this->category && $this->speed <= 0) {
+            $context->buildViolation('Un vaisseau a une vitesse positive.')->atPath('speed')->addViolation();
+        }
+        if (ShipCategory::Defense === $this->category && ($this->speed > 0 || $this->cargo > 0 || $this->fuelCapacity > 0)) {
+            $context->buildViolation('Une défense ne se déplace pas : vitesse, cargo et réservoir à 0.')->atPath('speed')->addViolation();
+        }
         if (ShipCategory::Military === $this->category && null === $this->shipClass) {
             $context->buildViolation('Un vaisseau militaire appartient à exactement une classe de combat.')->atPath('shipClass')->addViolation();
         }
@@ -155,6 +161,12 @@ final class ShipType implements \Stringable
     public function setCategory(ShipCategory $category): void
     {
         $this->category = $category;
+    }
+
+    /** Défense planétaire (§4.8) : immobile, jamais dans une flotte */
+    public function isDefense(): bool
+    {
+        return ShipCategory::Defense === $this->category;
     }
 
     public function isMilitary(): bool

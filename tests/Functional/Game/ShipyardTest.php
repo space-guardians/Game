@@ -39,8 +39,12 @@ final class ShipyardTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.sg-sidenav [aria-current="page"]', 'Chantier spatial');
-        self::assertCount(11, $crawler->filter('.sg-entity'));
-        self::assertCount(11, $crawler->filter('.sg-entity--locked'));
+        // 11 vaisseaux, puis 8 défenses dans leur propre section
+        self::assertCount(11, $crawler->filter('#vaisseaux .sg-entity'));
+        self::assertCount(8, $crawler->filter('#defenses .sg-entity'));
+        self::assertCount(19, $crawler->filter('.sg-entity--locked'));
+        self::assertSelectorTextContains('#vaisseau-rocket_launcher .sg-entity__requires', 'Chantier spatial 1');
+        self::assertSelectorTextNotContains('#vaisseau-rocket_launcher', 'Vitesse');
         self::assertSelectorTextContains('#vaisseau-light_fighter .sg-entity__requires', 'Chantier spatial 1');
         self::assertSelectorTextContains('.sg-shipyard-queue', 'Aucune commande');
     }
@@ -51,7 +55,7 @@ final class ShipyardTest extends WebTestCase
         $crawler = $this->client->request('GET', '/chantier-spatial');
         $fighter = $crawler->filter('#vaisseau-light_fighter');
         self::assertStringContainsString('Disponible', $fighter->filter('.sg-chip')->text());
-        self::assertStringContainsString('Par vaisseau : 48 min', $fighter->text());
+        self::assertStringContainsString('À l’unité : 48 min', $fighter->text());
         self::assertStringContainsString('Intercepteur', $fighter->text());
 
         $this->client->submit($fighter->selectButton('Commander')->form(['quantity' => '2']));

@@ -6,7 +6,10 @@ namespace App\Service\Combat;
 
 use App\Entity\Empire;
 use App\Entity\Fleet;
+use App\Entity\Planet;
 use App\Enum\Combat\CombatSide;
+use App\Enum\Fleet\FormationColumn;
+use App\Enum\Fleet\FormationRow;
 use App\Model\Combat\CombatGroup;
 use App\Service\Fleet\Formations;
 
@@ -56,6 +59,46 @@ final readonly class CombatGroups
         }
 
         return $groups;
+    }
+
+    /**
+     * Défenses d'une planète (§4.8) : un groupe par type, en ligne avant (elles font face à l'attaquant), avec les
+     * technologies de l'empire propriétaire. Elles ne défendent que leur propre planète.
+     *
+     * @return list<CombatGroup>
+     */
+    public function ofDefenses(Planet $planet, CombatSide $side): array
+    {
+        $owner = $planet->getOwner();
+        $levels = null === $owner ? [] : $this->levels($owner);
+        $groups = [];
+        foreach ($planet->getShips() as $stock) {
+            $type = $stock->getType();
+            if (!$type->isDefense() || $stock->getQuantity() <= 0) {
+                continue;
+            }
+            $groups[] = new CombatGroup(
+                self::defenseKey($planet, $type->getCode()),
+                $side,
+                null,
+                $type->getCode(),
+                $type->getName(),
+                $type->getShipClass()?->getCode(),
+                FormationRow::Front,
+                FormationColumn::Center,
+                $stock->getQuantity(),
+                $this->rules->withTechnology($type->getAttack(), $levels[CombatRules::WEAPONS] ?? 0),
+                $this->rules->withTechnology($type->getShield(), $levels[CombatRules::SHIELDING] ?? 0),
+                max(1.0, $this->rules->withTechnology($type->getStructure(), $levels[CombatRules::ARMOUR] ?? 0)),
+            );
+        }
+
+        return $groups;
+    }
+
+    public static function defenseKey(Planet $planet, string $typeCode): string
+    {
+        return \sprintf('planet-%d:%s', (int) $planet->getId(), $typeCode);
     }
 
     /** @return array<string, int> niveaux de l'empire, par code de technologie */

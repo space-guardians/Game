@@ -65,8 +65,13 @@
         </p>
     </section>
 
-    <div class="sg-entities">
-        {% for card in cards %}
+    {% for section in [{title: 'Vaisseaux', id: 'vaisseaux', defense: false}, {title: 'Défenses', id: 'defenses', defense: true}] %}
+    <h2 class="sg-section-title" id="titre-{{ section.id }}">{{ section.title }}</h2>
+    {% if section.defense %}
+        <p class="sg-field__help">Les défenses restent sur leur planète et ne la défendent qu’elle, quand une flotte hostile l’attaque.</p>
+    {% endif %}
+    <div class="sg-entities" id="{{ section.id }}">
+        {% for card in cards|filter(card => card.type.defense == section.defense) %}
             {% set type = card.type %}
             <twig:EntityCard id="vaisseau-{{ type.code }}" name="{{ type.name }}" state="{{ card.state }}" description="{{ type.description }}">
                 <p class="sg-entity__meta">
@@ -77,11 +82,13 @@
                     <div><dt>Attaque</dt><dd class="sg-mono">{{ type.attack|format_number }}</dd></div>
                     <div><dt>Bouclier</dt><dd class="sg-mono">{{ type.shield|format_number }}</dd></div>
                     <div><dt>Structure</dt><dd class="sg-mono">{{ type.structure|format_number }}</dd></div>
-                    <div><dt>Vitesse</dt><dd class="sg-mono">{{ type.speed|format_number }}</dd></div>
-                    <div><dt>Cargo</dt><dd class="sg-mono">{{ type.cargo|format_number }}</dd></div>
-                    <div><dt>Réservoir</dt><dd class="sg-mono">{{ type.fuelCapacity|format_number }}</dd></div>
+                    {% if not type.defense %}
+                        <div><dt>Vitesse</dt><dd class="sg-mono">{{ type.speed|format_number }}</dd></div>
+                        <div><dt>Cargo</dt><dd class="sg-mono">{{ type.cargo|format_number }}</dd></div>
+                        <div><dt>Réservoir</dt><dd class="sg-mono">{{ type.fuelCapacity|format_number }}</dd></div>
+                    {% endif %}
                 </dl>
-                <h3 class="sg-entity__meta">Par vaisseau : {{ card.duration|duration }}</h3>
+                <h3 class="sg-entity__meta">À l’unité : {{ card.duration|duration }}</h3>
                 <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
                 {% if card.requires is not empty %}
                     <p class="sg-entity__meta sg-entity__requires">Requiert :
@@ -103,4 +110,5 @@
             </twig:EntityCard>
         {% endfor %}
     </div>
+    {% endfor %}
 {% endblock %}

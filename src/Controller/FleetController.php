@@ -72,7 +72,7 @@ final class FleetController extends AbstractController
         $planet = $empire->getActivePlanet();
 
         $hangar = [];
-        foreach ($this->shipTypes->findAllOrdered() as $type) {
+        foreach ($this->shipTypes->findShipsOrdered() as $type) {
             $count = $planet->shipCount($type);
             if ($count > 0) {
                 $hangar[] = ['type' => $type, 'count' => $count];

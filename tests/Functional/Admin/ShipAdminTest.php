@@ -32,7 +32,7 @@ final class ShipAdminTest extends WebTestCase
 
     public function testStartingContentGivesEveryMilitaryTypeAClass(): void
     {
-        $types = self::getContainer()->get(ShipTypeRepository::class)->findAllOrdered();
+        $types = self::getContainer()->get(ShipTypeRepository::class)->findShipsOrdered();
 
         self::assertSame(
             ['small_cargo', 'large_cargo', 'colony_ship', 'recycler', 'espionage_probe', 'light_fighter', 'heavy_fighter', 'cruiser', 'battleship', 'destroyer', 'guardian'],

@@ -7,6 +7,7 @@ namespace App\Service\Combat;
 use App\Entity\Battle;
 use App\Entity\BattleParticipant;
 use App\Entity\Fleet;
+use App\Entity\Planet;
 use App\Enum\Combat\AttackAngle;
 use App\Enum\Combat\CombatSide;
 use App\Model\Combat\CombatResult;
@@ -39,8 +40,9 @@ final readonly class BattleFight
     /**
      * @param list<Fleet> $attackers
      * @param list<Fleet> $defenders
+     * @param Planet|null $defended  planète attaquée, dont les défenses (§4.8) se joignent au camp défenseur
      */
-    public function fight(Battle $battle, array $attackers, array $defenders, \DateTimeImmutable $at): CombatResult
+    public function fight(Battle $battle, array $attackers, array $defenders, \DateTimeImmutable $at, ?Planet $defended = null): CombatResult
     {
         foreach ([CombatSide::Attacker->value => $attackers, CombatSide::Defender->value => $defenders] as $side => $fleets) {
             foreach ($fleets as $fleet) {
@@ -48,9 +50,11 @@ final readonly class BattleFight
             }
         }
 
-        $angles = $this->engagement->angles(SideMotion::ofFleets($attackers), SideMotion::ofFleets($defenders));
+        $defenses = null === $defended ? [] : $this->groups->ofDefenses($defended, CombatSide::Defender);
+        // Des défenses sur place : le camp défenseur tient sa position
+        $angles = $this->engagement->angles(SideMotion::ofFleets($attackers), [] === $defenses ? SideMotion::ofFleets($defenders) : SideMotion::stationary());
         $result = $this->engine->resolve(
-            [...$this->groups->of(CombatSide::Attacker, $attackers), ...$this->groups->of(CombatSide::Defender, $defenders)],
+            [...$this->groups->of(CombatSide::Attacker, $attackers), ...$this->groups->of(CombatSide::Defender, $defenders), ...$defenses],
             $this->matchups->matrix(),
             $this->randomizer,
             array_map(static fn(AttackAngle $angle): array => $angle->rowOrder(), $angles),
@@ -61,7 +65,16 @@ final readonly class BattleFight
         ], $at);
         // Débris et rapport, avant que les pertes ne vident les flottes (types, noms, effectifs du début)
         $debris = $this->debris->scatter($battle, $result, [...$attackers, ...$defenders], $at);
-        $this->reports->write($battle, $result, [...$attackers, ...$defenders], $angles, $debris);
+        $this->reports->write($battle, $result, [...$attackers, ...$defenders], $angles, $debris, $defended);
+        // Défenses détruites : retirées de la planète (elles ne laissent pas de débris)
+        if (null !== $defended) {
+            foreach ($defended->getShips()->toArray() as $stock) {
+                $lost = min($stock->getQuantity(), $result->lossesOf(CombatGroups::defenseKey($defended, $stock->getType()->getCode())));
+                if ($stock->getType()->isDefense() && $lost > 0) {
+                    $defended->removeShips($stock->getType(), $lost);
+                }
+            }
+        }
 
         $fighting = [...$attackers, ...$defenders];
         foreach ($battle->getParticipants() as $participant) {

@@ -7,6 +7,7 @@ namespace App\Service\Combat;
 use App\Entity\Battle;
 use App\Entity\Fleet;
 use App\Entity\FleetOrder;
+use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
@@ -103,7 +104,13 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
             return;
         }
 
-        $this->fight->fight($battle, $attackers, $defenders, $at);
+        // Planète d'un empire non allié : ses défenses se joignent aux défenseurs (§4.8)
+        $planetId = $battle->getLocation()->planetId;
+        $planet = null === $planetId ? null : $this->entityManager->find(Planet::class, $planetId);
+        $owner = $planet?->getOwner();
+        $defended = null !== $owner && !$this->allegiances->allied($owner, $initiator) ? $planet : null;
+
+        $this->fight->fight($battle, $attackers, $defenders, $at, $defended);
         // Victoire sur une planète ennemie : les assaillants survivants pillent avant de repartir
         $this->pillage->plunder($battle, $initiator, array_values(array_filter($attackers, static fn(Fleet $fleet): bool => !$fleet->isEmpty())), $at);
         $this->entityManager->flush();

@@ -76,6 +76,26 @@ final class FleetTest extends WebTestCase
         self::assertSame([], self::getContainer()->get(FleetRepository::class)->findAll());
     }
 
+    public function testDefensesStayOnTheirPlanet(): void
+    {
+        $empire = $this->login(['light_fighter' => 2, 'rocket_launcher' => 5]);
+
+        $crawler = $this->client->request('GET', '/flotte');
+        self::assertSelectorTextContains('#hangar', 'Chasseur léger');
+        self::assertSelectorTextNotContains('#hangar', 'Lanceur de missiles');
+        $token = (string) $crawler->filter('.sg-fleet-form input[name="_token"]')->attr('value');
+
+        // Même en forçant le formulaire : refusé
+        $this->client->request('POST', '/flotte/constituer', [
+            '_token' => $token,
+            'ships' => ['rocket_launcher' => '5'],
+            'name' => 'Murs',
+        ]);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Lanceur de missiles : une défense reste sur sa planète.');
+        self::assertSame(5, $this->planet($empire)->shipCount($this->ship('rocket_launcher')));
+    }
+
     public function testCannotTakeMoreShipsThanTheHangarHolds(): void
     {
         $this->login(['light_fighter' => 2]);
