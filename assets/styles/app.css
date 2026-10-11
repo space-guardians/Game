@@ -1526,3 +1526,13 @@ a:hover {
     flex-wrap: wrap;
     gap: 8px;
 }
+
+/* Batailles programmées connues de l'empire, avec les renforts possibles */
+.sg-battles {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}

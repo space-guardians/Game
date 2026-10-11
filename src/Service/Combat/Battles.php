@@ -28,6 +28,7 @@ final readonly class Battles
         private BattleRepository $battles,
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
+        private Allegiances $allegiances,
     ) {}
 
     /**
@@ -61,7 +62,10 @@ final readonly class Battles
             return $battle;
         }
 
-        $battle->join($fleet, CombatSide::Attacker, $movement->getDepartedAt(), $movement->getSpeedPercent());
+        // Camp provisoire, d'après le statut allié avec l'empire qui a lancé l'attaque ; recalculé à la résolution
+        $initiator = $battle->getInitiator();
+        $side = null === $initiator || $this->allegiances->allied($fleet->getEmpire(), $initiator) ? CombatSide::Attacker : CombatSide::Defender;
+        $battle->join($fleet, $side, $movement->getDepartedAt(), $movement->getSpeedPercent());
         $this->entityManager->flush();
 
         return $battle;

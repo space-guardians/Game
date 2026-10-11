@@ -18,6 +18,7 @@ use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Enum\Fleet\FleetStatus;
 use App\Enum\Scheduling\ScheduledEventStatus;
+use App\Exception\Fleet\InvalidFleetMission;
 use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
 use App\Factory\StarSystemFactory;
@@ -174,6 +175,82 @@ final class BattleTest extends KernelTestCase
         $this->resolve((int) $resolution->getId());
 
         self::assertSame(BattleStatus::Cancelled, $this->entityManager()->getRepository(Battle::class)->findOneBy([])?->getStatus());
+    }
+
+    public function testJoiningABattleIsOnlyAFirstOrder(): void
+    {
+        $empire = $this->empire();
+        $fleet = $this->fleet($empire, $empire->getHomePlanet(), ['cruiser' => 1]);
+        $target = $this->planetNear($empire);
+
+        $this->expectExceptionObject(new InvalidFleetMission('Ordre 2 : « Rejoindre une bataille » ne peut être que le premier ordre : seule une flotte stationnée part en renfort.'));
+
+        $this->dispatch()->dispatch($fleet, [
+            new MissionStep(SpacePosition::planet($target), FleetAction::Station, 'cible'),
+            new MissionStep(SpacePosition::planet($target), FleetAction::JoinBattle, 'cible'),
+        ], 100, new Resources(), 100);
+    }
+
+    public function testHostileReinforcementFightsAgainstTheInitiatorAndThenCarriesOn(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $this->fleet(EmpireFactory::createOne(), $target, ['light_fighter' => 2]);
+        // Même vitesse que le renfort, pour qu'il arrive à temps
+        $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['battleship' => 1]);
+        // Un troisième empire, parti du même système, rejoint la bataille : hostile à l'assaillant, il défend
+        $third = $this->empire();
+        $helper = $this->fleet($third, $attacker->getHomePlanet(), ['battleship' => 30]);
+        // Loin de ses planètes, il part réservoirs pleins
+        $helper->refuel($helper->tankCapacity());
+        $this->entityManager()->flush();
+
+        $movement = $this->attack($raid, $target);
+        // Le renfort rentre ensuite à son point de départ (même galaxie)
+        $this->dispatch()->dispatch($helper, [
+            new MissionStep(SpacePosition::planet($target), FleetAction::JoinBattle, 'cible'),
+            new MissionStep(SpacePosition::planet($attacker->getHomePlanet()), FleetAction::Station, 'retour'),
+        ], 100, new Resources());
+
+        $battle = $this->battles()->findScheduledFor($helper);
+        self::assertSame(CombatSide::Defender, $battle?->participantFor($helper)?->getSide());
+
+        // Les deux arrivées et la bataille tombent au même instant ; l'arrivée du renfort, programmée après la
+        // bataille, la fait reporter de quelques secondes
+        $this->clock->sleep($movement->getDurationSeconds());
+        $this->resolve((int) $movement->getEvent()?->getId(), 3);
+        $this->clock->sleep(5);
+        $this->resolve((int) $this->pendingResolution()->getId());
+
+        $battle = $this->entityManager()->getRepository(Battle::class)->findOneBy([]);
+        self::assertSame(CombatSide::Defender, $battle?->getWinner());
+        $sides = [];
+        foreach ($battle->getParticipants() as $participant) {
+            $sides[$participant->getEmpire()->getId()][] = $participant->getSide();
+        }
+        self::assertSame([CombatSide::Defender], $sides[$third->getId()]);
+        self::assertSame([CombatSide::Attacker], $sides[$attacker->getId()]);
+        // Le renfort termine son ordre et rentre
+        $helper = $this->reload($helper);
+        self::assertSame(FleetOrderStatus::Done, $helper->getOrders()[0]?->getStatus());
+        self::assertSame(FleetStatus::InFlight, $helper->getStatus());
+    }
+
+    public function testFleetsOfTheAttackerOnSiteAreNeverAttacked(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        // Une flotte de l'assaillant stationne déjà sur place : alliée, elle se range de son côté
+        $outpost = $this->fleet($attacker, $target, ['light_fighter' => 4]);
+        $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 2]);
+
+        $this->fight($raid, $target);
+
+        $battle = $this->entityManager()->getRepository(Battle::class)->findOneBy([]);
+        self::assertSame(CombatSide::Attacker, $battle?->getWinner());
+        self::assertSame(0, $battle->getRounds());
+        self::assertSame(4, $this->reload($outpost)->shipCount());
+        self::assertSame(CombatSide::Attacker, $battle->getParticipants()->findFirst(static fn(int $key, $participant): bool => $participant->getFleet()?->getId() === $outpost->getId())?->getSide());
     }
 
     private function fight(Fleet $raid, Planet $target): void

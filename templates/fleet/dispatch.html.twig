@@ -45,7 +45,19 @@
                 </tr>
             </thead>
             <tbody>
-                {% set first = rescued ? 1 : 0 %}
+                {% set first = rescued or reinforced ? 1 : 0 %}
+                {% if reinforced %}
+                    {# Renfort : rejoint la bataille programmée à sa position exacte, avant son heure (§4.7) #}
+                    <tr id="ordre-renfort">
+                        <th scope="row">1</th>
+                        <td colspan="3">Bataille en <span class="sg-mono">{{ reinforced.locationLabel }}</span>, résolue à <span class="sg-mono">{{ reinforced.resolvesAt|date('H:i:s') }}</span></td>
+                        <td>
+                            Rejoindre une bataille
+                            <input type="hidden" name="steps[0][action]" value="battle">
+                            <input type="hidden" name="steps[0][battle]" value="{{ reinforced.id }}">
+                        </td>
+                    </tr>
+                {% endif %}
                 {% if rescued %}
                     {# Ravitaillement : vise la position exacte de la flotte en panne (§4.6.3) #}
                     <tr id="ordre-ravitaillement">

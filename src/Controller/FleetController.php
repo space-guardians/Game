@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Entity\Battle;
+use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\ShipType;
 use App\Enum\Fleet\FleetAction;
@@ -21,6 +23,8 @@ use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Account\GameContext;
+use App\Service\Combat\BattleBoard;
+use App\Service\Combat\Battles;
 use App\Service\Fleet\DestinationResolver;
 use App\Service\Fleet\FleetAssembly;
 use App\Service\Fleet\FleetDispatch;
@@ -52,6 +56,7 @@ final class FleetController extends AbstractController
         private readonly ExplorationEventInstanceRepository $explorationEvents,
         private readonly ColonyLimit $colonyLimit,
         private readonly BattleRepository $battles,
+        private readonly BattleBoard $battleBoard,
     ) {}
 
     /** Ordres proposés dans le formulaire d'envoi ; le dernier suggère le retour au point de départ (§4.6) */
@@ -88,6 +93,7 @@ final class FleetController extends AbstractController
             'movements' => $movements,
             'awaiting' => $this->explorationEvents->findAwaitingByFleet($empire),
             'battles' => $this->battles->findScheduledByFleet($empire),
+            'battle_board' => $this->reinforcements($empire, $fleets),
             'now' => $this->clock->now(),
             'name_max_length' => Fleet::NAME_MAX_LENGTH,
         ]);
@@ -169,7 +175,7 @@ final class FleetController extends AbstractController
             try {
                 $movement = $this->dispatch->dispatch(
                     $fleet,
-                    $this->steps($request->request->all('steps'), $fleet),
+                    $this->steps($request->request->all('steps'), $fleet, $request->request->getInt('speed', 100)),
                     $request->request->getInt('speed', 100),
                     $this->cargo($request->request->all('cargo')),
                     max(0.0, (float) $request->request->get('fuel', 0)),
@@ -188,6 +194,9 @@ final class FleetController extends AbstractController
         // Ravitaillement proposé depuis une flotte en panne (§4.6.3)
         $rescued = $this->fleets->find($request->query->getInt('ravitailler'));
         $rescued = $rescued instanceof Fleet && $rescued->getEmpire() === $empire && $rescued->isStranded() && $rescued !== $fleet ? $rescued : null;
+        // Renfort proposé depuis une bataille programmée (§4.7)
+        $reinforced = $this->battles->find($request->query->getInt('bataille'));
+        $reinforced = $reinforced instanceof Battle && $this->battleBoard->isVisibleTo($reinforced, $empire) ? $reinforced : null;
         $stock = $fleet->isAtHome() ? $this->context->activeResources()?->amounts : null;
 
         return $this->render('fleet/dispatch.html.twig', [
@@ -196,6 +205,7 @@ final class FleetController extends AbstractController
             'fleet' => $fleet,
             'origin' => $origin,
             'rescued' => $rescued,
+            'reinforced' => $reinforced,
             // Plein proposé : réservoirs complétés, dans la limite du deutérium de la planète
             'suggested_fuel' => null === $stock ? 0 : (int) floor(min($fleet->tankCapacity() - $fleet->getFuel(), $stock->deuterium)),
             // Emplacements de colonisation (§4.1), utiles quand la flotte emporte un colonisateur
@@ -286,7 +296,7 @@ final class FleetController extends AbstractController
      *
      * @throws InvalidFleetMission
      */
-    private function steps(array $rows, Fleet $fleet): array
+    private function steps(array $rows, Fleet $fleet, int $speedPercent): array
     {
         $steps = [];
         foreach (array_values($rows) as $index => $row) {
@@ -295,6 +305,20 @@ final class FleetController extends AbstractController
             }
             $action = FleetAction::tryFrom((string) ($row['action'] ?? ''));
             if (null === $action) {
+                continue;
+            }
+            // Renfort vers une bataille programmée : sa position exacte, à condition d'arriver avant son heure
+            if (FleetAction::JoinBattle === $action && isset($row['battle'])) {
+                $battle = $this->battles->find((int) $row['battle']);
+                $empire = $fleet->getEmpire();
+                if (!$battle instanceof Battle || !$this->battleBoard->isVisibleTo($battle, $empire)) {
+                    throw new InvalidFleetMission(\sprintf('Ordre %d : cette bataille n’est plus programmée.', $index + 1));
+                }
+                if (!$this->battleBoard->arrivesInTime($fleet, $battle, $speedPercent, $this->clock->now())) {
+                    throw new InvalidFleetMission(\sprintf('Ordre %d : la flotte arriverait après la bataille (%s) ; augmentez la vitesse ou envoyez une flotte plus proche.', $index + 1, $battle->getResolvesAt()->format('H:i:s')));
+                }
+                $steps[] = new MissionStep($battle->getLocation()->toPosition(), $action, $battle->getLocationLabel());
+
                 continue;
             }
             if (!$action->targetsCoordinates()) {
@@ -323,5 +347,26 @@ final class FleetController extends AbstractController
         $amount = static fn(string $key): float => max(0.0, (float) ($cargo[$key] ?? 0));
 
         return new Resources($amount('metal'), $amount('crystal'), $amount('deuterium'));
+    }
+
+    /**
+     * Batailles programmées que l'empire connaît, avec ses flottes stationnées qui peuvent y partir en renfort (ni déjà
+     * engagées, ni déjà sur place).
+     *
+     * @param list<Fleet> $fleets
+     *
+     * @return list<array{battle: Battle, fleets: list<Fleet>}>
+     */
+    private function reinforcements(Empire $empire, array $fleets): array
+    {
+        $board = [];
+        foreach ($this->battleBoard->visibleTo($empire) as $battle) {
+            $available = array_values(array_filter($fleets, static fn(Fleet $fleet): bool => $fleet->isStationed()
+                && null === $battle->participantFor($fleet)
+                && !Battles::samePlace($fleet->getLocation(), $battle->getLocation())));
+            $board[] = ['battle' => $battle, 'fleets' => $available];
+        }
+
+        return $board;
     }
 }

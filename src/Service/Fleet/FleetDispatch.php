@@ -59,6 +59,10 @@ final readonly class FleetDispatch
             if ($step->action->requiresPlanet() && null === $step->destination->planetId) {
                 throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » doit viser une planète.', $rank + 1, $step->action->label()));
             }
+            // Une flotte en vol ne peut pas être réaffectée à une bataille : seule une flotte stationnée part en renfort
+            if (FleetAction::JoinBattle === $step->action && $rank > 0) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » ne peut être que le premier ordre : seule une flotte stationnée part en renfort.', $rank + 1, $step->action->label()));
+            }
             if ($step->action->forbidsPlanet() && null !== $step->destination->planetId) {
                 throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » ne peut pas viser une planète : visez un système (sans position).', $rank + 1, $step->action->label()));
             }

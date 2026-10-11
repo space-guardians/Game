@@ -41,6 +41,12 @@ final class BattleRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /** @return list<Battle> batailles programmées, par heure de résolution */
+    public function findScheduled(): array
+    {
+        return $this->findBy(['status' => BattleStatus::Scheduled], ['resolvesAt' => 'ASC', 'id' => 'ASC']);
+    }
+
     /** Bataille programmée qu'une flotte va rejoindre ou attend sur place */
     public function findScheduledFor(Fleet $fleet): ?Battle
     {
