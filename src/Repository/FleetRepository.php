@@ -33,6 +33,26 @@ final class FleetRepository extends ServiceEntityRepository
     }
 
     /**
+     * Flottes stationnées au niveau d'un système (ni planète ni point précis) : elles gardent le système (§4.6.2).
+     *
+     * @return list<Fleet>
+     */
+    public function findGuarding(int $systemId): array
+    {
+        /** @var list<Fleet> */
+        return $this->createQueryBuilder('f')
+            ->andWhere('f.status = :stationed')
+            ->andWhere('f.location.systemId = :system')
+            ->andWhere('f.location.planetId IS NULL')
+            ->andWhere('f.location.localX IS NULL')
+            ->setParameter('stationed', FleetStatus::Stationed)
+            ->setParameter('system', $systemId)
+            ->orderBy('f.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Flottes à l'arrêt (stationnées ou en panne) d'une galaxie ; le lieu exact est comparé par l'appelant.
      *
      * @return list<Fleet>

@@ -5,24 +5,18 @@ declare(strict_types=1);
 namespace App\Service\Combat;
 
 use App\Entity\Battle;
-use App\Entity\BattleParticipant;
 use App\Entity\Fleet;
 use App\Entity\FleetOrder;
 use App\Entity\ScheduledEvent;
-use App\Enum\Combat\CombatSide;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Enum\Fleet\FleetStatus;
-use App\Model\Combat\SideMotion;
-use App\Repository\ClassMatchupRepository;
 use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
-use App\Service\Exploration\Explorations;
 use App\Service\Fleet\FleetMovements;
 use App\Service\Scheduling\EventScheduler;
 use App\Service\Scheduling\ScheduledEventHandler;
 use Doctrine\ORM\EntityManagerInterface;
-use Random\Randomizer;
 
 /**
  * Résolution d'une bataille programmée à son heure (§4.7) : toutes les flottes présentes sur place combattent — venues
@@ -43,14 +37,9 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
         private EntityManagerInterface $entityManager,
         private FleetRepository $fleets,
         private FleetMovementRepository $movements,
-        private ClassMatchupRepository $matchups,
-        private CombatGroups $groups,
-        private CombatEngine $engine,
-        private EngagementRules $engagement,
+        private BattleFight $fight,
         private FleetMovements $fleetMovements,
-        private Explorations $explorations,
         private EventScheduler $scheduler,
-        private Randomizer $randomizer,
         private Allegiances $allegiances,
     ) {}
 
@@ -100,9 +89,7 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
         $attackers = [];
         $defenders = [];
         foreach ($present as $fleet) {
-            $side = $this->allegiances->allied($fleet->getEmpire(), $initiator) ? CombatSide::Attacker : CombatSide::Defender;
-            $battle->join($fleet, $side, $at)->assignSide($side);
-            if (CombatSide::Attacker === $side) {
+            if ($this->allegiances->allied($fleet->getEmpire(), $initiator)) {
                 $attackers[] = $fleet;
             } else {
                 $defenders[] = $fleet;
@@ -115,39 +102,16 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
             return;
         }
 
-        $result = $this->engine->resolve(
-            [...$this->groups->of(CombatSide::Attacker, $attackers), ...$this->groups->of(CombatSide::Defender, $defenders)],
-            $this->matchups->matrix(),
-            $this->randomizer,
-            $this->engagement->orders(SideMotion::ofFleets($attackers), SideMotion::ofFleets($defenders)),
-        );
-        $battle->resolve($result->winner, \count($result->rounds), [
-            CombatSide::Attacker->value => $result->lossesBySide(CombatSide::Attacker),
-            CombatSide::Defender->value => $result->lossesBySide(CombatSide::Defender),
-        ], $at);
+        $this->fight->fight($battle, $attackers, $defenders, $at);
 
-        $survivors = [];
+        // Les flottes venues combattre (de part et d'autre) et encore debout terminent leur ordre, puis enchaînent
         foreach ($battle->getParticipants() as $participant) {
             $fleet = $participant->getFleet();
-            if (null === $fleet || !isset($present[(int) $fleet->getId()])) {
+            $order = null === $fleet ? null : $this->battleOrder($fleet);
+            if (null === $fleet || null === $order || !isset($present[(int) $fleet->getId()])) {
                 continue;
             }
-            $losses = $result->lossesOfFleet((int) $fleet->getId());
-            $participant->recordLosses($losses);
-            $this->removeLosses($fleet, $losses);
-            if ($fleet->isEmpty()) {
-                $this->destroy($fleet, $participant);
-            } elseif (null !== $this->battleOrder($fleet)) {
-                $survivors[] = $participant;
-            }
-        }
-        $this->entityManager->flush();
-
-        // Les flottes venues combattre (de part et d'autre) terminent leur ordre, puis enchaînent
-        foreach ($survivors as $participant) {
-            $fleet = $participant->getFleet();
-            \assert(null !== $fleet);
-            $this->battleOrder($fleet)?->complete($at);
+            $order->complete($at);
             $this->entityManager->flush();
             $this->fleetMovements->launchNext($fleet, $at, $participant->getSpeedPercent());
         }
@@ -182,25 +146,5 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
     private function onSite(Fleet $fleet, Battle $battle): bool
     {
         return FleetStatus::InFlight !== $fleet->getStatus() && Battles::samePlace($fleet->getLocation(), $battle->getLocation());
-    }
-
-    /** @param array<string, int> $losses par code de type */
-    private function removeLosses(Fleet $fleet, array $losses): void
-    {
-        foreach ($fleet->getShips()->toArray() as $ships) {
-            $lost = min($losses[$ships->getType()->getCode()] ?? 0, $ships->getQuantity());
-            if ($lost > 0) {
-                $fleet->removeShips($ships->getType(), $lost);
-            }
-        }
-    }
-
-    /** Flotte anéantie : elle disparaît ; sa participation et ses événements d'exploration restent */
-    private function destroy(Fleet $fleet, BattleParticipant $participant): void
-    {
-        $participant->releaseFleet();
-        $this->entityManager->flush();
-        $this->explorations->forget($fleet);
-        $this->entityManager->remove($fleet);
     }
 }
