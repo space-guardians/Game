@@ -18,6 +18,7 @@ use App\Repository\BattleRepository;
 use App\Service\Combat\DebrisFields;
 use App\Service\Combat\Interceptions;
 use App\Service\Economy\PlanetResources;
+use App\Service\Espionage\Espionage;
 use App\Service\Exploration\Explorations;
 use App\Service\Scheduling\ScheduledEventHandler;
 use App\Service\Universe\ColonyLimit;
@@ -48,6 +49,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private BattleRepository $battles,
         private Interceptions $interceptions,
         private DebrisFields $debris,
+        private Espionage $espionage,
     ) {}
 
     public static function type(): string
@@ -167,6 +169,14 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 break;
             case FleetAction::Refuel:
                 $failure = $this->refuel($fleet, $order);
+                if (null !== $failure) {
+                    $order->fail($failure, $arrival);
+
+                    return false;
+                }
+                break;
+            case FleetAction::Spy:
+                $failure = $this->espionage->spy($fleet, $order->getDestination(), $order->getDestinationLabel(), $planet, $arrival);
                 if (null !== $failure) {
                     $order->fail($failure, $arrival);
 

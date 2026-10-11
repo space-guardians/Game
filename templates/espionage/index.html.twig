@@ -1,0 +1,41 @@
+{# Écran « Espionnage » (§4.9) : rapports rédigés par les sondes de l'empire #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Espionnage — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}Espionnage{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="spy-reports-title">
+        <h2 id="spy-reports-title" class="sg-section-title">Rapports d’espionnage</h2>
+        <p class="sg-field__help">
+            Envoyez une flotte composée uniquement de sondes d’espionnage en « Espionnage » vers une planète, ou vers une position
+            où se trouve une flotte. Le détail du rapport dépend de votre technologie d’espionnage face à celle de la cible, et
+            du nombre de sondes envoyées.
+        </p>
+        {% if reports is empty %}
+            <p class="sg-empty">Aucun rapport pour l’instant.</p>
+        {% else %}
+            <table class="sg-table" id="rapports-espionnage">
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Lieu</th>
+                        <th scope="col">Cible</th>
+                        <th scope="col">Rapport</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                        <tr>
+                            <td class="sg-mono">{{ report.spiedAt|date('d/m H:i') }}</td>
+                            <td class="sg-mono">{{ report.locationLabel }}</td>
+                            <td>{{ report.targetName ?? 'Personne' }}</td>
+                            <td><a href="{{ path('app_espionage_report', {id: report.id}) }}">Lire le rapport</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}
