@@ -18,7 +18,7 @@ use Random\Randomizer;
 
 /**
  * Combat d'une bataille entre deux camps déjà constitués (§4.7) : flottes inscrites dans leur camp, moteur de combat,
- * bataille résolue, rapport de combat rédigé, pertes retirées des flottes ; une flotte anéantie disparaît (sa
+ * bataille résolue, champ de débris formé, rapport de combat rédigé, pertes retirées des flottes ; une flotte anéantie disparaît (sa
  * participation reste). Partagé par
  * les batailles programmées et les interceptions au niveau d'un système.
  */
@@ -33,6 +33,7 @@ final readonly class BattleFight
         private Explorations $explorations,
         private Randomizer $randomizer,
         private CombatReports $reports,
+        private DebrisFields $debris,
     ) {}
 
     /**
@@ -58,8 +59,9 @@ final readonly class BattleFight
             CombatSide::Attacker->value => $result->lossesBySide(CombatSide::Attacker),
             CombatSide::Defender->value => $result->lossesBySide(CombatSide::Defender),
         ], $at);
-        // Rapport rédigé avant que les pertes ne vident les flottes (noms, effectifs du début)
-        $this->reports->write($battle, $result, [...$attackers, ...$defenders], $angles);
+        // Débris et rapport, avant que les pertes ne vident les flottes (types, noms, effectifs du début)
+        $debris = $this->debris->scatter($battle, $result, [...$attackers, ...$defenders], $at);
+        $this->reports->write($battle, $result, [...$attackers, ...$defenders], $angles, $debris);
 
         $fighting = [...$attackers, ...$defenders];
         foreach ($battle->getParticipants() as $participant) {

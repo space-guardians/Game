@@ -9,6 +9,7 @@ use App\Entity\CombatReport;
 use App\Entity\Fleet;
 use App\Enum\Combat\AttackAngle;
 use App\Model\Combat\CombatResult;
+use App\Model\Economy\Resources;
 use App\Model\Scheduling\GameTopics;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -37,8 +38,9 @@ final class CombatReports implements ResetInterface
     /**
      * @param list<Fleet>                $fleets flottes engagées, pour les noms de flotte et d'empire
      * @param array<string, AttackAngle> $angles par camp
+     * @param Resources|null             $debris champ de débris formé par la bataille
      */
-    public function write(Battle $battle, CombatResult $result, array $fleets, array $angles): CombatReport
+    public function write(Battle $battle, CombatResult $result, array $fleets, array $angles, ?Resources $debris = null): CombatReport
     {
         $byId = [];
         foreach ($fleets as $fleet) {
@@ -81,6 +83,7 @@ final class CombatReports implements ResetInterface
             array_map(static fn(AttackAngle $angle): string => $angle->value, $angles),
             $groups,
             $rounds,
+            null === $debris ? [] : ['metal' => round($debris->metal), 'crystal' => round($debris->crystal)],
         );
         $this->entityManager->persist($report);
         $this->pending[] = $report;

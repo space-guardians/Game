@@ -50,6 +50,7 @@ final class CombatReportTest extends WebTestCase
         self::assertSelectorTextContains('#groupes-attacker', 'Avant · Centre');
         self::assertSelectorTextContains('#groupes-defender', 'Chasseur léger');
         self::assertSelectorCount(2, '#rounds tbody tr');
+        self::assertSelectorTextContains('#debris', 'Champ de débris');
 
         $this->client->loginUser($defender->getUser());
         $this->client->request('GET', '/combats/' . $report->getId());
@@ -85,7 +86,7 @@ final class CombatReportTest extends WebTestCase
         ], [
             ['number' => 1, 'shots' => ['attacker' => 10, 'defender' => 6], 'hits' => ['attacker' => 8, 'defender' => 5], 'absorbed' => ['attacker' => 80.0, 'defender' => 250.0], 'damage' => ['attacker' => 16000.0, 'defender' => 0.0], 'losses' => 4],
             ['number' => 2, 'shots' => ['attacker' => 10, 'defender' => 2], 'hits' => ['attacker' => 8, 'defender' => 2], 'absorbed' => ['attacker' => 40.0, 'defender' => 100.0], 'damage' => ['attacker' => 8000.0, 'defender' => 0.0], 'losses' => 2],
-        ]);
+        ], ['metal' => 5400.0, 'crystal' => 1800.0]);
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $entityManager->persist($battle);
         $entityManager->persist($report);

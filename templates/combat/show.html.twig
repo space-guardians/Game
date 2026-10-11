@@ -25,6 +25,12 @@
                 {{ report.foughtAt|date('d/m/Y H:i:s') }} · {{ report.rounds|length }} round(s) · vous combattiez côté {{ side.label|lower }}
             </span>
         </p>
+        {% if report.debris is not empty %}
+            <p class="sg-entity__meta" id="debris">
+                Champ de débris : <span class="sg-mono">{{ report.debris.metal|format_number }}</span> métal,
+                <span class="sg-mono">{{ report.debris.crystal|format_number }}</span> cristal, à récupérer par des recycleurs.
+            </p>
+        {% endif %}
         <a href="{{ path('app_combat_reports') }}">Tous les rapports</a>
     </section>
 

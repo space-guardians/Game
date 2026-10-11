@@ -27,6 +27,7 @@ final class CombatReport
      * @param array<string, string>                                                                                                                                                                       $angles par camp : valeur d'AttackAngle
      * @param list<array{side: string, fleet: string, empire: string, type: string, class: string|null, row: string, column: string, count: int, lost: int, dealt: float, received: float}> $groups
      * @param list<array{number: int, shots: array<string, int>, hits: array<string, int>, absorbed: array<string, float>, damage: array<string, float>, losses: int}>                                 $rounds
+     * @param array{metal?: float, crystal?: float}                                                                                                                                                    $debris
      */
     public function __construct(
         #[ORM\OneToOne]
@@ -44,7 +45,16 @@ final class CombatReport
         private readonly array $groups,
         #[ORM\Column(type: Types::JSON)]
         private readonly array $rounds,
+        /** Champ de débris formé (métal, cristal) */
+        #[ORM\Column(type: Types::JSON)]
+        private readonly array $debris = [],
     ) {}
+
+    /** @return array{metal?: float, crystal?: float} */
+    public function getDebris(): array
+    {
+        return $this->debris;
+    }
 
     public function getId(): ?int
     {
