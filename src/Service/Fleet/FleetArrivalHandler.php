@@ -11,9 +11,11 @@ use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
 use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
+use App\Enum\Combat\InterceptionOutcome;
 use App\Enum\Fleet\FleetAction;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
+use App\Service\Combat\Interceptions;
 use App\Service\Economy\PlanetResources;
 use App\Service\Exploration\Explorations;
 use App\Service\Scheduling\ScheduledEventHandler;
@@ -24,7 +26,8 @@ use Doctrine\ORM\EntityManagerInterface;
  * Arrivée d'une flotte à la destination de son ordre en cours (§4.6) : elle s'y place, effectue l'action de l'ordre,
  * puis part aussitôt vers le suivant — ou reste stationnée sur place s'il n'y en a plus. Une flotte vidée par la
  * colonisation (colonisateur seul) disparaît. Une panne de carburant l'immobilise en chemin (§4.6.3). Une exploration
- * dont la quête attend le choix du joueur (§4.6.4), ou une bataille programmée (§4.7), la retient sur place. Appelé par le résolveur, sous verrou (de la
+ * dont la quête attend le choix du joueur (§4.6.4), ou une bataille programmée (§4.7), la retient sur place. Entrant
+ * dans un système gardé par des flottes hostiles, elle est d'abord interceptée (§4.6.2). Appelé par le résolveur, sous verrou (de la
  * planète visée le cas échéant) et dans une transaction.
  */
 final readonly class FleetArrivalHandler implements ScheduledEventHandler
@@ -42,6 +45,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private Explorations $explorations,
         private ColonyLimit $colonyLimit,
         private BattleRepository $battles,
+        private Interceptions $interceptions,
     ) {}
 
     public static function type(): string
@@ -66,13 +70,30 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
 
             return;
         }
+        $origin = $movement->getOrigin();
+        $speedPercent = $movement->getSpeedPercent();
+        $this->entityManager->remove($movement);
+        $this->entityManager->flush();
+
+        // Entrée dans un système gardé par des flottes hostiles stationnées au niveau du système (§4.6.2)
+        switch ($this->intercept($fleet, $order, $origin, $arrival)) {
+            case InterceptionOutcome::Destroyed:
+                return;
+            case InterceptionOutcome::Stopped:
+                $order->fail(\sprintf('Interceptée à l’entrée du système par des flottes hostiles : %s n’a pas été atteint.', $order->getDestinationLabel()), $arrival);
+                $fleet->station();
+                $this->entityManager->flush();
+
+                return;
+            default:
+                break;
+        }
+
         $planet = null === $destination->planetId ? null : $this->entityManager->find(Planet::class, $destination->planetId);
         $fleet->arriveAt($destination, $planet);
 
-        $speedPercent = $movement->getSpeedPercent();
         $hold = $this->act($fleet, $order, $planet, $arrival, $speedPercent);
 
-        $this->entityManager->remove($movement);
         if ($fleet->isEmpty()) {
             // Plus aucun vaisseau (colonisateur seul consommé, flotte perdue en exploration) : elle disparaît avec ses
             // ordres restants
@@ -93,6 +114,20 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         }
         $this->entityManager->flush();
         $this->movements->launchNext($fleet, $arrival, $speedPercent);
+    }
+
+    /**
+     * Interception à l'entrée du système de destination. Une attaque qui vise les flottes du système lui-même y livre
+     * directement sa bataille programmée : pas d'interception préalable.
+     */
+    private function intercept(Fleet $fleet, FleetOrder $order, SpaceLocation $origin, \DateTimeImmutable $arrival): InterceptionOutcome
+    {
+        $destination = $order->getDestination();
+        if (FleetAction::JoinBattle === $order->getAction() && null === $destination->planetId && null === $destination->localX) {
+            return InterceptionOutcome::None;
+        }
+
+        return $this->interceptions->enter($fleet, $origin, $destination, $arrival);
     }
 
     /** Panne de carburant : la flotte s'immobilise là où son réservoir s'est vidé ; ses ordres restants attendent */
