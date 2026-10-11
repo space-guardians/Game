@@ -88,6 +88,12 @@
                             · Vitesse <span class="sg-mono">{{ fleet.slowestSpeed|format_number }}</span>
                             · Carburant <span class="sg-mono">{{ fleet.fuel|round(0, 'floor')|format_number }} / {{ fleet.tankCapacity|format_number }}</span>
                         </p>
+                        {% if battles[fleet.id] is defined %}
+                            <twig:AlertBanner variant="attack">
+                                Bataille programmée en <span class="sg-mono">{{ battles[fleet.id].locationLabel }}</span>,
+                                résolue à <span class="sg-mono">{{ battles[fleet.id].resolvesAt|date('H:i:s') }}</span>.
+                            </twig:AlertBanner>
+                        {% endif %}
                         {% if awaiting[fleet.id] is defined %}
                             <twig:AlertBanner variant="info">
                                 Exploration : « {{ awaiting[fleet.id].title }} » attend votre décision ; la flotte reste sur place d’ici là.

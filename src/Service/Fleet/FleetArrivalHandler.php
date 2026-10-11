@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Service\Fleet;
 
-use App\Entity\ExplorationEventInstance;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
@@ -14,6 +13,7 @@ use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
 use App\Enum\Fleet\FleetAction;
 use App\Model\Fleet\SpacePosition;
+use App\Repository\BattleRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Exploration\Explorations;
 use App\Service\Scheduling\ScheduledEventHandler;
@@ -24,7 +24,7 @@ use Doctrine\ORM\EntityManagerInterface;
  * Arrivée d'une flotte à la destination de son ordre en cours (§4.6) : elle s'y place, effectue l'action de l'ordre,
  * puis part aussitôt vers le suivant — ou reste stationnée sur place s'il n'y en a plus. Une flotte vidée par la
  * colonisation (colonisateur seul) disparaît. Une panne de carburant l'immobilise en chemin (§4.6.3). Une exploration
- * dont la quête attend le choix du joueur la retient sur place (§4.6.4). Appelé par le résolveur, sous verrou (de la
+ * dont la quête attend le choix du joueur (§4.6.4), ou une bataille programmée (§4.7), la retient sur place. Appelé par le résolveur, sous verrou (de la
  * planète visée le cas échéant) et dans une transaction.
  */
 final readonly class FleetArrivalHandler implements ScheduledEventHandler
@@ -41,6 +41,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private TrajectoryPlanner $planner,
         private Explorations $explorations,
         private ColonyLimit $colonyLimit,
+        private BattleRepository $battles,
     ) {}
 
     public static function type(): string
@@ -69,7 +70,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $fleet->arriveAt($destination, $planet);
 
         $speedPercent = $movement->getSpeedPercent();
-        $awaiting = $this->act($fleet, $order, $planet, $arrival, $speedPercent);
+        $hold = $this->act($fleet, $order, $planet, $arrival, $speedPercent);
 
         $this->entityManager->remove($movement);
         if ($fleet->isEmpty()) {
@@ -82,8 +83,9 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
 
             return;
         }
-        if (null !== $awaiting) {
-            // Décision attendue : la flotte reste sur place, ses ordres restants reprendront ensuite
+        if ($hold) {
+            // Décision d'exploration ou bataille attendue : la flotte reste sur place, ses ordres restants reprendront
+            // ensuite
             $fleet->station();
             $this->entityManager->flush();
 
@@ -106,16 +108,19 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $this->entityManager->flush();
     }
 
-    /** Effectue l'action de l'ordre ; renvoie l'événement d'exploration qui attend le choix du joueur, le cas échéant */
-    private function act(Fleet $fleet, FleetOrder $order, ?Planet $planet, \DateTimeImmutable $arrival, int $speedPercent): ?ExplorationEventInstance
+    /**
+     * Effectue l'action de l'ordre ; renvoie vrai si la flotte doit attendre sur place (décision d'exploration du
+     * joueur, bataille programmée) avant de reprendre ses ordres.
+     */
+    private function act(Fleet $fleet, FleetOrder $order, ?Planet $planet, \DateTimeImmutable $arrival, int $speedPercent): bool
     {
-        $awaiting = null;
+        $hold = false;
         switch ($order->getAction()) {
             case FleetAction::Transport:
                 if (null === $planet || null === $planet->getOwner()) {
                     $order->fail('Plus de planète habitée à cette position : la cargaison reste à bord.', $arrival);
 
-                    return null;
+                    return false;
                 }
                 // Production consolidée jusqu'à l'arrivée, puis déchargement (le stock peut dépasser les dépôts)
                 $snapshot = $this->resources->settle($planet, $arrival);
@@ -128,24 +133,34 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 if (null !== $failure) {
                     $order->fail($failure, $arrival);
 
-                    return null;
+                    return false;
                 }
                 break;
             case FleetAction::Explore:
-                $awaiting = $this->explorations->explore($fleet, $order->getDestination(), $order->getDestinationLabel(), $arrival, $speedPercent);
+                $hold = null !== $this->explorations->explore($fleet, $order->getDestination(), $order->getDestinationLabel(), $arrival, $speedPercent);
                 break;
+            case FleetAction::JoinBattle:
+                // La bataille se résout à son heure : l'ordre reste en cours jusque-là (BattleResolutionHandler)
+                $battle = $this->battles->findScheduledFor($fleet);
+                if (null === $battle || $battle->getResolvesAt() < $arrival) {
+                    $order->fail('La bataille a déjà eu lieu.', $arrival);
+
+                    return false;
+                }
+
+                return true;
             case FleetAction::Colonize:
                 $failure = $this->colonize($fleet, $planet, $arrival);
                 if (null !== $failure) {
                     $order->fail($failure, $arrival);
 
-                    return null;
+                    return false;
                 }
                 break;
         }
         $order->complete($arrival);
 
-        return $awaiting;
+        return $hold;
     }
 
     /**

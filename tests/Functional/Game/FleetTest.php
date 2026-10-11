@@ -155,6 +155,33 @@ final class FleetTest extends WebTestCase
         self::assertSelectorNotExists('#flottes form[action$="/dissoudre"]');
     }
 
+    public function testAttackSchedulesABattleShownOnTheFleet(): void
+    {
+        $empire = $this->login();
+        $home = $empire->getHomePlanet();
+        $fleet = new Fleet($empire, 'Escadre Orion', $home, new \DateTimeImmutable());
+        $fleet->addShips($this->ship('cruiser'), 2);
+        $fleet->refuel(1000);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($fleet);
+        $entityManager->flush();
+        $address = $home->getAddress();
+
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+        self::assertSelectorTextContains('select[name="steps[0][action]"]', 'Rejoindre une bataille');
+        $this->client->submit($crawler->selectButton('Envoyer la flotte')->form([
+            'steps[0][galaxy]' => (string) $address->galaxy,
+            'steps[0][system]' => (string) $address->system,
+            'steps[0][position]' => '',
+            'steps[0][action]' => 'battle',
+            'steps[2][action]' => '',
+        ]));
+
+        self::assertResponseRedirects('/flotte');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('#flottes', \sprintf('Bataille programmée en système %d:%d', $address->galaxy, $address->system));
+    }
+
     public function testFleetAtSystemLevelIsSuggestedToReturnToItsSystem(): void
     {
         $empire = $this->login();

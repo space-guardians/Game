@@ -7,6 +7,8 @@ namespace App\Service\Fleet;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\Planet;
+use App\Enum\Fleet\FleetAction;
+use App\Service\Combat\Battles;
 use App\Service\Scheduling\EventScheduler;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -22,6 +24,7 @@ final readonly class FleetMovements
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
         private FuelRules $fuel,
+        private Battles $battles,
     ) {}
 
     /** Lance l'ordre suivant à l'heure donnée (fin du précédent, ou départ de la mission) ; null s'il n'y en a plus */
@@ -61,6 +64,11 @@ final readonly class FleetMovements
             'order' => $order->getId(),
         ]));
         $this->entityManager->flush();
+
+        // Attaque lancée : elle devient une bataille programmée au lieu visé, ou rejoint celle qui s'y tiendra (§4.7)
+        if (FleetAction::JoinBattle === $order->getAction() && !$movement->isStranding()) {
+            $this->battles->engage($fleet, $movement);
+        }
 
         return $movement;
     }

@@ -9,7 +9,7 @@ use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
  * Action effectuée à l'arrivée d'un ordre « se déplacer puis agir » (§4.6). Les autres actions (espionnage,
- * recyclage, bataille) arrivent avec leurs phases.
+ * recyclage) arrivent avec leurs phases.
  */
 enum FleetAction: string implements TranslatableInterface
 {
@@ -23,6 +23,11 @@ enum FleetAction: string implements TranslatableInterface
     case Refuel = 'refuel';
     /** Résolution d'exploration : une quête ou un événement peut apparaître (§4.6.4) ; ne cible pas de planète */
     case Explore = 'explore';
+    /**
+     * Attaque les flottes hostiles présentes sur place (§4.7) : le départ programme une bataille au lieu visé, ou rejoint
+     * celle qui s'y tiendra ; la flotte l'attend sur place, puis reprend ses ordres
+     */
+    case JoinBattle = 'battle';
 
     public function label(): string
     {
@@ -32,6 +37,7 @@ enum FleetAction: string implements TranslatableInterface
             self::Colonize => 'Coloniser',
             self::Refuel => 'Ravitaillement',
             self::Explore => 'Exploration',
+            self::JoinBattle => 'Rejoindre une bataille',
         };
     }
 
