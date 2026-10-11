@@ -147,11 +147,17 @@ final readonly class CombatRules
         return max(0, min($shots, (int) round($mean + $deviation * $gaussian)));
     }
 
+    /** Tir trop faible face au bouclier : il ricoche */
+    public function bounces(float $damage, float $shield): bool
+    {
+        return $damage < self::BOUNCE_RATIO * $shield;
+    }
+
     /**
      * Dégâts portés à la coque d'un groupe en un round : tirs reçus (par paquets de même dégât unitaire), répartis
      * au plus égal sur ses vaisseaux, chaque vaisseau touché arrêtant jusqu'à son bouclier.
      *
-     * @param list<array{hits: int, damage: float}> $incoming
+     * @param list<array{hits: int, damage: float, shooter?: string}> $incoming
      *
      * @return array{hull: float, absorbed: float}
      */
@@ -162,7 +168,7 @@ final readonly class CombatRules
         $hits = 0;
         foreach ($incoming as ['hits' => $count, 'damage' => $damage]) {
             // Ricochet : un tir trop faible face au bouclier ne fait rien
-            if ($damage < self::BOUNCE_RATIO * $shield) {
+            if ($this->bounces($damage, $shield)) {
                 $bounced += $count * $damage;
 
                 continue;

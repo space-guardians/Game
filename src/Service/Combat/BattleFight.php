@@ -7,6 +7,7 @@ namespace App\Service\Combat;
 use App\Entity\Battle;
 use App\Entity\BattleParticipant;
 use App\Entity\Fleet;
+use App\Enum\Combat\AttackAngle;
 use App\Enum\Combat\CombatSide;
 use App\Model\Combat\CombatResult;
 use App\Model\Combat\SideMotion;
@@ -17,7 +18,8 @@ use Random\Randomizer;
 
 /**
  * Combat d'une bataille entre deux camps déjà constitués (§4.7) : flottes inscrites dans leur camp, moteur de combat,
- * bataille résolue, pertes retirées des flottes ; une flotte anéantie disparaît (sa participation reste). Partagé par
+ * bataille résolue, rapport de combat rédigé, pertes retirées des flottes ; une flotte anéantie disparaît (sa
+ * participation reste). Partagé par
  * les batailles programmées et les interceptions au niveau d'un système.
  */
 final readonly class BattleFight
@@ -30,6 +32,7 @@ final readonly class BattleFight
         private EngagementRules $engagement,
         private Explorations $explorations,
         private Randomizer $randomizer,
+        private CombatReports $reports,
     ) {}
 
     /**
@@ -44,16 +47,19 @@ final readonly class BattleFight
             }
         }
 
+        $angles = $this->engagement->angles(SideMotion::ofFleets($attackers), SideMotion::ofFleets($defenders));
         $result = $this->engine->resolve(
             [...$this->groups->of(CombatSide::Attacker, $attackers), ...$this->groups->of(CombatSide::Defender, $defenders)],
             $this->matchups->matrix(),
             $this->randomizer,
-            $this->engagement->orders(SideMotion::ofFleets($attackers), SideMotion::ofFleets($defenders)),
+            array_map(static fn(AttackAngle $angle): array => $angle->rowOrder(), $angles),
         );
         $battle->resolve($result->winner, \count($result->rounds), [
             CombatSide::Attacker->value => $result->lossesBySide(CombatSide::Attacker),
             CombatSide::Defender->value => $result->lossesBySide(CombatSide::Defender),
         ], $at);
+        // Rapport rédigé avant que les pertes ne vident les flottes (noms, effectifs du début)
+        $this->reports->write($battle, $result, [...$attackers, ...$defenders], $angles);
 
         $fighting = [...$attackers, ...$defenders];
         foreach ($battle->getParticipants() as $participant) {
