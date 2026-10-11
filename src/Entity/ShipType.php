@@ -29,6 +29,9 @@ final class ShipType implements \Stringable
     /** Code du colonisateur : seul vaisseau capable de fonder une colonie, consommé par l'action « Coloniser » */
     public const string COLONY_SHIP = 'colony_ship';
 
+    /** Recycleur : seul vaisseau capable de récupérer un champ de débris (§4.6) */
+    public const string RECYCLER = 'recycler';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

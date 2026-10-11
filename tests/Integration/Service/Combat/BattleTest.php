@@ -6,6 +6,7 @@ namespace App\Tests\Integration\Service\Combat;
 
 use App\Entity\Battle;
 use App\Entity\CombatReport;
+use App\Entity\Debris;
 use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
@@ -13,6 +14,7 @@ use App\Entity\GlobalPosition;
 use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
 use App\Entity\ShipType;
+use App\Entity\SpaceLocation;
 use App\Enum\Combat\BattleStatus;
 use App\Enum\Combat\CombatSide;
 use App\Enum\Fleet\FleetAction;
@@ -28,6 +30,7 @@ use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
 use App\Repository\BuildingTypeRepository;
+use App\Repository\DebrisRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Combat\BattleResolutionHandler;
 use App\Service\Fleet\FleetDispatch;
@@ -125,6 +128,26 @@ final class BattleTest extends KernelTestCase
         self::assertStringContainsString('victoire', $updates['/empire/' . $attacker->getId()] ?? '');
         self::assertStringContainsString('défaite', $updates['/empire/' . $defender->getId()] ?? '');
         self::assertStringContainsString('/combats/' . $report->getId(), $updates['/empire/' . $defender->getId()]);
+    }
+
+    public function testDestroyedShipsLeaveADebrisFieldThatBuildsUp(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $this->fleet(EmpireFactory::createOne(), $target, ['light_fighter' => 5]);
+        $this->fight($this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 20]), $target);
+
+        // 5 chasseurs légers (3 000 métal, 1 000 cristal) : 30 %
+        $field = self::getContainer()->get(DebrisRepository::class)->findAt(SpaceLocation::of(SpacePosition::planet($target)));
+        self::assertEquals(new Resources(4_500, 1_500), $field?->getResources());
+        self::assertSame(['metal' => 4500.0, 'crystal' => 1500.0], $this->entityManager()->getRepository(CombatReport::class)->findOneBy([])?->getDebris());
+
+        // Un second combat au même lieu alimente le même champ
+        $this->fleet(EmpireFactory::createOne(), $target, ['light_fighter' => 5]);
+        $this->fight($this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 20]), $target);
+        $field = self::getContainer()->get(DebrisRepository::class)->findAt(SpaceLocation::of(SpacePosition::planet($target)));
+        self::assertEquals(new Resources(9_000, 3_000), $field?->getResources());
+        self::assertSame(1, $this->entityManager()->getRepository(Debris::class)->count([]));
     }
 
     public function testResolutionWaitsForAnAttackerWhoseArrivalIsNotProcessedYet(): void

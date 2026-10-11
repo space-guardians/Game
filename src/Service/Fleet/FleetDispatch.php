@@ -73,6 +73,12 @@ final readonly class FleetDispatch
                 $this->checkRefuelTarget($fleet, $step, $rank + 1);
             }
         }
+        // Seuls les recycleurs récupèrent un champ de débris
+        foreach ($steps as $rank => $step) {
+            if (FleetAction::Recycle === $step->action && 0 === ($fleet->shipCounts()[ShipType::RECYCLER] ?? 0)) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » demande au moins un recycleur dans la flotte.', $rank + 1, $step->action->label()));
+            }
+        }
         // Chaque « Coloniser » consomme un colonisateur de la flotte
         if ($colonizations > $this->colonyShips($fleet)) {
             throw new InvalidFleetMission(\sprintf('« Coloniser » consomme un colonisateur : il en faut %d dans la flotte.', $colonizations));

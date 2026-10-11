@@ -15,6 +15,7 @@ use App\Enum\Combat\InterceptionOutcome;
 use App\Enum\Fleet\FleetAction;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
+use App\Service\Combat\DebrisFields;
 use App\Service\Combat\Interceptions;
 use App\Service\Economy\PlanetResources;
 use App\Service\Exploration\Explorations;
@@ -46,6 +47,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private ColonyLimit $colonyLimit,
         private BattleRepository $battles,
         private Interceptions $interceptions,
+        private DebrisFields $debris,
     ) {}
 
     public static function type(): string
@@ -165,6 +167,14 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 break;
             case FleetAction::Refuel:
                 $failure = $this->refuel($fleet, $order);
+                if (null !== $failure) {
+                    $order->fail($failure, $arrival);
+
+                    return false;
+                }
+                break;
+            case FleetAction::Recycle:
+                $failure = $this->debris->recycle($fleet, $order->getDestination(), $arrival);
                 if (null !== $failure) {
                     $order->fail($failure, $arrival);
 
