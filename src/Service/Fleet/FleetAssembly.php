@@ -54,6 +54,11 @@ final readonly class FleetAssembly
         if ([] === $ships) {
             throw new InvalidFleetComposition('Choisissez au moins un vaisseau.');
         }
+        foreach ($ships as ['type' => $type]) {
+            if ($type->isDefense()) {
+                throw new InvalidFleetComposition(\sprintf('%s : une défense reste sur sa planète.', $type->getName()));
+            }
+        }
 
         $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
         $lock->acquire(true);

@@ -192,6 +192,44 @@ final class BattleTest extends KernelTestCase
         self::assertSame([], $this->entityManager()->getRepository(CombatReport::class)->findOneBy([])?->getPlunder());
     }
 
+    public function testPlanetaryDefensesDefendTheirPlanet(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $target->assignTo(EmpireFactory::createOne());
+        $target->addShips($this->type('heavy_laser'), 40);
+        $this->entityManager()->flush();
+        $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['light_fighter' => 3]);
+        $raidId = $raid->getId();
+
+        $this->fight($raid, $target);
+
+        // Pas de flotte en défense : les défenses suffisent à repousser le raid
+        $report = $this->entityManager()->getRepository(CombatReport::class)->findOneBy([]);
+        self::assertSame(CombatSide::Defender, $report?->getWinner());
+        [$lasers] = $report->groupsOf(CombatSide::Defender);
+        self::assertSame(['Défenses planétaires', 'Laser lourd', 40], [$lasers['fleet'], $lasers['type'], $lasers['count']]);
+        self::assertNull($this->entityManager()->find(Fleet::class, $raidId));
+    }
+
+    public function testDestroyedDefensesAreRemovedFromThePlanetWithoutDebris(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $target->assignTo(EmpireFactory::createOne());
+        $target->addShips($this->type('rocket_launcher'), 3);
+        $this->entityManager()->flush();
+
+        $this->fight($this->fleet($attacker, $attacker->getHomePlanet(), ['battleship' => 20]), $target);
+
+        $target = $this->entityManager()->find(Planet::class, $target->getId());
+        \assert($target instanceof Planet);
+        self::assertSame(0, $target->shipCount($this->type('rocket_launcher')));
+        self::assertSame(CombatSide::Attacker, $this->entityManager()->getRepository(CombatReport::class)->findOneBy([])?->getWinner());
+        // Les défenses ne laissent pas de débris
+        self::assertSame(0, $this->entityManager()->getRepository(Debris::class)->count([]));
+    }
+
     public function testResolutionWaitsForAnAttackerWhoseArrivalIsNotProcessedYet(): void
     {
         $attacker = $this->empire();
@@ -447,6 +485,14 @@ final class BattleTest extends KernelTestCase
         \assert($battle instanceof Battle);
 
         return $battle;
+    }
+
+    private function type(string $code): ShipType
+    {
+        $type = self::getContainer()->get(ShipTypeRepository::class)->findOneByCode($code);
+        \assert($type instanceof ShipType);
+
+        return $type;
     }
 
     private function battles(): BattleRepository

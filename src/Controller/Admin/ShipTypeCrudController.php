@@ -7,12 +7,17 @@ namespace App\Controller\Admin;
 use App\Entity\ShipType;
 use App\Enum\Admin\AdminRole;
 use App\Enum\Fleet\ShipCategory;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
@@ -67,13 +72,21 @@ final class ShipTypeCrudController extends AbstractCrudController
         return $this->addHistoryAction($actions, 'ship_type');
     }
 
+    /** Les défenses ont leur propre écran (DefenseTypeCrudController) */
+    public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
+    {
+        return parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters)
+            ->andWhere('entity.category != :defense')
+            ->setParameter('defense', ShipCategory::Defense);
+    }
+
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
-            ->add(ChoiceFilter::new('category', 'Catégorie')->setChoices(array_combine(
-                array_map(static fn(ShipCategory $category): string => $category->label(), ShipCategory::cases()),
-                array_column(ShipCategory::cases(), 'value'),
-            )))
+            ->add(ChoiceFilter::new('category', 'Catégorie')->setChoices([
+                ShipCategory::Civil->label() => ShipCategory::Civil->value,
+                ShipCategory::Military->label() => ShipCategory::Military->value,
+            ]))
             ->add(EntityFilter::new('shipClass', 'Classe'));
     }
 
@@ -85,7 +98,7 @@ final class ShipTypeCrudController extends AbstractCrudController
             ->setHelp('Identifiant stable : minuscules, chiffres et « _ ».')
             ->hideOnIndex();
         yield TextField::new('name', 'Nom');
-        yield ChoiceField::new('category', 'Catégorie');
+        yield ChoiceField::new('category', 'Catégorie')->setChoices([ShipCategory::Civil, ShipCategory::Military]);
         yield AssociationField::new('shipClass', 'Classe')
             ->setRequired(false)
             ->setHelp('Obligatoire pour un vaisseau militaire : elle fixe ses bonus et malus en combat.');
