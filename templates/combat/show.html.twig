@@ -31,6 +31,13 @@
                 <span class="sg-mono">{{ report.debris.crystal|format_number }}</span> cristal, à récupérer par des recycleurs.
             </p>
         {% endif %}
+        {% if report.plunder is not empty %}
+            <p class="sg-entity__meta" id="butin">
+                Butin emporté par les assaillants : <span class="sg-mono">{{ report.plunder.metal|format_number }}</span> métal,
+                <span class="sg-mono">{{ report.plunder.crystal|format_number }}</span> cristal,
+                <span class="sg-mono">{{ report.plunder.deuterium|format_number }}</span> deutérium.
+            </p>
+        {% endif %}
         <a href="{{ path('app_combat_reports') }}">Tous les rapports</a>
     </section>
 

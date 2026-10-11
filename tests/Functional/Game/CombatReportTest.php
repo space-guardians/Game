@@ -12,6 +12,7 @@ use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
 use App\Enum\Combat\CombatSide;
 use App\Factory\EmpireFactory;
+use App\Model\Economy\Resources;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\ShipTypeRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -51,6 +52,7 @@ final class CombatReportTest extends WebTestCase
         self::assertSelectorTextContains('#groupes-defender', 'Chasseur léger');
         self::assertSelectorCount(2, '#rounds tbody tr');
         self::assertSelectorTextContains('#debris', 'Champ de débris');
+        self::assertSelectorTextContains('#butin', 'Butin emporté par les assaillants');
 
         $this->client->loginUser($defender->getUser());
         $this->client->request('GET', '/combats/' . $report->getId());
@@ -87,6 +89,7 @@ final class CombatReportTest extends WebTestCase
             ['number' => 1, 'shots' => ['attacker' => 10, 'defender' => 6], 'hits' => ['attacker' => 8, 'defender' => 5], 'absorbed' => ['attacker' => 80.0, 'defender' => 250.0], 'damage' => ['attacker' => 16000.0, 'defender' => 0.0], 'losses' => 4],
             ['number' => 2, 'shots' => ['attacker' => 10, 'defender' => 2], 'hits' => ['attacker' => 8, 'defender' => 2], 'absorbed' => ['attacker' => 40.0, 'defender' => 100.0], 'damage' => ['attacker' => 8000.0, 'defender' => 0.0], 'losses' => 2],
         ], ['metal' => 5400.0, 'crystal' => 1800.0]);
+        $report->recordPlunder(new Resources(5_000, 3_000, 2_000));
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $entityManager->persist($battle);
         $entityManager->persist($report);
