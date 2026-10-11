@@ -50,11 +50,7 @@ when@test:
             autowire: true
             autoconfigure: true
 
-        # Moteur de combat : branché aux batailles programmées avec #45 ; d'ici là, retiré du conteneur faute d'usage
-        App\Service\Combat\CombatEngine:
-            public: true
-        App\Service\Combat\CombatGroups:
-            public: true
+        # Caps des flottes en vol (angle d'attaque) : pas encore utilisé en jeu, retiré du conteneur faute d'usage
         App\Service\Combat\CombatMotions:
             public: true
 

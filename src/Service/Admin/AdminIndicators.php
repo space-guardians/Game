@@ -7,6 +7,7 @@ namespace App\Service\Admin;
 use App\Model\Admin\DashboardIndicators;
 use App\Repository\ScheduledEventRepository;
 use App\Repository\UserRepository;
+use App\Service\Combat\BattleResolutionHandler;
 use App\Service\Economy\BuildingCompletedHandler;
 use App\Service\Exploration\ExplorationExpiryHandler;
 use App\Service\Fleet\FleetArrivalHandler;
@@ -29,6 +30,7 @@ final readonly class AdminIndicators
         ShipyardOrderCompletedHandler::TYPE => 'Commandes du chantier spatial',
         FleetArrivalHandler::TYPE => 'Flottes en vol',
         ExplorationExpiryHandler::TYPE => 'Décisions d’exploration attendues',
+        BattleResolutionHandler::TYPE => 'Batailles programmées',
     ];
 
     /**
