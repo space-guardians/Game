@@ -130,6 +130,14 @@ final class Battle implements \Stringable
         return $this->participants;
     }
 
+    /** Empire qui a lancé l'attaque (premier participant) : ses alliés forment le camp assaillant */
+    public function getInitiator(): ?Empire
+    {
+        $first = $this->participants->first();
+
+        return false === $first ? null : $first->getEmpire();
+    }
+
     public function participantFor(Fleet $fleet): ?BattleParticipant
     {
         return $this->participants->findFirst(static fn(int $key, BattleParticipant $participant): bool => $participant->getFleet() === $fleet);

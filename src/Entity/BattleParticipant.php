@@ -9,8 +9,8 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * Flotte engagée dans une bataille (§4.7), dans un camp : assaillante (partie l'attaquer) ou défenseuse (présente sur
- * place à la résolution). Le nom de la flotte et son empire restent, même si la flotte disparaît.
+ * Flotte engagée dans une bataille (§4.7) : venue la rejoindre, ou présente sur place à la résolution. Son camp découle
+ * du statut allié / ennemi de son empire avec celui qui a lancé l'attaque. Le nom de la flotte et son empire restent, même si la flotte disparaît.
  */
 #[ORM\Entity]
 #[ORM\UniqueConstraint(name: 'battle_participant_fleet_unique', fields: ['battle', 'fleet'])]
@@ -44,8 +44,9 @@ final class BattleParticipant
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(onDelete: 'SET NULL')]
         private ?Fleet $fleet,
+        /** Camp, recalculé à la résolution d'après le statut allié / ennemi du moment */
         #[ORM\Column(length: 20, enumType: CombatSide::class)]
-        private readonly CombatSide $side,
+        private CombatSide $side,
         #[ORM\Column]
         private readonly \DateTimeImmutable $joinedAt,
         /** Vitesse de la mission, pour reprendre les ordres restants après la bataille */
@@ -91,6 +92,11 @@ final class BattleParticipant
     public function getSide(): CombatSide
     {
         return $this->side;
+    }
+
+    public function assignSide(CombatSide $side): void
+    {
+        $this->side = $side;
     }
 
     public function getJoinedAt(): \DateTimeImmutable

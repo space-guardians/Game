@@ -48,6 +48,30 @@
         {% endif %}
     </section>
 
+    {% if battle_board is not empty %}
+        <section class="sg-panel sg-cut-14" aria-labelledby="battles-title">
+            <h2 id="battles-title" class="sg-section-title">Batailles programmées</h2>
+            <p class="sg-field__help">Batailles où l’empire est engagé, ou qui se tiennent là où il est présent. Une flotte stationnée peut les rejoindre si elle arrive avant l’heure ; le camp de chaque flotte découle du statut allié ou ennemi, sans choix possible.</p>
+            <ul class="sg-battles" id="batailles">
+                {% for entry in battle_board %}
+                    <li>
+                        <twig:AlertBanner variant="attack">
+                            Bataille en <span class="sg-mono">{{ entry.battle.locationLabel }}</span>, résolue à <span class="sg-mono">{{ entry.battle.resolvesAt|date('H:i:s') }}</span>
+                            ({{ entry.battle.participants|length }} flotte(s) engagée(s)).
+                        </twig:AlertBanner>
+                        {% if entry.fleets is not empty %}
+                            <ul class="sg-fleet__rescuers">
+                                {% for fleet in entry.fleets %}
+                                    <li><a href="{{ path('app_fleet_dispatch', {id: fleet.id, bataille: entry.battle.id}) }}">Envoyer « {{ fleet.name }} » en renfort</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
     <section class="sg-panel sg-cut-14" aria-labelledby="fleets-title">
         <h2 id="fleets-title" class="sg-section-title">Flottes de l’empire</h2>
         {% if fleets is empty %}
