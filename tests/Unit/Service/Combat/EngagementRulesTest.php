@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Combat;
 
+use App\Enum\Combat\AttackAngle;
 use App\Enum\Combat\CombatSide;
 use App\Enum\Fleet\FormationColumn;
 use App\Enum\Fleet\FormationRow;
@@ -25,7 +26,7 @@ final class EngagementRulesTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->rules = new EngagementRules(new CombatRules());
+        $this->rules = new EngagementRules();
     }
 
     public function testStationedDefenderAlwaysFacesTheAttacker(): void
@@ -54,11 +55,42 @@ final class EngagementRulesTest extends TestCase
         self::assertGreaterThan($round->losses['back'] ?? 0, $round->losses['front'] ?? 0);
     }
 
-    public function testOnlyTwoMovingSidesLeaveRoomForAnAngle(): void
+    public function testConvergingFleetsCompareTheirApproachVectors(): void
     {
-        // Angle d'attaque entre flottes convergentes (#44) : de front tant qu'il n'est pas calculé
-        $orders = $this->rules->orders(SideMotion::moving(1.0, 0.0), SideMotion::moving(-1.0, 0.0));
+        // Le défenseur file vers l'est (1, 0) ; l'adversaire arrive de la direction opposée à son propre cap
+        $east = SideMotion::moving(1.0, 0.0);
 
-        self::assertSame(self::FRONTAL, $orders[CombatSide::Defender->value]);
+        // Adversaire venant de l'est, cap ouest : en face du défenseur
+        self::assertSame(AttackAngle::Front, $this->rules->angle($east, SideMotion::moving(-1.0, 0.0)));
+        // Adversaire venant de l'ouest, cap est (même direction) : il rattrape le défenseur par l'arrière
+        self::assertSame(AttackAngle::Rear, $this->rules->angle($east, SideMotion::moving(1.0, 0.0)));
+        // Adversaire venant du nord, cap sud : de flanc
+        self::assertSame(AttackAngle::Flank, $this->rules->angle($east, SideMotion::moving(0.0, -1.0)));
+        // Bornes : 45° encore de face, 135° déjà par l'arrière
+        self::assertSame(AttackAngle::Front, $this->rules->angle($east, SideMotion::moving(-1.0, -1.0)));
+        self::assertSame(AttackAngle::Rear, $this->rules->angle($east, SideMotion::moving(1.0, 1.0)));
+        self::assertSame(AttackAngle::Flank, $this->rules->angle($east, SideMotion::moving(-0.2, -1.0)));
+    }
+
+    public function testEachSideGetsItsOwnAngle(): void
+    {
+        // L'attaquant (cap est) rattrape le défenseur (cap est, plus loin) : le défenseur est pris par l'arrière, et
+        // l'attaquant, lui, voit son adversaire devant lui
+        $angles = $this->rules->angles(SideMotion::moving(1.0, 0.0), SideMotion::moving(1.0, 0.0));
+
+        self::assertSame(AttackAngle::Rear, $angles[CombatSide::Defender->value]);
+        self::assertSame(AttackAngle::Rear, $angles[CombatSide::Attacker->value]);
+        self::assertSame([FormationRow::Back, FormationRow::Middle, FormationRow::Front], $this->rules->orders(SideMotion::moving(1.0, 0.0), SideMotion::moving(1.0, 0.0))[CombatSide::Defender->value]);
+    }
+
+    public function testFlankAttackCutsThroughTheMiddleRow(): void
+    {
+        self::assertSame([FormationRow::Middle, FormationRow::Front, FormationRow::Back], AttackAngle::Flank->rowOrder());
+    }
+
+    public function testUnknownHeadingIsFrontal(): void
+    {
+        self::assertSame(AttackAngle::Front, $this->rules->angle(new SideMotion(false), SideMotion::moving(1.0, 0.0)));
+        self::assertSame(AttackAngle::Front, $this->rules->angle(SideMotion::moving(0.0, 0.0), SideMotion::moving(1.0, 0.0)));
     }
 }

@@ -55,6 +55,8 @@ when@test:
             public: true
         App\Service\Combat\CombatGroups:
             public: true
+        App\Service\Combat\CombatMotions:
+            public: true
 
         # Doublures de test : gestionnaires d'événements planifiés factices, publications Mercure enregistrées
         App\Tests\Fixtures\:

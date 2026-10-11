@@ -32,18 +32,28 @@ final readonly class SideMotion
 
     /**
      * Mouvement d'un camp d'après ses flottes : il suffit qu'une flotte du camp soit à l'arrêt (stationnée ou en panne)
-     * pour que le camp tienne sa position et fasse face.
+     * pour que le camp tienne sa position et fasse face. Sinon, son cap est la moyenne des caps (normés) de ses
+     * flottes en vol.
      *
-     * @param list<Fleet> $fleets
+     * @param list<Fleet>                $fleets
+     * @param array<int, array{float, float}> $headings cap de chaque flotte en vol, par identifiant de flotte
      */
-    public static function ofFleets(array $fleets): self
+    public static function ofFleets(array $fleets, array $headings = []): self
     {
+        $x = 0.0;
+        $y = 0.0;
         foreach ($fleets as $fleet) {
             if (FleetStatus::InFlight !== $fleet->getStatus()) {
                 return self::stationary();
             }
+            [$dx, $dy] = $headings[(int) $fleet->getId()] ?? [0.0, 0.0];
+            $norm = hypot($dx, $dy);
+            if ($norm > 0) {
+                $x += $dx / $norm;
+                $y += $dy / $norm;
+            }
         }
 
-        return new self(false);
+        return hypot($x, $y) > 1e-9 ? self::moving($x, $y) : new self(false);
     }
 }
