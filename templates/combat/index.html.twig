@@ -1,0 +1,45 @@
+{# Écran « Combats » (§4.7) : rapports des batailles où l'empire était engagé #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Combats — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}Combats{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="reports-title">
+        <h2 id="reports-title" class="sg-section-title">Rapports de combat</h2>
+        {% if reports is empty %}
+            <p class="sg-empty">Aucun combat pour l’instant.</p>
+        {% else %}
+            <table class="sg-table" id="rapports">
+                <thead>
+                    <tr>
+                        <th scope="col">Date</th>
+                        <th scope="col">Lieu</th>
+                        <th scope="col">Issue</th>
+                        <th scope="col">Rapport</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for report in reports %}
+                        {% set side = report.sideOf(empire) %}
+                        <tr>
+                            <td class="sg-mono">{{ report.foughtAt|date('d/m H:i') }}</td>
+                            <td class="sg-mono">{{ report.locationLabel }}</td>
+                            <td>
+                                {% if report.winner is null %}
+                                    <twig:Chip label="Match nul" tone="neutral"/>
+                                {% elseif report.winner == side %}
+                                    <twig:Chip label="Victoire" tone="green"/>
+                                {% else %}
+                                    <twig:Chip label="Défaite" tone="red"/>
+                                {% endif %}
+                            </td>
+                            <td><a href="{{ path('app_combat_report', {id: report.id}) }}">Lire le rapport</a></td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}

@@ -1,0 +1,102 @@
+{# Rapport de combat (§4.7) : issue, angle d'attaque, formation et sort de chaque groupe, déroulé des rounds #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Rapport de combat — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · Combats{% endblock %}
+{% block heading %}Bataille en {{ report.locationLabel }}{% endblock %}
+
+{% block content %}
+    {% set row_labels = {} %}
+    {% for row in rows %}{% set row_labels = row_labels|merge({(row.value): row.label}) %}{% endfor %}
+    {% set column_labels = {} %}
+    {% for column in columns %}{% set column_labels = column_labels|merge({(column.value): column.label}) %}{% endfor %}
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="outcome-title">
+        <h2 id="outcome-title" class="sg-section-title">Issue</h2>
+        <p id="issue">
+            {% if report.winner is null %}
+                <twig:Chip label="Match nul" tone="neutral"/>
+            {% elseif report.winner == side %}
+                <twig:Chip label="Victoire" tone="green"/>
+            {% else %}
+                <twig:Chip label="Défaite" tone="red"/>
+            {% endif %}
+            <span class="sg-entity__meta">
+                {{ report.foughtAt|date('d/m/Y H:i:s') }} · {{ report.rounds|length }} round(s) · vous combattiez côté {{ side.label|lower }}
+            </span>
+        </p>
+        <a href="{{ path('app_combat_reports') }}">Tous les rapports</a>
+    </section>
+
+    {% for camp in sides %}
+        <section class="sg-panel sg-cut-14" aria-labelledby="camp-{{ camp.value }}">
+            <h2 id="camp-{{ camp.value }}" class="sg-section-title">
+                {{ camp.label }}{{ camp == side ? ' (votre camp)' }}
+                {% if angles[camp.value] is defined %}<span class="sg-entity__meta">· attaqué {{ angles[camp.value].label|lower }}</span>{% endif %}
+            </h2>
+            {% set groups = report.groupsOf(camp) %}
+            {% if groups is empty %}
+                <p class="sg-empty">Aucune flotte.</p>
+            {% else %}
+                <table class="sg-table" id="groupes-{{ camp.value }}">
+                    <thead>
+                        <tr>
+                            <th scope="col">Flotte</th>
+                            <th scope="col">Vaisseau</th>
+                            <th scope="col">Formation</th>
+                            <th scope="col" class="sg-num">Engagés</th>
+                            <th scope="col" class="sg-num">Perdus</th>
+                            <th scope="col" class="sg-num">Dégâts infligés</th>
+                            <th scope="col" class="sg-num">Dégâts reçus</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for group in groups %}
+                            <tr>
+                                <td>{{ group.fleet }} <span class="sg-entity__meta">({{ group.empire }})</span></td>
+                                <td>{{ group.type }}</td>
+                                <td>{{ row_labels[group.row] ?? group.row }} · {{ column_labels[group.column] ?? group.column }}</td>
+                                <td class="sg-num sg-mono">{{ group.count|format_number }}</td>
+                                <td class="sg-num sg-mono">{{ group.lost|format_number }}</td>
+                                <td class="sg-num sg-mono">{{ group.dealt|round|format_number }}</td>
+                                <td class="sg-num sg-mono">{{ group.received|round|format_number }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% endif %}
+        </section>
+    {% endfor %}
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="rounds-title">
+        <h2 id="rounds-title" class="sg-section-title">Déroulé</h2>
+        {% if report.rounds is empty %}
+            <p class="sg-empty">Aucun round : personne ne défendait la position.</p>
+        {% else %}
+            <table class="sg-table" id="rounds">
+                <thead>
+                    <tr>
+                        <th scope="col">Round</th>
+                        {% for camp in sides %}
+                            <th scope="col" class="sg-num">{{ camp.label }} : tirs au but</th>
+                            <th scope="col" class="sg-num">{{ camp.label }} : dégâts</th>
+                        {% endfor %}
+                        <th scope="col" class="sg-num">Vaisseaux détruits</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for round in report.rounds %}
+                        <tr>
+                            <th scope="row">{{ round.number }}</th>
+                            {% for camp in sides %}
+                                <td class="sg-num sg-mono">{{ (round.hits[camp.value] ?? 0)|format_number }} / {{ (round.shots[camp.value] ?? 0)|format_number }}</td>
+                                <td class="sg-num sg-mono">{{ (round.damage[camp.value] ?? 0)|round|format_number }} <span class="sg-entity__meta">(+{{ (round.absorbed[camp.value] ?? 0)|round|format_number }} arrêtés)</span></td>
+                            {% endfor %}
+                            <td class="sg-num sg-mono">{{ round.losses|format_number }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+{% endblock %}

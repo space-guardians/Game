@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Service\Combat;
 
 use App\Entity\Battle;
+use App\Entity\CombatReport;
 use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
@@ -31,6 +32,7 @@ use App\Repository\ShipTypeRepository;
 use App\Service\Combat\BattleResolutionHandler;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Scheduling\ScheduledEventResolver;
+use App\Tests\Fixtures\Mercure\PublishedUpdates;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\ClockInterface;
@@ -88,6 +90,41 @@ final class BattleTest extends KernelTestCase
         $raid = $this->reload($raid);
         self::assertSame(FleetOrderStatus::Done, $raid->getOrders()[0]?->getStatus());
         self::assertSame(FleetStatus::InFlight, $raid->getStatus());
+    }
+
+    public function testCombatReportIsWrittenAndSentToEveryEngagedEmpire(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $defender = EmpireFactory::createOne();
+        $this->fleet($defender, $target, ['light_fighter' => 5]);
+        $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 20]);
+
+        $this->fight($raid, $target);
+
+        $report = $this->entityManager()->getRepository(CombatReport::class)->findOneBy([]);
+        self::assertInstanceOf(CombatReport::class, $report);
+        self::assertSame(CombatSide::Attacker, $report->getWinner());
+        self::assertSame((string) $target->getAddress(), $report->getLocationLabel());
+        // Cible à l'arrêt : attaquée de face (§4.7)
+        self::assertSame(['attacker' => 'front', 'defender' => 'front'], $report->getAngles());
+        [$cruisers] = $report->groupsOf(CombatSide::Attacker);
+        self::assertSame(['Croiseur', 'front', 20, 0], [$cruisers['type'], $cruisers['row'], $cruisers['count'], $cruisers['lost']]);
+        self::assertGreaterThan(0, $cruisers['dealt']);
+        [$fighters] = $report->groupsOf(CombatSide::Defender);
+        self::assertSame(5, $fighters['lost']);
+        self::assertEqualsWithDelta($fighters['received'], $cruisers['dealt'], 1.0);
+        self::assertSame(5, array_sum(array_column($report->getRounds(), 'losses')));
+        self::assertSame(CombatSide::Defender, $report->sideOf($defender));
+
+        // Notification aux deux empires, chacun avec son issue
+        $updates = [];
+        foreach (self::getContainer()->get(PublishedUpdates::class)->all() as $update) {
+            $updates[$update->getTopics()[0]] = $update->getData();
+        }
+        self::assertStringContainsString('victoire', $updates['/empire/' . $attacker->getId()] ?? '');
+        self::assertStringContainsString('défaite', $updates['/empire/' . $defender->getId()] ?? '');
+        self::assertStringContainsString('/combats/' . $report->getId(), $updates['/empire/' . $defender->getId()]);
     }
 
     public function testResolutionWaitsForAnAttackerWhoseArrivalIsNotProcessedYet(): void

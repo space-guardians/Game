@@ -12,7 +12,9 @@ final readonly class CombatResult
     /**
      * @param list<CombatGroup>  $groups    groupes au début du combat
      * @param array<string, int> $survivors vaisseaux restants, par clé de groupe
-     * @param list<CombatRound>  $rounds
+     * @param list<CombatRound>    $rounds
+     * @param array<string, float> $dealt     dégâts portés aux coques adverses, par clé de groupe
+     * @param array<string, float> $received  dégâts encaissés par les coques, par clé de groupe
      */
     public function __construct(
         public array $groups,
@@ -20,7 +22,19 @@ final readonly class CombatResult
         public array $rounds,
         /** null : match nul (les deux camps détruits, ou tous deux debout après le dernier round) */
         public ?CombatSide $winner,
+        public array $dealt = [],
+        public array $received = [],
     ) {}
+
+    public function dealtBy(string $key): float
+    {
+        return $this->dealt[$key] ?? 0.0;
+    }
+
+    public function receivedBy(string $key): float
+    {
+        return $this->received[$key] ?? 0.0;
+    }
 
     public function survivorsOf(string $key): int
     {

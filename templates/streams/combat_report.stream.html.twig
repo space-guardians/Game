@@ -1,0 +1,13 @@
+{# Rapport de combat, poussé par Mercure à chaque empire engagé : notification avec lien, puis rafraîchissement #}
+<turbo-stream action="append" target="sg-notifications">
+    <template>
+        <div class="sg-toast" data-controller="toast">
+            <twig:AlertBanner variant="{{ outcome == 'defeat' ? 'attack' : (outcome == 'victory' ? 'success' : 'info') }}">
+                Bataille en {{ report.locationLabel }} :
+                {{ outcome == 'victory' ? 'victoire' : (outcome == 'defeat' ? 'défaite' : 'match nul') }}.
+                <a href="{{ path('app_combat_report', {id: report.id}) }}">Lire le rapport</a>
+            </twig:AlertBanner>
+        </div>
+    </template>
+</turbo-stream>
+<turbo-stream action="refresh"></turbo-stream>

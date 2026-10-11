@@ -34,6 +34,9 @@ final readonly class CombatEngine
         $byKey = [];
         $count = [];
         $damage = [];
+        // Dégâts portés aux coques, infligés et reçus par groupe (rapport de combat)
+        $dealtBy = [];
+        $receivedBy = [];
         foreach ($groups as $group) {
             if (isset($byKey[$group->key])) {
                 throw new \InvalidArgumentException(\sprintf('Groupe « %s » en double.', $group->key));
@@ -41,6 +44,8 @@ final readonly class CombatEngine
             $byKey[$group->key] = $group;
             $count[$group->key] = $group->count;
             $damage[$group->key] = 0.0;
+            $dealtBy[$group->key] = 0.0;
+            $receivedBy[$group->key] = 0.0;
         }
 
         $rounds = [];
@@ -70,6 +75,7 @@ final readonly class CombatEngine
                         $incoming[$targetKey][] = [
                             'hits' => $landed,
                             'damage' => $shooter->attack * $matrix->multiplier($shooter->classCode, $target->classCode) * $this->rules->rowProtection($target->row),
+                            'shooter' => $shooter->key,
                         ];
                     }
                 }
@@ -86,6 +92,17 @@ final readonly class CombatEngine
                 $absorbed[$shooterSide] += $result['absorbed'];
                 $dealt[$shooterSide] += $result['hull'];
                 $damage[$key] += $result['hull'];
+                $receivedBy[$key] += $result['hull'];
+                // Part de chaque tireur dans les dégâts portés à la coque, au prorata de ses tirs non ricochés
+                $landedDamage = 0.0;
+                foreach ($received as $shot) {
+                    $landedDamage += $this->rules->bounces($shot['damage'], $target->shield) ? 0.0 : $shot['hits'] * $shot['damage'];
+                }
+                foreach ($received as $shot) {
+                    if ($landedDamage > 0 && !$this->rules->bounces($shot['damage'], $target->shield)) {
+                        $dealtBy[$shot['shooter']] += $result['hull'] * $shot['hits'] * $shot['damage'] / $landedDamage;
+                    }
+                }
                 $destroyed = min($count[$key], (int) floor($damage[$key] / $target->hull + 1e-9));
                 if ($destroyed > 0) {
                     $count[$key] -= $destroyed;
@@ -104,7 +121,7 @@ final readonly class CombatEngine
             default => null,
         };
 
-        return new CombatResult($groups, $count, $rounds, $winner);
+        return new CombatResult($groups, $count, $rounds, $winner, $dealtBy, $receivedBy);
     }
 
     /**
