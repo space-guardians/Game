@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\Combat\CombatSide;
+use App\Model\Economy\Resources;
 use App\Repository\CombatReportRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -49,6 +50,27 @@ final class CombatReport
         #[ORM\Column(type: Types::JSON)]
         private readonly array $debris = [],
     ) {}
+
+    /**
+     * Butin emporté par les assaillants (métal, cristal, deutérium).
+     *
+     * @var array{metal?: float, crystal?: float, deuterium?: float}
+     */
+    #[ORM\Column(type: Types::JSON)]
+    private array $plunder = [];
+
+    /** @return array{metal?: float, crystal?: float, deuterium?: float} */
+    public function getPlunder(): array
+    {
+        return $this->plunder;
+    }
+
+    public function recordPlunder(Resources $plunder): void
+    {
+        $this->plunder = $plunder->metal + $plunder->crystal + $plunder->deuterium > 0
+            ? ['metal' => round($plunder->metal), 'crystal' => round($plunder->crystal), 'deuterium' => round($plunder->deuterium)]
+            : [];
+    }
 
     /** @return array{metal?: float, crystal?: float} */
     public function getDebris(): array

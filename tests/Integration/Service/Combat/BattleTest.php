@@ -150,6 +150,48 @@ final class BattleTest extends KernelTestCase
         self::assertSame(1, $this->entityManager()->getRepository(Debris::class)->count([]));
     }
 
+    public function testVictoriousAttackersPlunderAnEnemyPlanet(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $defender = EmpireFactory::createOne();
+        $target->assignTo($defender);
+        $target->storeResources(new Resources(10_000, 6_000, 4_000), $this->clock->now());
+        $this->fleet($defender, $target, ['light_fighter' => 2]);
+        // 20 croiseurs : 16 000 de cargo libre, assez pour la moitié du stock
+        $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 20]);
+        $raidId = $raid->getId();
+
+        $this->fight($raid, $target);
+
+        $report = $this->entityManager()->getRepository(CombatReport::class)->findOneBy([]);
+        $plunder = $report?->getPlunder() ?? [];
+        // La moitié du stock à l'heure du combat (production comprise depuis sa mise en place)
+        self::assertGreaterThanOrEqual(5_000, $plunder['metal'] ?? 0);
+        self::assertLessThan(5_500, $plunder['metal'] ?? 0);
+        self::assertGreaterThanOrEqual(2_000, $plunder['deuterium'] ?? 0);
+        $raid = $this->entityManager()->find(Fleet::class, $raidId);
+        \assert($raid instanceof Fleet);
+        self::assertEqualsWithDelta($plunder['metal'], $raid->getCargo()->metal, 1.0);
+        $target = $this->entityManager()->find(Planet::class, $target->getId());
+        \assert($target instanceof Planet);
+        // Ce qui reste : l'autre moitié
+        self::assertEqualsWithDelta($plunder['metal'], $target->getResources()->metal, 1.0);
+    }
+
+    public function testOwnPlanetIsNotPlundered(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $target->assignTo($attacker);
+        $target->storeResources(new Resources(10_000, 6_000, 4_000), $this->clock->now());
+        $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 2]);
+
+        $this->fight($raid, $target);
+
+        self::assertSame([], $this->entityManager()->getRepository(CombatReport::class)->findOneBy([])?->getPlunder());
+    }
+
     public function testResolutionWaitsForAnAttackerWhoseArrivalIsNotProcessedYet(): void
     {
         $attacker = $this->empire();

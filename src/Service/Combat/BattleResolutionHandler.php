@@ -41,6 +41,7 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
         private FleetMovements $fleetMovements,
         private EventScheduler $scheduler,
         private Allegiances $allegiances,
+        private Pillage $pillage,
     ) {}
 
     public static function type(): string
@@ -103,6 +104,9 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
         }
 
         $this->fight->fight($battle, $attackers, $defenders, $at);
+        // Victoire sur une planète ennemie : les assaillants survivants pillent avant de repartir
+        $this->pillage->plunder($battle, $initiator, array_values(array_filter($attackers, static fn(Fleet $fleet): bool => !$fleet->isEmpty())), $at);
+        $this->entityManager->flush();
 
         // Les flottes venues combattre (de part et d'autre) et encore debout terminent leur ordre, puis enchaînent
         foreach ($battle->getParticipants() as $participant) {
