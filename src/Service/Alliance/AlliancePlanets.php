@@ -27,6 +27,7 @@ use App\Repository\StarSystemRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Fleet\ShipyardQueue;
 use App\Service\Scheduling\ScheduledEventResolver;
+use App\Service\Universe\PlanetGenerator;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Lock\LockFactory;
@@ -108,7 +109,7 @@ final readonly class AlliancePlanets
             $now = $this->clock->now();
             $source->storeResources($snapshot->amounts->minus(self::cost()), $snapshot->at);
 
-            $planet = new Planet($system, new OrbitalPosition($orbit, $orbit * 10.0, 0.0), 0);
+            $planet = new Planet($system, new OrbitalPosition($orbit, PlanetGenerator::FIRST_ORBIT_RADIUS + PlanetGenerator::ORBIT_SPACING * ($orbit - 1), 0.0), 0);
             $planet->assignToAlliance($alliance);
             $shipyard = $this->buildingTypes->findOneBy(['effect' => BuildingEffect::Shipyard]);
             if (null !== $shipyard) {

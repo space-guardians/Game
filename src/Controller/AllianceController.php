@@ -21,6 +21,7 @@ use App\Repository\ShipyardOrderRepository;
 use App\Service\Account\GameContext;
 use App\Service\Alliance\AlliancePlanets;
 use App\Service\Alliance\Alliances;
+use App\Service\Alliance\AllianceScanner;
 use App\Service\Alliance\Pacts;
 use App\Service\Economy\PlanetResources;
 use Psr\Clock\ClockInterface;
@@ -50,6 +51,7 @@ final class AllianceController extends AbstractController
         private readonly ShipTypeRepository $shipTypes,
         private readonly ShipyardOrderRepository $shipyardOrders,
         private readonly PlanetResources $resources,
+        private readonly AllianceScanner $scanner,
         private readonly ClockInterface $clock,
     ) {}
 
@@ -78,6 +80,8 @@ final class AllianceController extends AbstractController
             'defense_types' => $this->shipTypes->findDefensesOrdered(),
             'alliance_planet_cost' => AlliancePlanets::cost(),
             'alliance_planet_hours' => AlliancePlanets::BUILD_HOURS,
+            'scan_range' => null === $alliancePlanet ? 0.0 : $this->scanner->range($alliancePlanet),
+            'scan_contacts' => null === $alliancePlanet ? [] : $this->scanner->contacts($alliancePlanet),
         ]);
     }
 
