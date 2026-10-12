@@ -15,6 +15,7 @@ use App\Enum\Combat\InterceptionOutcome;
 use App\Enum\Fleet\FleetAction;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
+use App\Service\Combat\Allegiances;
 use App\Service\Combat\DebrisFields;
 use App\Service\Combat\Interceptions;
 use App\Service\Economy\PlanetResources;
@@ -50,6 +51,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private Interceptions $interceptions,
         private DebrisFields $debris,
         private Espionage $espionage,
+        private Allegiances $allegiances,
     ) {}
 
     public static function type(): string
@@ -230,9 +232,9 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         if (!$target instanceof Fleet || $target === $fleet) {
             return 'La flotte à ravitailler n’existe plus.';
         }
-        // Allié ou même empire : le statut allié arrive avec les alliances (phase 9)
-        if ($target->getEmpire() !== $fleet->getEmpire()) {
-            return 'Seules les flottes de l’empire peuvent être ravitaillées.';
+        // Même empire ou allié (alliance, pacte en vigueur), statut vérifié à l'arrivée
+        if (!$this->allegiances->allied($target->getEmpire(), $fleet->getEmpire())) {
+            return 'Seules les flottes de l’empire ou d’un allié peuvent être ravitaillées.';
         }
         if ($target->getLocation()->toPosition()->global()->distanceTo($fleet->getLocation()->toPosition()->global()) > self::RENDEZVOUS_TOLERANCE) {
             return \sprintf('La flotte « %s » n’est plus à cette position.', $target->getName());

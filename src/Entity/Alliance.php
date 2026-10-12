@@ -40,6 +40,10 @@ final class Alliance implements \Stringable
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $description = null;
 
+    /** Paramètre : les rapports de combat des membres sont envoyés à toute l'alliance (§4.7) */
+    #[ORM\Column]
+    private bool $shareCombatReports = false;
+
     /** @var Collection<int, AllianceMember> */
     #[ORM\OneToMany(targetEntity: AllianceMember::class, mappedBy: 'alliance', cascade: ['persist', 'remove'], orphanRemoval: true)]
     #[ORM\OrderBy(['id' => 'ASC'])]
@@ -85,6 +89,16 @@ final class Alliance implements \Stringable
     {
         $description = null === $description ? null : trim($description);
         $this->description = '' === $description ? null : $description;
+    }
+
+    public function sharesCombatReports(): bool
+    {
+        return $this->shareCombatReports;
+    }
+
+    public function setShareCombatReports(bool $share): void
+    {
+        $this->shareCombatReports = $share;
     }
 
     /** @return Collection<int, AllianceMember> */

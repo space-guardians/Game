@@ -21,6 +21,7 @@ use App\Model\Fleet\SpacePosition;
 use App\Repository\BuildingTypeRepository;
 use App\Repository\FleetMovementRepository;
 use App\Repository\ShipTypeRepository;
+use App\Service\Alliance\Pacts;
 use App\Service\Fleet\FleetAssembly;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Scheduling\ScheduledEventResolver;
@@ -134,6 +135,36 @@ final class FleetFuelTest extends KernelTestCase
         \assert($rescuer instanceof Fleet);
         self::assertSame(0.0, $rescuer->getCargo()->deuterium);
         self::assertSame(FleetOrderStatus::Done, $rescuer->getOrders()[0]?->getStatus());
+    }
+
+    public function testAnAllyCanRefuelAStrandedFleet(): void
+    {
+        $empire = $this->empire();
+        $stranded = $this->strandedFleet($empire);
+        $empire = $stranded->getEmpire();
+        // Un allié (pacte) part de la même planète avec du deutérium en cargaison
+        $ally = EmpireFactory::createOne(['name' => 'Secours']);
+        $pacts = self::getContainer()->get(Pacts::class);
+        $pacts->accept($pacts->propose($empire, 'Secours', 30), $ally);
+        $rescuer = new Fleet($ally, 'Citerne', $empire->getHomePlanet(), $this->clock->now());
+        $type = self::getContainer()->get(ShipTypeRepository::class)->findOneByCode('small_cargo');
+        \assert($type instanceof ShipType);
+        $rescuer->addShips($type, 2);
+        $rescuer->refuel(800);
+        $rescuer->load(new Resources(0, 0, 2000));
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($rescuer);
+        $entityManager->flush();
+
+        $movement = $this->dispatch()->dispatch($rescuer, [
+            new MissionStep($stranded->getLocation()->toPosition(), FleetAction::Refuel, 'flotte en panne', (int) $stranded->getId()),
+        ], 100, new Resources());
+        $this->clock->sleep($movement->getDurationSeconds());
+        $this->resolve((int) $movement->getEvent()?->getId());
+
+        $stranded = $this->reload($stranded);
+        self::assertSame(2000.0, $stranded->getFuel());
+        self::assertSame(FleetStatus::Stationed, $stranded->getStatus());
     }
 
     public function testOnlyAStrandedFleetCanBeRefuelled(): void

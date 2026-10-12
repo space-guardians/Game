@@ -22,7 +22,7 @@
                 </thead>
                 <tbody>
                     {% for report in reports %}
-                        {% set side = report.sideOf(empire) %}
+                        {% set side = report.sideOfAny(sources) %}
                         <tr>
                             <td class="sg-mono">{{ report.foughtAt|date('d/m H:i') }}</td>
                             <td class="sg-mono">{{ report.locationLabel }}</td>

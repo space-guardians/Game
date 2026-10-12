@@ -14,6 +14,7 @@ use App\Enum\Fleet\FleetAction;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
+use App\Service\Combat\Allegiances;
 use App\Service\Economy\PlanetResources;
 use App\Service\Scheduling\ScheduledEventResolver;
 use App\Service\Universe\ColonyLimit;
@@ -38,6 +39,7 @@ final readonly class FleetDispatch
         private LockFactory $lockFactory,
         private ClockInterface $clock,
         private ColonyLimit $colonyLimit,
+        private Allegiances $allegiances,
     ) {}
 
     /**
@@ -71,6 +73,13 @@ final readonly class FleetDispatch
             }
             if (FleetAction::Refuel === $step->action) {
                 $this->checkRefuelTarget($fleet, $step, $rank + 1);
+            }
+            // Aucune action agressive entre alliés (§4.10.1) : pas d'attaque sur la planète d'un allié
+            $owner = FleetAction::JoinBattle === $step->action && null !== $step->destination->planetId
+                ? $this->entityManager->find(Planet::class, $step->destination->planetId)?->getOwner()
+                : null;
+            if (null !== $owner && $this->allegiances->allied($owner, $fleet->getEmpire())) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : %s est un allié (même empire, alliance ou pacte) : pas d’attaque possible.', $rank + 1, $owner->getName()));
             }
         }
         // Espionnage : uniquement des sondes, et seule une sonde espionne (§4.6)
@@ -156,8 +165,9 @@ final readonly class FleetDispatch
     private function checkRefuelTarget(Fleet $fleet, MissionStep $step, int $rank): void
     {
         $target = null === $step->targetFleetId ? null : $this->entityManager->find(Fleet::class, $step->targetFleetId);
-        if (!$target instanceof Fleet || $target === $fleet || $target->getEmpire() !== $fleet->getEmpire()) {
-            throw new InvalidFleetMission(\sprintf('Ordre %d : choisissez une flotte de l’empire à ravitailler.', $rank));
+        // Une flotte de l'empire ou d'un allié (même alliance, pacte en vigueur)
+        if (!$target instanceof Fleet || $target === $fleet || !$this->allegiances->allied($target->getEmpire(), $fleet->getEmpire())) {
+            throw new InvalidFleetMission(\sprintf('Ordre %d : choisissez une flotte de l’empire ou d’un allié à ravitailler.', $rank));
         }
         if (!$target->isStranded()) {
             throw new InvalidFleetMission(\sprintf('Ordre %d : la flotte « %s » n’est pas en panne de carburant.', $rank, $target->getName()));

@@ -69,6 +69,43 @@ final class AllianceTest extends WebTestCase
         self::assertNull(self::getContainer()->get(AllianceMemberRepository::class)->findOneByEmpire($bob));
     }
 
+    public function testPactsAreProposedConcludedAndUnbreakable(): void
+    {
+        [$ana, $bob] = $this->empires('Ana', 'Bob');
+
+        $this->client->loginUser($ana->getUser());
+        $this->client->request('GET', '/alliance');
+        $this->client->submitForm('Proposer le pacte', ['name' => 'Bob', 'days' => '60']);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Pacte de 60 jours proposé à Bob.');
+        self::assertSelectorTextContains('#pactes', 'proposé un pacte de 60 jours');
+
+        $this->client->loginUser($bob->getUser());
+        $this->client->request('GET', '/alliance');
+        self::assertSelectorTextContains('#pactes', 'Ana · vous propose un pacte de 60 jours');
+        $this->client->submitForm('Conclure le pacte');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Pacte conclu avec Ana');
+        self::assertSelectorTextContains('#pactes', 'en vigueur jusqu’au');
+        // Conclu : plus de bouton pour le rompre
+        self::assertSelectorNotExists('#pactes form');
+    }
+
+    public function testFounderSharesCombatReports(): void
+    {
+        [$ana] = $this->empires('Ana');
+        $this->client->loginUser($ana->getUser());
+        $this->client->request('GET', '/alliance');
+        $this->client->submitForm('Fonder', ['name' => 'Ligue', 'tag' => 'LGS']);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('#partage', 'réservés aux membres engagés');
+
+        $this->client->submitForm('Partager les rapports de combat');
+        $this->client->followRedirect();
+
+        self::assertSelectorTextContains('#partage', 'partagés avec toute l’alliance');
+    }
+
     public function testRefusalIsShown(): void
     {
         [$ana] = $this->empires('Ana');

@@ -15,6 +15,7 @@ use App\Model\Economy\Resources;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\FleetRepository;
 use App\Repository\ShipTypeRepository;
+use App\Service\Alliance\Pacts;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -247,6 +248,30 @@ final class FleetTest extends WebTestCase
         $this->client->followRedirect();
         // Un seul ordre : pas de retour implicite, la flotte restera au niveau du système
         self::assertSelectorCount(1, '#flottes .sg-fleet__order');
+    }
+
+    public function testStrandedAlliedFleetsAreOfferedForRescue(): void
+    {
+        $empire = $this->login();
+        $home = $empire->getHomePlanet();
+        $ally = EmpireFactory::createOne(['name' => 'Partenaire']);
+        $pacts = self::getContainer()->get(Pacts::class);
+        $pacts->accept($pacts->propose($empire, 'Partenaire', 30), $ally);
+        $stranded = new Fleet($ally, 'Égarée', $ally->getHomePlanet(), new \DateTimeImmutable());
+        $stranded->addShips($this->ship('light_fighter'), 2);
+        $stranded->strand(SpaceLocation::of(SpacePosition::deepSpace((int) $home->getSystem()->getGalaxy()->getId(), new GlobalPosition(0, 0))));
+        $rescuer = new Fleet($empire, 'Citerne', $home, new \DateTimeImmutable());
+        $rescuer->addShips($this->ship('small_cargo'), 1);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($stranded);
+        $entityManager->persist($rescuer);
+        $entityManager->flush();
+
+        $crawler = $this->client->request('GET', '/flotte');
+        self::assertSelectorTextContains('#allies-en-panne', 'Égarée (Partenaire)');
+        $this->client->click($crawler->selectLink('Ravitailler avec « Citerne »')->link());
+
+        self::assertSelectorTextContains('#ordre-ravitaillement', 'Flotte « Égarée », en panne');
     }
 
     public function testStrandedFleetCanBeRescuedByAnotherFleet(): void

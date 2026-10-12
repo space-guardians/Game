@@ -121,6 +121,24 @@ final class CombatReport
         return $this->rounds;
     }
 
+    /**
+     * Camp du premier de ces empires engagé dans la bataille (le lecteur, puis ses alliés qui lui partagent leurs
+     * rapports) ; null si aucun n'y était.
+     *
+     * @param list<Empire> $empires
+     */
+    public function sideOfAny(array $empires): ?CombatSide
+    {
+        foreach ($empires as $empire) {
+            $side = $this->sideOf($empire);
+            if (null !== $side) {
+                return $side;
+            }
+        }
+
+        return null;
+    }
+
     /** Camp d'un empire dans la bataille ; null s'il n'y était pas */
     public function sideOf(Empire $empire): ?CombatSide
     {

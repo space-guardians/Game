@@ -34,6 +34,7 @@ final class CombatReports implements ResetInterface
         private readonly HubInterface $hub,
         private readonly Environment $twig,
         private readonly LoggerInterface $logger,
+        private readonly CombatReportReaders $readers,
     ) {}
 
     /**
@@ -100,14 +101,10 @@ final class CombatReports implements ResetInterface
         $reports = $this->pending;
         $this->pending = [];
         foreach ($reports as $report) {
-            $notified = [];
-            foreach ($report->getBattle()->getParticipants() as $participant) {
-                $empire = $participant->getEmpire();
-                if (isset($notified[(int) $empire->getId()])) {
-                    continue;
-                }
-                $notified[(int) $empire->getId()] = true;
-                $side = $report->sideOf($empire);
+            $participants = array_map(static fn($participant) => $participant->getEmpire(), $report->getBattle()->getParticipants()->toArray());
+            // Les parties, et les membres de leurs alliances si elles partagent leurs rapports
+            foreach ($this->readers->recipientsOf(array_values($participants)) as $empire) {
+                $side = $report->sideOfAny($this->readers->sourcesFor($empire));
                 try {
                     $this->hub->publish(new Update(
                         GameTopics::empire($empire),
