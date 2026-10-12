@@ -157,7 +157,8 @@ final class InterceptionTest extends KernelTestCase
 
     private function otherPlanetOf(Planet $planet): Planet
     {
-        $orbit = $planet->getPosition()->orbit + 1;
+        // Une autre orbite du même système, dans les bornes (1 à 15)
+        $orbit = 15 === $planet->getPosition()->orbit ? 14 : $planet->getPosition()->orbit + 1;
 
         return PlanetFactory::createOne(['system' => $planet->getSystem(), 'position' => new OrbitalPosition($orbit, $orbit * 10.0, 0.0)]);
     }
