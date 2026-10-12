@@ -7,15 +7,22 @@ namespace App\Controller;
 use App\Entity\AllianceInvitation;
 use App\Entity\AllianceMember;
 use App\Entity\AlliancePact;
+use App\Entity\AlliancePlanet;
 use App\Entity\Empire;
+use App\Enum\Alliance\AllianceBuildingType;
 use App\Enum\Alliance\AllianceRole;
 use App\Exception\Alliance\InvalidAllianceAction;
 use App\Repository\AllianceMemberRepository;
 use App\Repository\AlliancePactRepository;
+use App\Repository\AlliancePlanetRepository;
 use App\Repository\AllianceRepository;
+use App\Repository\ShipTypeRepository;
+use App\Repository\ShipyardOrderRepository;
 use App\Service\Account\GameContext;
+use App\Service\Alliance\AlliancePlanets;
 use App\Service\Alliance\Alliances;
 use App\Service\Alliance\Pacts;
+use App\Service\Economy\PlanetResources;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -25,7 +32,8 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Écran « Alliance » (§4.10) : sans alliance, la fonder ou accepter une invitation ; membre, consulter l'alliance et
  * ses membres, inviter (fondateur, diplomates), gérer les rôles, exclure et régler le partage des rapports de combat
- * (fondateur), partir ou dissoudre. Pactes de non-agression (§4.10.1), avec ou sans alliance. Toutes
+ * (fondateur), partir ou dissoudre ; planète d'alliance (construction par le fondateur, bâtiments uniques et défenses
+ * par le fondateur et les diplomates). Pactes de non-agression (§4.10.1), avec ou sans alliance. Toutes
  * les actions passent en POST avec le jeton CSRF « alliance ».
  */
 final class AllianceController extends AbstractController
@@ -37,6 +45,11 @@ final class AllianceController extends AbstractController
         private readonly Alliances $service,
         private readonly Pacts $pacts,
         private readonly AlliancePactRepository $pactRepository,
+        private readonly AlliancePlanets $alliancePlanets,
+        private readonly AlliancePlanetRepository $alliancePlanetRepository,
+        private readonly ShipTypeRepository $shipTypes,
+        private readonly ShipyardOrderRepository $shipyardOrders,
+        private readonly PlanetResources $resources,
         private readonly ClockInterface $clock,
     ) {}
 
@@ -45,6 +58,7 @@ final class AllianceController extends AbstractController
     {
         $empire = $this->empire();
         $member = $this->members->findOneByEmpire($empire);
+        $alliancePlanet = null === $member ? null : ($this->alliancePlanetRepository->findOf($member->getAlliance())[0] ?? null);
 
         return $this->render('alliance/index.html.twig', [
             'empire' => $empire,
@@ -57,6 +71,13 @@ final class AllianceController extends AbstractController
             'pacts' => $this->pactRepository->findOpenFor($empire, $this->clock->now()),
             'max_pact_days' => AlliancePact::MAX_DAYS,
             'now' => $this->clock->now(),
+            'alliance_planet' => $alliancePlanet,
+            'alliance_stock' => null === $alliancePlanet ? null : $this->resources->snapshot($alliancePlanet->getPlanet())->amounts,
+            'alliance_orders' => null === $alliancePlanet ? [] : $this->shipyardOrders->findForPlanet($alliancePlanet->getPlanet()),
+            'alliance_building_types' => AllianceBuildingType::cases(),
+            'defense_types' => $this->shipTypes->findDefensesOrdered(),
+            'alliance_planet_cost' => AlliancePlanets::cost(),
+            'alliance_planet_hours' => AlliancePlanets::BUILD_HOURS,
         ]);
     }
 
@@ -94,6 +115,43 @@ final class AllianceController extends AbstractController
             $this->pacts->dismiss($pact, $empire);
 
             return $pact->getProposer() === $empire ? \sprintf('Proposition à %s retirée.', $other) : \sprintf('Proposition de %s refusée.', $other);
+        });
+    }
+
+    #[Route('/alliance/planete', name: 'app_alliance_planet_build', methods: ['POST'])]
+    public function buildPlanet(Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($request): string {
+            $alliancePlanet = $this->alliancePlanets->build(
+                $empire,
+                $request->request->getInt('galaxy'),
+                $request->request->getInt('system'),
+                $request->request->getInt('orbit'),
+                $request->request->getString('name'),
+            );
+
+            return \sprintf('Construction de %s lancée en %s : achevée le %s.', $alliancePlanet->getName(), $alliancePlanet->getPlanet(), $alliancePlanet->getCompletesAt()->format('d/m H:i'));
+        });
+    }
+
+    #[Route('/alliance/planete/batiments/{type}', name: 'app_alliance_planet_raise', methods: ['POST'])]
+    public function raiseBuilding(AllianceBuildingType $type, Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($type): string {
+            $level = $this->alliancePlanets->raise($empire, $this->alliancePlanetOf($empire), $type);
+
+            return \sprintf('%s porté au niveau %d.', $type->label(), $level);
+        });
+    }
+
+    #[Route('/alliance/planete/defenses', name: 'app_alliance_planet_defenses', methods: ['POST'])]
+    public function orderDefenses(Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($request): string {
+            $type = $this->shipTypes->findOneByCode($request->request->getString('type')) ?? throw new InvalidAllianceAction('Défense inconnue.');
+            $order = $this->alliancePlanets->orderDefenses($empire, $this->alliancePlanetOf($empire), $type, $request->request->getInt('quantity'));
+
+            return \sprintf('%d × %s commandé(s) : livraison le %s.', $order->getQuantity(), $type->getName(), $order->getEndsAt()->format('d/m H:i'));
         });
     }
 
@@ -198,6 +256,14 @@ final class AllianceController extends AbstractController
         }
 
         return $this->redirectToRoute('app_alliance');
+    }
+
+    /** @throws InvalidAllianceAction */
+    private function alliancePlanetOf(Empire $empire): AlliancePlanet
+    {
+        $member = $this->members->findOneByEmpire($empire) ?? throw new InvalidAllianceAction('Vous n’appartenez à aucune alliance.');
+
+        return $this->alliancePlanetRepository->findOf($member->getAlliance())[0] ?? throw new InvalidAllianceAction('Votre alliance n’a pas de planète.');
     }
 
     private function empire(): Empire

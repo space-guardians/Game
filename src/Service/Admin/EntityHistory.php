@@ -6,8 +6,10 @@ namespace App\Service\Admin;
 
 use App\Entity\AdminUser;
 use App\Entity\Alliance;
+use App\Entity\AllianceBuilding;
 use App\Entity\AllianceMember;
 use App\Entity\AlliancePact;
+use App\Entity\AlliancePlanet;
 use App\Entity\BuildingQueueItem;
 use App\Entity\BuildingType;
 use App\Entity\ClassMatchup;
@@ -62,6 +64,8 @@ final readonly class EntityHistory
         Alliance::class => 'Alliances',
         AllianceMember::class => 'Membres des alliances',
         AlliancePact::class => 'Pactes de non-agression',
+        AlliancePlanet::class => 'Planètes d’alliance',
+        AllianceBuilding::class => 'Bâtiments d’alliance',
         BuildingQueueItem::class => 'Constructions en cours',
         BuildingType::class => 'Types de bâtiments',
         ClassMatchup::class => 'Matrice des classes',

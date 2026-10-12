@@ -30,6 +30,11 @@ final class Planet
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?Empire $owner = null;
 
+    /** Alliance propriétaire d'une planète d'alliance : propriété collective, sans empire propriétaire (§4.10) */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
+    private ?Alliance $alliance = null;
+
     /** Stock à la date resourcesUpdatedAt ; le stock courant se calcule à la demande (PlanetResources) */
     #[ORM\Column(options: ['default' => 0])]
     private float $metal = 0.0;
@@ -90,6 +95,34 @@ final class Planet
     public function getOwner(): ?Empire
     {
         return $this->owner;
+    }
+
+    public function getAlliance(): ?Alliance
+    {
+        return $this->alliance;
+    }
+
+    /** Planète d'alliance : propriété collective de l'alliance */
+    public function assignToAlliance(Alliance $alliance): void
+    {
+        if (null !== $this->owner || (null !== $this->alliance && $this->alliance !== $alliance)) {
+            throw new \LogicException(\sprintf('La planète %s a déjà un propriétaire.', $this));
+        }
+        $this->alliance = $alliance;
+    }
+
+    /** Planète d'alliance détruite : elle redevient une planète libre et vide */
+    public function abandon(\DateTimeImmutable $at): void
+    {
+        $this->alliance = null;
+        $this->ships->clear();
+        $this->storeResources(new Resources(), $at);
+    }
+
+    /** Planète tenue par un empire ou une alliance */
+    public function isClaimed(): bool
+    {
+        return null !== $this->owner || null !== $this->alliance;
     }
 
     /** @return Collection<int, PlanetBuilding> */

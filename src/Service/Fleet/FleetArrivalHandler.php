@@ -160,7 +160,8 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $hold = false;
         switch ($order->getAction()) {
             case FleetAction::Transport:
-                if (null === $planet || null === $planet->getOwner()) {
+                // Planète d'un empire, ou planète d'alliance (contributions des membres)
+                if (null === $planet || !$planet->isClaimed()) {
                     $order->fail('Plus de planète habitée à cette position : la cargaison reste à bord.', $arrival);
 
                     return false;
@@ -257,7 +258,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         if (null === $planet) {
             return 'Plus de planète à cette position.';
         }
-        if (null !== $planet->getOwner()) {
+        if ($planet->isClaimed()) {
             return \sprintf('La planète %s est déjà occupée.', $planet);
         }
         $colonyShip = null;

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Fleet;
 
+use App\Entity\Empire;
 use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Entity\ShipyardOrder;
@@ -45,11 +46,13 @@ final readonly class ShipyardQueue
     ) {}
 
     /**
+     * @param Empire|null $orderedBy membre qui commande sur une planète d'alliance (ses technologies comptent)
+     *
      * @throws MissingPrerequisites
      * @throws ShipyardQueueFull
      * @throws InsufficientResources
      */
-    public function order(Planet $planet, ShipType $type, int $quantity): ShipyardOrder
+    public function order(Planet $planet, ShipType $type, int $quantity, ?Empire $orderedBy = null): ShipyardOrder
     {
         if ($quantity < 1 || $quantity > self::MAX_QUANTITY) {
             throw new \InvalidArgumentException(\sprintf('Une commande porte sur 1 à %d vaisseaux.', self::MAX_QUANTITY));
@@ -58,7 +61,7 @@ final readonly class ShipyardQueue
         $lock->acquire(true);
 
         try {
-            $missing = $this->prerequisites->missing($type, $planet);
+            $missing = $this->prerequisites->missing($type, $planet, $orderedBy);
             if ([] !== $missing) {
                 throw new MissingPrerequisites($missing);
             }

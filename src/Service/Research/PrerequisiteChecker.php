@@ -26,10 +26,15 @@ final readonly class PrerequisiteChecker
         private PlanetRepository $planets,
     ) {}
 
-    /** @return list<Prerequisite> */
-    public function missing(BuildingType|ShipType $target, Planet $planet): array
+    /**
+     * Prérequis non remplis pour construire sur la planète, avec les technologies de son empire — ou, pour une planète
+     * d'alliance sans empire propriétaire, celles du membre qui commande.
+     *
+     * @return list<Prerequisite>
+     */
+    public function missing(BuildingType|ShipType $target, Planet $planet, ?Empire $orderedBy = null): array
     {
-        return $this->rules->missing($this->prerequisites->findFor($target), $this->planetBuildings($planet), $this->technologies($planet->getOwner()));
+        return $this->rules->missing($this->prerequisites->findFor($target), $this->planetBuildings($planet), $this->technologies($planet->getOwner() ?? $orderedBy));
     }
 
     /** @return list<Prerequisite> */
