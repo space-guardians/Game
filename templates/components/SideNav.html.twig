@@ -57,6 +57,12 @@
             </a>
         </li>
         <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_alliance' ? ' is-active' }}" href="{{ path('app_alliance') }}"{% if current starts with 'app_alliance' %} aria-current="page"{% endif %}>
+                <twig:Icon name="flag" size="18"/>
+                Alliance
+            </a>
+        </li>
+        <li>
             <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_map' ? ' is-active' }}" href="{{ path('app_map') }}"{% if current starts with 'app_map' %} aria-current="page"{% endif %}>
                 <twig:Icon name="planet" size="18"/>
                 Carte

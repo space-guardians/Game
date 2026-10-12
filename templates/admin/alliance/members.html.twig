@@ -1,0 +1,6 @@
+{# Membres d'une alliance, avec leur rôle #}
+<ul class="list-unstyled mb-0">
+    {% for member in field.value %}
+        <li>{{ member.empire.name }} <span class="text-muted">({{ member.role.label|lower }})</span></li>
+    {% endfor %}
+</ul>

@@ -32,6 +32,7 @@ use App\Repository\BattleRepository;
 use App\Repository\BuildingTypeRepository;
 use App\Repository\DebrisRepository;
 use App\Repository\ShipTypeRepository;
+use App\Service\Alliance\Alliances;
 use App\Service\Combat\BattleResolutionHandler;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Scheduling\ScheduledEventResolver;
@@ -190,6 +191,27 @@ final class BattleTest extends KernelTestCase
         $this->fight($raid, $target);
 
         self::assertSame([], $this->entityManager()->getRepository(CombatReport::class)->findOneBy([])?->getPlunder());
+    }
+
+    public function testAlliesOfTheDefenderDefendTogether(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $owner = EmpireFactory::createOne(['name' => 'Gardien']);
+        $target->assignTo($owner);
+        $ally = EmpireFactory::createOne(['name' => 'Renfort']);
+        $alliances = self::getContainer()->get(Alliances::class);
+        $alliances->found($owner, 'Ligue', 'LGS');
+        $alliances->accept($alliances->invite($owner, 'Renfort'), $ally);
+        // Le renfort allié stationne sur la planète du propriétaire
+        $this->fleet($ally, $target, ['battleship' => 30]);
+
+        $this->fight($this->fleet($attacker, $attacker->getHomePlanet(), ['light_fighter' => 3]), $target);
+
+        $battle = $this->entityManager()->getRepository(Battle::class)->findOneBy([]);
+        self::assertSame(CombatSide::Defender, $battle?->getWinner());
+        $allyParticipant = $battle->getParticipants()->findFirst(static fn(int $key, $participant): bool => 'Renfort' === $participant->getEmpire()->getName());
+        self::assertSame(CombatSide::Defender, $allyParticipant?->getSide());
     }
 
     public function testPlanetaryDefensesDefendTheirPlanet(): void

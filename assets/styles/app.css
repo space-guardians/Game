@@ -1611,3 +1611,27 @@ a:hover {
 .sg-composer__body {
     min-height: 6em;
 }
+
+/* Alliance : listes, formulaires et actions de gestion */
+.sg-alliance__list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sg-alliance__list li,
+.sg-alliance__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+
+.sg-alliance__form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
