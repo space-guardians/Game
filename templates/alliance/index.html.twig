@@ -1,0 +1,146 @@
+{# Écran « Alliance » (§4.10) : fonder ou rejoindre une alliance, puis la gérer selon son rôle #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Alliance — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}{{ alliance ? alliance : 'Alliance' }}{% endblock %}
+
+{% block content %}
+    {% set token = csrf_token('alliance') %}
+    {% if alliance is null %}
+        <section class="sg-panel sg-cut-14" aria-labelledby="invitations-title">
+            <h2 id="invitations-title" class="sg-section-title">Invitations</h2>
+            {% if invitations is empty %}
+                <p class="sg-empty">Aucune invitation pour l’instant.</p>
+            {% else %}
+                <ul class="sg-alliance__list" id="invitations">
+                    {% for invitation in invitations %}
+                        <li>
+                            <span><strong>{{ invitation.alliance }}</strong>{% if invitation.invitedBy %}, de la part de {{ invitation.invitedBy.name }}{% endif %}</span>
+                            {% for decision, label in {accepter: 'Accepter', refuser: 'Refuser'} %}
+                                <form method="post" action="{{ path('app_alliance_answer', {id: invitation.id, decision: decision}) }}">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <twig:Btn type="submit" label="{{ label }}" variant="{{ loop.first ? 'primary' : 'ghost' }}" size="sm"/>
+                                </form>
+                            {% endfor %}
+                        </li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        </section>
+
+        <section class="sg-panel sg-cut-14" aria-labelledby="found-title">
+            <h2 id="found-title" class="sg-section-title">Fonder une alliance</h2>
+            <p class="sg-field__help">Les membres d’une même alliance sont alliés : ils ne peuvent pas s’attaquer, ils se renforcent et défendent ensemble, et peuvent s’envoyer des ressources.</p>
+            <form method="post" action="{{ path('app_alliance_found') }}" class="sg-alliance__form" id="fonder">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <div class="sg-field">
+                    <label class="sg-field__label" for="nom-alliance">Nom</label>
+                    <input class="sg-input" type="text" id="nom-alliance" name="name" required>
+                </div>
+                <div class="sg-field">
+                    <label class="sg-field__label" for="tag-alliance">Tag (2 à 5 lettres ou chiffres)</label>
+                    <input class="sg-input sg-mono" type="text" id="tag-alliance" name="tag" maxlength="5" required>
+                </div>
+                <div class="sg-field">
+                    <label class="sg-field__label" for="description-alliance">Description</label>
+                    <textarea class="sg-input" id="description-alliance" name="description" rows="3"></textarea>
+                </div>
+                <twig:Btn type="submit" label="Fonder" variant="primary" size="sm"/>
+            </form>
+        </section>
+    {% else %}
+        <section class="sg-panel sg-cut-14" aria-labelledby="alliance-title">
+            <h2 id="alliance-title" class="sg-section-title">L’alliance</h2>
+            <p class="sg-entity__meta" id="alliance">
+                Fondée le {{ alliance.foundedAt|date('d/m/Y') }} · {{ alliance.members|length }} membre(s) · votre rôle : {{ member.role.label|lower }}
+            </p>
+            {% if alliance.description %}<p>{{ alliance.description|nl2br }}</p>{% endif %}
+            {% if member.role.value == 'founder' %}
+                <form method="post" action="{{ path('app_alliance_describe') }}" class="sg-alliance__form">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <label class="sg-field__label" for="description">Description</label>
+                    <textarea class="sg-input" id="description" name="description" rows="3">{{ alliance.description }}</textarea>
+                    <twig:Btn type="submit" label="Enregistrer la description" variant="ghost" size="sm"/>
+                </form>
+            {% endif %}
+        </section>
+
+        <section class="sg-panel sg-cut-14" aria-labelledby="members-title">
+            <h2 id="members-title" class="sg-section-title">Membres</h2>
+            <table class="sg-table" id="membres">
+                <thead>
+                    <tr>
+                        <th scope="col">Empire</th>
+                        <th scope="col">Rôle</th>
+                        <th scope="col">Depuis</th>
+                        {% if member.role.value == 'founder' %}<th scope="col">Gestion</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for other in alliance.members %}
+                        <tr>
+                            <td>{{ other.empire.name }}{{ other is same as(member) ? ' (vous)' }}</td>
+                            <td>{{ other.role.label }}</td>
+                            <td class="sg-mono">{{ other.joinedAt|date('d/m/Y') }}</td>
+                            {% if member.role.value == 'founder' %}
+                                <td>
+                                    {% if other is not same as(member) %}
+                                        <div class="sg-alliance__actions">
+                                            {% for role in roles|filter(role => role != other.role) %}
+                                                <form method="post" action="{{ path('app_alliance_manage', {id: other.id, operation: 'role'}) }}">
+                                                    <input type="hidden" name="_token" value="{{ token }}">
+                                                    <input type="hidden" name="role" value="{{ role.value }}">
+                                                    <twig:Btn type="submit" label="{{ role.value == 'diplomat' ? 'Nommer diplomate' : 'Rétrograder' }}" variant="ghost" size="sm"/>
+                                                </form>
+                                            {% endfor %}
+                                            <form method="post" action="{{ path('app_alliance_manage', {id: other.id, operation: 'fondateur'}) }}">
+                                                <input type="hidden" name="_token" value="{{ token }}">
+                                                <twig:Btn type="submit" label="Transmettre la fondation" variant="ghost" size="sm"/>
+                                            </form>
+                                            <form method="post" action="{{ path('app_alliance_manage', {id: other.id, operation: 'exclure'}) }}">
+                                                <input type="hidden" name="_token" value="{{ token }}">
+                                                <twig:Btn type="submit" label="Exclure" variant="danger" size="sm"/>
+                                            </form>
+                                        </div>
+                                    {% endif %}
+                                </td>
+                            {% endif %}
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </section>
+
+        {% if member.role.canRecruit %}
+            <section class="sg-panel sg-cut-14" aria-labelledby="recruit-title">
+                <h2 id="recruit-title" class="sg-section-title">Recrutement</h2>
+                <form method="post" action="{{ path('app_alliance_invite') }}" class="sg-alliance__form">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <label class="sg-field__label" for="invite">Inviter un empire</label>
+                    <input class="sg-input" type="text" id="invite" name="name" placeholder="Nom de l’empire" required>
+                    <twig:Btn type="submit" label="Inviter" variant="primary" size="sm"/>
+                </form>
+                {% if pending is not empty %}
+                    <p class="sg-entity__meta" id="invitations-envoyees">En attente : {{ pending|map(invitation => invitation.empire.name)|join(', ') }}</p>
+                {% endif %}
+            </section>
+        {% endif %}
+
+        <section class="sg-panel sg-cut-14" aria-labelledby="leave-title">
+            <h2 id="leave-title" class="sg-section-title">Quitter</h2>
+            <div class="sg-alliance__actions">
+                <form method="post" action="{{ path('app_alliance_leave') }}">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <twig:Btn type="submit" label="Quitter l’alliance" variant="ghost" size="sm"/>
+                </form>
+                {% if member.role.value == 'founder' %}
+                    <form method="post" action="{{ path('app_alliance_dissolve') }}">
+                        <input type="hidden" name="_token" value="{{ token }}">
+                        <twig:Btn type="submit" label="Dissoudre l’alliance" variant="danger" size="sm"/>
+                    </form>
+                {% endif %}
+            </div>
+        </section>
+    {% endif %}
+{% endblock %}

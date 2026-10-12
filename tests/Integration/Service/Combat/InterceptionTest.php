@@ -24,6 +24,7 @@ use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\ShipTypeRepository;
+use App\Service\Alliance\Alliances;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Scheduling\ScheduledEventResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -95,6 +96,21 @@ final class InterceptionTest extends KernelTestCase
     public function testFleetsOfTheSameEmpireAreNotIntercepted(): void
     {
         [$intruder, $planet] = $this->scene(['light_fighter' => 3], ['battleship' => 30], sameEmpire: true);
+
+        $this->arrive($intruder, $planet);
+
+        self::assertSame(FleetOrderStatus::Done, $this->reload($intruder)->getOrders()[0]?->getStatus());
+        self::assertSame(0, $this->entityManager()->getRepository(Battle::class)->count([]));
+    }
+
+    public function testFleetsOfAnAllyAreNotIntercepted(): void
+    {
+        [$intruder, $planet] = $this->scene(['light_fighter' => 3], ['battleship' => 30]);
+        $guard = $this->entityManager()->getRepository(Fleet::class)->findOneBy(['location.systemId' => $planet->getSystem()->getId()]);
+        \assert($guard instanceof Fleet);
+        $alliances = self::getContainer()->get(Alliances::class);
+        $alliances->found($intruder->getEmpire(), 'Ligue', 'LGS');
+        $alliances->accept($alliances->invite($intruder->getEmpire(), $guard->getEmpire()->getName()), $guard->getEmpire());
 
         $this->arrive($intruder, $planet);
 
