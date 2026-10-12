@@ -1,0 +1,29 @@
+{# Écran « Messagerie » (§4.12.2) : conversations de l'empire, boîte et archives dans un Turbo Frame #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Messagerie — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}Messagerie{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="conversations-title">
+        <div class="sg-messaging__header">
+            <h2 id="conversations-title" class="sg-section-title">Conversations</h2>
+            <twig:Btn label="Nouveau message" href="{{ path('app_messaging_new') }}" variant="primary" size="sm"/>
+        </div>
+        <turbo-frame id="conversations">
+            <nav class="sg-messaging__tabs" aria-label="Dossiers">
+                <a href="{{ path('app_messaging') }}"{% if not archived %} aria-current="page"{% endif %}>Boîte de réception</a>
+                <a href="{{ path('app_messaging', {archives: 1}) }}"{% if archived %} aria-current="page"{% endif %}>Archives</a>
+            </nav>
+            {% if places is empty %}
+                <p class="sg-empty">{{ archived ? 'Aucune conversation archivée.' : 'Aucune conversation pour l’instant.' }}</p>
+            {% endif %}
+            <ul class="sg-conversations" id="{{ archived ? 'conversations-archives' : 'conversations-inbox' }}">
+                {% for place in places %}
+                    {{ include('messaging/_row.html.twig', {place: place, viewer: empire}) }}
+                {% endfor %}
+            </ul>
+        </turbo-frame>
+    </section>
+{% endblock %}

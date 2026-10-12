@@ -50,6 +50,13 @@
             </a>
         </li>
         <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_messaging' ? ' is-active' }}" href="{{ path('app_messaging') }}"{% if current starts with 'app_messaging' %} aria-current="page"{% endif %}>
+                <twig:Icon name="mail" size="18"/>
+                Messagerie
+                <span class="sg-sidenav__badge" id="sg-unread-messages" aria-label="Conversations non lues">{{ this.unreadMessages ?: '' }}</span>
+            </a>
+        </li>
+        <li>
             <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_map' ? ' is-active' }}" href="{{ path('app_map') }}"{% if current starts with 'app_map' %} aria-current="page"{% endif %}>
                 <twig:Icon name="planet" size="18"/>
                 Carte

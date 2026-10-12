@@ -1,0 +1,22 @@
+{# Rédaction d'un message : nouvelle conversation ou réponse (Live Component) #}
+<form {{ attributes.defaults({class: 'sg-composer'}) }} data-action="live#action:prevent" data-live-action-param="send">
+    {% if error %}
+        <twig:AlertBanner variant="error">{{ error }}</twig:AlertBanner>
+    {% endif %}
+    {% if conversationId is null %}
+        <div class="sg-field">
+            <label class="sg-field__label" for="destinataires">Destinataires</label>
+            <input class="sg-input" type="text" id="destinataires" data-model="norender|recipients" value="{{ recipients }}" placeholder="Noms d’empires, séparés par des virgules" required>
+            <p class="sg-field__help">Plusieurs destinataires ouvrent une conversation de groupe.</p>
+        </div>
+        <div class="sg-field">
+            <label class="sg-field__label" for="objet">Objet (facultatif)</label>
+            <input class="sg-input" type="text" id="objet" data-model="norender|subject" value="{{ subject }}" maxlength="{{ this.subjectMaxLength }}">
+        </div>
+    {% endif %}
+    <div class="sg-field">
+        <label class="sg-field__label" for="message-{{ conversationId ?? 'nouveau' }}">Message</label>
+        <textarea class="sg-input sg-composer__body" id="message-{{ conversationId ?? 'nouveau' }}" data-model="norender|body" rows="4" maxlength="{{ this.maxLength }}" required>{{ body }}</textarea>
+    </div>
+    <twig:Btn type="submit" label="Envoyer" variant="primary" size="sm"/>
+</form>
