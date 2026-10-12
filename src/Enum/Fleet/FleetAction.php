@@ -8,7 +8,7 @@ use Symfony\Contracts\Translation\TranslatableInterface;
 use Symfony\Contracts\Translation\TranslatorInterface;
 
 /**
- * Action effectuée à l'arrivée d'un ordre « se déplacer puis agir » (§4.6). L'espionnage arrive avec sa phase.
+ * Action effectuée à l'arrivée d'un ordre « se déplacer puis agir » (§4.6).
  */
 enum FleetAction: string implements TranslatableInterface
 {
@@ -29,6 +29,11 @@ enum FleetAction: string implements TranslatableInterface
     case JoinBattle = 'battle';
     /** Récupère le champ de débris présent sur place ; il faut des recycleurs dans la flotte */
     case Recycle = 'recycle';
+    /**
+     * Rapport sur une planète, ou sur les flottes présentes à une position (§4.9) ; la flotte ne compte que des sondes
+     * d'espionnage
+     */
+    case Spy = 'spy';
 
     public function label(): string
     {
@@ -40,6 +45,7 @@ enum FleetAction: string implements TranslatableInterface
             self::Explore => 'Exploration',
             self::JoinBattle => 'Rejoindre une bataille',
             self::Recycle => 'Recyclage',
+            self::Spy => 'Espionnage',
         };
     }
 

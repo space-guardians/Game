@@ -73,6 +73,12 @@ final readonly class FleetDispatch
                 $this->checkRefuelTarget($fleet, $step, $rank + 1);
             }
         }
+        // Espionnage : uniquement des sondes, et seule une sonde espionne (§4.6)
+        foreach ($steps as $rank => $step) {
+            if (FleetAction::Spy === $step->action && array_keys($fleet->shipCounts()) !== [ShipType::ESPIONAGE_PROBE]) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » demande une flotte composée uniquement de sondes d’espionnage.', $rank + 1, $step->action->label()));
+            }
+        }
         // Seuls les recycleurs récupèrent un champ de débris
         foreach ($steps as $rank => $step) {
             if (FleetAction::Recycle === $step->action && 0 === ($fleet->shipCounts()[ShipType::RECYCLER] ?? 0)) {

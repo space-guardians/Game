@@ -32,6 +32,9 @@ final class ShipType implements \Stringable
     /** Recycleur : seul vaisseau capable de récupérer un champ de débris (§4.6) */
     public const string RECYCLER = 'recycler';
 
+    /** Sonde d'espionnage : seul vaisseau capable d'espionner, en flotte composée uniquement de sondes (§4.6) */
+    public const string ESPIONAGE_PROBE = 'espionage_probe';
+
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]

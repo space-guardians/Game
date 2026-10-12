@@ -1,0 +1,56 @@
+{# Rapport d'espionnage (§4.9) : sections révélées selon le niveau de détail #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Rapport d’espionnage — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · Espionnage{% endblock %}
+{% block heading %}Espionnage de {{ report.locationLabel }}{% endblock %}
+
+{% macro counts(items) %}
+    {% if items is empty %}
+        <p class="sg-empty">Rien.</p>
+    {% else %}
+        <dl class="sg-entity__stats">
+            {% for name, count in items %}
+                <div><dt>{{ name }}</dt><dd class="sg-mono">{{ count|format_number }}</dd></div>
+            {% endfor %}
+        </dl>
+    {% endif %}
+{% endmacro %}
+
+{% block content %}
+    {% import _self as m %}
+    {% set sections = report.sections %}
+    {% set titles = {resources: 'Ressources', fleets: 'Flottes', defenses: 'Défenses', buildings: 'Bâtiments', research: 'Recherches'} %}
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="spy-summary">
+        <h2 id="spy-summary" class="sg-section-title">Cible</h2>
+        <p class="sg-entity__meta" id="cible">
+            {{ report.targetName ?? 'Aucun empire' }} · {{ report.spiedAt|date('d/m/Y H:i:s') }} · niveau de détail <span class="sg-mono">{{ report.score }}</span>
+        </p>
+        <a href="{{ path('app_espionage_reports') }}">Tous les rapports</a>
+    </section>
+
+    {% for key, threshold in thresholds %}
+        <section class="sg-panel sg-cut-14" aria-labelledby="section-{{ key }}" id="{{ key }}">
+            <h2 id="section-{{ key }}" class="sg-section-title">{{ titles[key] }}</h2>
+            {% if sections[key] is not defined %}
+                <p class="sg-empty">Non révélé{% if report.score < threshold %} : niveau de détail insuffisant{% endif %}.</p>
+            {% elseif key == 'resources' %}
+                <dl class="sg-entity__stats">
+                    <div><dt>Métal</dt><dd class="sg-mono">{{ sections.resources.metal|format_number }}</dd></div>
+                    <div><dt>Cristal</dt><dd class="sg-mono">{{ sections.resources.crystal|format_number }}</dd></div>
+                    <div><dt>Deutérium</dt><dd class="sg-mono">{{ sections.resources.deuterium|format_number }}</dd></div>
+                </dl>
+            {% elseif key == 'fleets' %}
+                {% for fleet in sections.fleets %}
+                    <h3 class="sg-entity__meta">{{ fleet.name }}{% if fleet.empire %} ({{ fleet.empire }}){% endif %}</h3>
+                    {{ m.counts(fleet.ships) }}
+                {% else %}
+                    <p class="sg-empty">Aucune flotte.</p>
+                {% endfor %}
+            {% else %}
+                {{ m.counts(sections[key]) }}
+            {% endif %}
+        </section>
+    {% endfor %}
+{% endblock %}
