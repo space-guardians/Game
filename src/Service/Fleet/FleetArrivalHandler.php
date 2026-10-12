@@ -99,12 +99,14 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $hold = $this->act($fleet, $order, $planet, $arrival, $speedPercent);
 
         if ($fleet->isEmpty()) {
-            // Plus aucun vaisseau (colonisateur seul consommé, flotte perdue en exploration) : elle disparaît avec ses
-            // ordres restants
+            // Plus aucun vaisseau (colonisateur seul consommé, flotte perdue en exploration, sondes abattues) : elle
+            // disparaît avec ses ordres restants — déjà supprimée si elle a péri au combat
             $this->entityManager->flush();
-            $this->explorations->forget($fleet);
-            $this->entityManager->remove($fleet);
-            $this->entityManager->flush();
+            if ($this->entityManager->contains($fleet)) {
+                $this->explorations->forget($fleet);
+                $this->entityManager->remove($fleet);
+                $this->entityManager->flush();
+            }
 
             return;
         }
