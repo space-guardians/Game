@@ -185,6 +185,45 @@
                         </tbody>
                     </table>
 
+                    <h3 class="sg-section-title">Scanner</h3>
+                    {% if scan_range <= 0 %}
+                        <p class="sg-empty">Pas de scanner : construisez-le pour repérer les flottes des autres empires autour de la planète.</p>
+                    {% else %}
+                        <p class="sg-field__help">Portée {{ scan_range|number_format(0, ',', ' ') }} : flottes des autres empires à l’arrêt ou en vol. Tout départ dont le trajet passe à portée alerte aussitôt les membres.</p>
+                        {% if scan_contacts is empty %}
+                            <p class="sg-empty" id="scanner">Aucune flotte à portée.</p>
+                        {% else %}
+                            <table class="sg-table" id="scanner">
+                                <thead>
+                                    <tr>
+                                        <th scope="col">Empire</th>
+                                        <th scope="col">Flotte</th>
+                                        <th scope="col">Vaisseaux</th>
+                                        <th scope="col">Distance</th>
+                                        <th scope="col">Mouvement</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for contact in scan_contacts %}
+                                        <tr>
+                                            <td>{{ contact.empire }}</td>
+                                            <td>{{ contact.fleet }}</td>
+                                            <td class="sg-mono">{{ contact.ships }}</td>
+                                            <td class="sg-mono">{{ contact.distance|number_format(0, ',', ' ') }}</td>
+                                            <td>
+                                                {% if contact.inFlight %}
+                                                    vers {{ contact.destination }}, arrivée <span class="sg-mono">{{ contact.arrivesAt|date('d/m H:i') }}</span>
+                                                {% else %}
+                                                    à l’arrêt
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        {% endif %}
+                    {% endif %}
+
                     <h3 class="sg-section-title">Défenses</h3>
                     {% set stocked = alliance_planet.planet.ships|filter(stock => stock.type.defense and stock.quantity > 0) %}
                     {% if stocked is empty %}

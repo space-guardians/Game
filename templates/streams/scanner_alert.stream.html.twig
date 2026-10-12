@@ -1,0 +1,10 @@
+{# Trajet repéré par le scanner d'une planète d'alliance, poussé par Mercure à chaque membre #}
+<turbo-stream action="append" target="sg-notifications">
+    <template>
+        <div class="sg-toast" data-controller="toast">
+            <twig:AlertBanner variant="attack">
+                Scanner de {{ planet }} : flotte de {{ empire }} ({{ ships }} vaisseau{{ ships > 1 ? 'x' }}) en route vers {{ destination }}, arrivée le {{ arrivesAt|date('d/m H:i') }}.
+            </twig:AlertBanner>
+        </div>
+    </template>
+</turbo-stream>

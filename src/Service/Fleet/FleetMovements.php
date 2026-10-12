@@ -8,6 +8,7 @@ use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\Planet;
 use App\Enum\Fleet\FleetAction;
+use App\Service\Alliance\AllianceScanner;
 use App\Service\Combat\Battles;
 use App\Service\Scheduling\EventScheduler;
 use Doctrine\ORM\EntityManagerInterface;
@@ -25,6 +26,7 @@ final readonly class FleetMovements
         private EntityManagerInterface $entityManager,
         private FuelRules $fuel,
         private Battles $battles,
+        private AllianceScanner $scanner,
     ) {}
 
     /** Lance l'ordre suivant à l'heure donnée (fin du précédent, ou départ de la mission) ; null s'il n'y en a plus */
@@ -64,6 +66,9 @@ final readonly class FleetMovements
             'order' => $order->getId(),
         ]));
         $this->entityManager->flush();
+
+        // Trajet à portée d'un scanner d'alliance : ses membres sont alertés (§4.10)
+        $this->scanner->watch($movement);
 
         // Attaque lancée : elle devient une bataille programmée au lieu visé, ou rejoint celle qui s'y tiendra (§4.7)
         if (FleetAction::JoinBattle === $order->getAction() && !$movement->isStranding()) {

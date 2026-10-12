@@ -23,4 +23,23 @@ final class FleetMovementRepository extends ServiceEntityRepository
     {
         return $this->findOneBy(['fleet' => $fleet]);
     }
+
+    /**
+     * Déplacements en cours partis d'une galaxie (un trajet y reste).
+     *
+     * @return list<FleetMovement>
+     */
+    public function findInGalaxy(int $galaxyId): array
+    {
+        /** @var list<FleetMovement> */
+        return $this->createQueryBuilder('m')
+            ->addSelect('f', 'o')
+            ->join('m.fleet', 'f')
+            ->join('m.order', 'o')
+            ->andWhere('m.origin.galaxyId = :galaxy')
+            ->setParameter('galaxy', $galaxyId)
+            ->orderBy('m.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }
