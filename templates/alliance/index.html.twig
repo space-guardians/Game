@@ -56,7 +56,15 @@
                 Fondée le {{ alliance.foundedAt|date('d/m/Y') }} · {{ alliance.members|length }} membre(s) · votre rôle : {{ member.role.label|lower }}
             </p>
             {% if alliance.description %}<p>{{ alliance.description|nl2br }}</p>{% endif %}
+            <p class="sg-entity__meta" id="partage">
+                Rapports de combat {{ alliance.sharesCombatReports ? 'partagés avec toute l’alliance' : 'réservés aux membres engagés' }}.
+            </p>
             {% if member.role.value == 'founder' %}
+                <form method="post" action="{{ path('app_alliance_share') }}">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <input type="hidden" name="share" value="{{ alliance.sharesCombatReports ? '0' : '1' }}">
+                    <twig:Btn type="submit" label="{{ alliance.sharesCombatReports ? 'Ne plus partager les rapports de combat' : 'Partager les rapports de combat' }}" variant="ghost" size="sm"/>
+                </form>
                 <form method="post" action="{{ path('app_alliance_describe') }}" class="sg-alliance__form">
                     <input type="hidden" name="_token" value="{{ token }}">
                     <label class="sg-field__label" for="description">Description</label>
@@ -143,4 +151,48 @@
             </div>
         </section>
     {% endif %}
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="pacts-title">
+        <h2 id="pacts-title" class="sg-section-title">Pactes de non-agression</h2>
+        <p class="sg-field__help">
+            Un pacte lie deux empires pour une durée négociée (au plus {{ max_pact_days }} jours) : ils ne peuvent pas s’attaquer et
+            peuvent se ravitailler. Une fois conclu, il ne se rompt pas avant son terme.
+        </p>
+        {% if pacts is not empty %}
+            <ul class="sg-alliance__list" id="pactes">
+                {% for pact in pacts %}
+                    <li>
+                        <span>
+                            <strong>{{ pact.counterpart(empire).name }}</strong> ·
+                            {% if pact.concluded %}
+                                en vigueur jusqu’au <span class="sg-mono">{{ pact.endsAt|date('d/m/Y H:i') }}</span>
+                            {% else %}
+                                {{ pact.proposer is same as(empire) ? 'proposé' : 'vous propose' }} un pacte de {{ pact.days }} jours
+                            {% endif %}
+                        </span>
+                        {% if not pact.concluded %}
+                            {% if pact.partner is same as(empire) %}
+                                <form method="post" action="{{ path('app_alliance_pact_answer', {id: pact.id, decision: 'accepter'}) }}">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <twig:Btn type="submit" label="Conclure le pacte" variant="primary" size="sm"/>
+                                </form>
+                            {% endif %}
+                            <form method="post" action="{{ path('app_alliance_pact_answer', {id: pact.id, decision: 'refuser'}) }}">
+                                <input type="hidden" name="_token" value="{{ token }}">
+                                <twig:Btn type="submit" label="{{ pact.proposer is same as(empire) ? 'Retirer la proposition' : 'Refuser' }}" variant="ghost" size="sm"/>
+                            </form>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <form method="post" action="{{ path('app_alliance_pact_propose') }}" class="sg-alliance__form" id="proposer-pacte">
+            <input type="hidden" name="_token" value="{{ token }}">
+            <label class="sg-field__label" for="pacte-empire">Proposer un pacte à</label>
+            <input class="sg-input" type="text" id="pacte-empire" name="name" placeholder="Nom de l’empire" required>
+            <label class="sg-field__label" for="pacte-duree">Durée (jours)</label>
+            <input class="sg-input sg-mono" type="number" id="pacte-duree" name="days" min="1" max="{{ max_pact_days }}" value="30" required>
+            <twig:Btn type="submit" label="Proposer le pacte" variant="primary" size="sm"/>
+        </form>
+    </section>
 {% endblock %}

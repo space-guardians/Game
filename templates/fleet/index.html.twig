@@ -72,6 +72,28 @@
         </section>
     {% endif %}
 
+    {% if allied_stranded is not empty %}
+        <section class="sg-panel sg-cut-14" aria-labelledby="allied-stranded-title">
+            <h2 id="allied-stranded-title" class="sg-section-title">Alliés en panne</h2>
+            <p class="sg-field__help">Flottes de vos alliés (alliance, pacte) immobilisées faute de carburant : envoyez-leur une flotte chargée de deutérium.</p>
+            <ul class="sg-battles" id="allies-en-panne">
+                {% for stranded in allied_stranded %}
+                    <li>
+                        <strong>{{ stranded.name }}</strong> ({{ stranded.empire.name }})
+                        {% set rescuers = fleets|filter(other => other.atHome) %}
+                        {% if rescuers is not empty %}
+                            <ul class="sg-fleet__rescuers">
+                                {% for rescuer in rescuers %}
+                                    <li><a href="{{ path('app_fleet_dispatch', {id: rescuer.id, ravitailler: stranded.id}) }}">Ravitailler avec « {{ rescuer.name }} »</a></li>
+                                {% endfor %}
+                            </ul>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        </section>
+    {% endif %}
+
     <section class="sg-panel sg-cut-14" aria-labelledby="fleets-title">
         <h2 id="fleets-title" class="sg-section-title">Flottes de l’empire</h2>
         {% if fleets is empty %}

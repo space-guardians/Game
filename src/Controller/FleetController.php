@@ -23,6 +23,7 @@ use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Account\GameContext;
+use App\Service\Combat\Allegiances;
 use App\Service\Combat\BattleBoard;
 use App\Service\Combat\Battles;
 use App\Service\Fleet\DestinationResolver;
@@ -57,6 +58,7 @@ final class FleetController extends AbstractController
         private readonly ColonyLimit $colonyLimit,
         private readonly BattleRepository $battles,
         private readonly BattleBoard $battleBoard,
+        private readonly Allegiances $allegiances,
     ) {}
 
     /** Ordres proposés dans le formulaire d'envoi ; le dernier suggère le retour au point de départ (§4.6) */
@@ -94,6 +96,8 @@ final class FleetController extends AbstractController
             'awaiting' => $this->explorationEvents->findAwaitingByFleet($empire),
             'battles' => $this->battles->findScheduledByFleet($empire),
             'battle_board' => $this->reinforcements($empire, $fleets),
+            // Flottes alliées en panne, que l'empire peut ravitailler (§4.6.3, §4.10.1)
+            'allied_stranded' => $this->fleets->findStrandedOf($this->allegiances->alliesOf($empire)),
             'now' => $this->clock->now(),
             'name_max_length' => Fleet::NAME_MAX_LENGTH,
         ]);
@@ -193,7 +197,7 @@ final class FleetController extends AbstractController
 
         // Ravitaillement proposé depuis une flotte en panne (§4.6.3)
         $rescued = $this->fleets->find($request->query->getInt('ravitailler'));
-        $rescued = $rescued instanceof Fleet && $rescued->getEmpire() === $empire && $rescued->isStranded() && $rescued !== $fleet ? $rescued : null;
+        $rescued = $rescued instanceof Fleet && $this->allegiances->allied($rescued->getEmpire(), $empire) && $rescued->isStranded() && $rescued !== $fleet ? $rescued : null;
         // Renfort proposé depuis une bataille programmée (§4.7)
         $reinforced = $this->battles->find($request->query->getInt('bataille'));
         $reinforced = $reinforced instanceof Battle && $this->battleBoard->isVisibleTo($reinforced, $empire) ? $reinforced : null;
@@ -323,8 +327,8 @@ final class FleetController extends AbstractController
             }
             if (!$action->targetsCoordinates()) {
                 $target = $this->fleets->find((int) ($row['fleet'] ?? 0));
-                if (!$target instanceof Fleet || $target->getEmpire() !== $fleet->getEmpire()) {
-                    throw new InvalidFleetMission(\sprintf('Ordre %d : choisissez une flotte de l’empire à ravitailler.', $index + 1));
+                if (!$target instanceof Fleet || !$this->allegiances->allied($target->getEmpire(), $fleet->getEmpire())) {
+                    throw new InvalidFleetMission(\sprintf('Ordre %d : choisissez une flotte de l’empire ou d’un allié à ravitailler.', $index + 1));
                 }
                 $steps[] = new MissionStep($target->getLocation()->toPosition(), $action, \sprintf('flotte « %s »', $target->getName()), (int) $target->getId());
 

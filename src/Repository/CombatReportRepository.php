@@ -21,17 +21,19 @@ final class CombatReportRepository extends ServiceEntityRepository
     }
 
     /**
-     * Rapports reçus par un empire (engagé dans la bataille), les plus récents d'abord.
+     * Rapports des batailles où l'un de ces empires était engagé, les plus récents d'abord.
+     *
+     * @param list<Empire> $empires le lecteur, et les alliés qui lui partagent leurs rapports
      *
      * @return list<CombatReport>
      */
-    public function findForEmpire(Empire $empire, int $limit = 50): array
+    public function findForEmpires(array $empires, int $limit = 50): array
     {
         /** @var list<CombatReport> */
         return $this->createQueryBuilder('r')
             ->join('r.battle', 'b')
-            ->andWhere(\sprintf('EXISTS (SELECT p.id FROM %s p WHERE p.battle = b AND p.empire = :empire)', BattleParticipant::class))
-            ->setParameter('empire', $empire)
+            ->andWhere(\sprintf('EXISTS (SELECT p.id FROM %s p WHERE p.battle = b AND p.empire IN (:empires))', BattleParticipant::class))
+            ->setParameter('empires', $empires)
             ->orderBy('r.foughtAt', 'DESC')
             ->addOrderBy('r.id', 'DESC')
             ->setMaxResults($limit)
@@ -39,11 +41,15 @@ final class CombatReportRepository extends ServiceEntityRepository
             ->getResult();
     }
 
-    /** Rapport reçu par l'empire, ou null s'il n'y était pas engagé */
-    public function findOneForEmpire(int $id, Empire $empire): ?CombatReport
+    /**
+     * Rapport lisible par ces empires, ou null si aucun n'y était engagé.
+     *
+     * @param list<Empire> $empires
+     */
+    public function findOneForEmpires(int $id, array $empires): ?CombatReport
     {
         $report = $this->find($id);
 
-        return null !== $report && null !== $report->sideOf($empire) ? $report : null;
+        return null !== $report && null !== $report->sideOfAny($empires) ? $report : null;
     }
 }

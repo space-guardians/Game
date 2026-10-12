@@ -33,6 +33,30 @@ final class FleetRepository extends ServiceEntityRepository
     }
 
     /**
+     * Flottes en panne des empires donnés (alliés à ravitailler).
+     *
+     * @param list<Empire> $empires
+     *
+     * @return list<Fleet>
+     */
+    public function findStrandedOf(array $empires): array
+    {
+        if ([] === $empires) {
+            return [];
+        }
+
+        /** @var list<Fleet> */
+        return $this->createQueryBuilder('f')
+            ->andWhere('f.status = :stranded')
+            ->andWhere('f.empire IN (:empires)')
+            ->setParameter('stranded', FleetStatus::Stranded)
+            ->setParameter('empires', $empires)
+            ->orderBy('f.id', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
+
+    /**
      * Flottes stationnées au niveau d'un système (ni planète ni point précis) : elles gardent le système (§4.6.2).
      *
      * @return list<Fleet>

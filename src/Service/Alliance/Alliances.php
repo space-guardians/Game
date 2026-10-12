@@ -181,6 +181,21 @@ final readonly class Alliances
         $this->entityManager->flush();
     }
 
+    /**
+     * Paramètre de l'alliance : partager les rapports de combat de chaque membre avec toute l'alliance (§4.7).
+     *
+     * @throws InvalidAllianceAction
+     */
+    public function shareCombatReports(Empire $by, bool $share): void
+    {
+        $founder = $this->membership($by);
+        if (AllianceRole::Founder !== $founder->getRole()) {
+            throw new InvalidAllianceAction('Seul le fondateur règle les paramètres de l’alliance.');
+        }
+        $founder->getAlliance()->setShareCombatReports($share);
+        $this->entityManager->flush();
+    }
+
     /** @throws InvalidAllianceAction */
     private function membership(Empire $empire): AllianceMember
     {

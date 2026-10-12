@@ -30,10 +30,13 @@ use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
 use App\Repository\BuildingTypeRepository;
+use App\Repository\CombatReportRepository;
 use App\Repository\DebrisRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Alliance\Alliances;
+use App\Service\Alliance\Pacts;
 use App\Service\Combat\BattleResolutionHandler;
+use App\Service\Combat\CombatReportReaders;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Scheduling\ScheduledEventResolver;
 use App\Tests\Fixtures\Mercure\PublishedUpdates;
@@ -180,17 +183,47 @@ final class BattleTest extends KernelTestCase
         self::assertEqualsWithDelta($plunder['metal'], $target->getResources()->metal, 1.0);
     }
 
-    public function testOwnPlanetIsNotPlundered(): void
+    public function testNoAttackOnAnAllysPlanet(): void
     {
         $attacker = $this->empire();
         $target = $this->planetNear($attacker);
-        $target->assignTo($attacker);
-        $target->storeResources(new Resources(10_000, 6_000, 4_000), $this->clock->now());
+        $partner = EmpireFactory::createOne(['name' => 'Voisin']);
+        $target->assignTo($partner);
+        $this->entityManager()->flush();
+        $pacts = self::getContainer()->get(Pacts::class);
+        $pacts->accept($pacts->propose($attacker, 'Voisin', 30), $partner);
         $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 2]);
 
-        $this->fight($raid, $target);
+        // Pacte de non-agression en vigueur : l'attaque est refusée dès l'envoi (§4.10.1)
+        $this->expectExceptionObject(new InvalidFleetMission('Ordre 1 : Voisin est un allié (même empire, alliance ou pacte) : pas d’attaque possible.'));
 
-        self::assertSame([], $this->entityManager()->getRepository(CombatReport::class)->findOneBy([])?->getPlunder());
+        $this->attack($raid, $target);
+    }
+
+    public function testAllianceMembersReceiveSharedCombatReports(): void
+    {
+        $attacker = $this->empire();
+        $target = $this->planetNear($attacker);
+        $defender = EmpireFactory::createOne(['name' => 'Garde']);
+        $this->fleet($defender, $target, ['light_fighter' => 2]);
+        $mate = EmpireFactory::createOne(['name' => 'Camarade']);
+        $alliances = self::getContainer()->get(Alliances::class);
+        $alliances->found($defender, 'Ligue', 'LGS');
+        $alliances->accept($alliances->invite($defender, 'Camarade'), $mate);
+        $readers = self::getContainer()->get(CombatReportReaders::class);
+        $reports = self::getContainer()->get(CombatReportRepository::class);
+
+        $this->fight($this->fleet($attacker, $attacker->getHomePlanet(), ['cruiser' => 10]), $target);
+
+        // Sans partage, le camarade ne voit pas le rapport ; avec, il le voit, côté défenseur
+        self::assertCount(0, $reports->findForEmpires($readers->sourcesFor($mate)));
+        $alliances->shareCombatReports($defender, true);
+        // Sources relues après le changement de paramètre
+        $sources = $readers->sourcesFor($mate);
+        $shared = $reports->findForEmpires($sources);
+        self::assertCount(1, $shared);
+        self::assertSame(CombatSide::Defender, $shared[0]->sideOfAny($sources));
+        self::assertSame([], $reports->findForEmpires($readers->sourcesFor(EmpireFactory::createOne())));
     }
 
     public function testAlliesOfTheDefenderDefendTogether(): void

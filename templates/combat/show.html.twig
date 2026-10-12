@@ -22,7 +22,7 @@
                 <twig:Chip label="Défaite" tone="red"/>
             {% endif %}
             <span class="sg-entity__meta">
-                {{ report.foughtAt|date('d/m/Y H:i:s') }} · {{ report.rounds|length }} round(s) · vous combattiez côté {{ side.label|lower }}
+                {{ report.foughtAt|date('d/m/Y H:i:s') }} · {{ report.rounds|length }} round(s) · {{ shared ? 'rapport partagé par votre alliance, côté ' ~ side.label|lower : 'vous combattiez côté ' ~ side.label|lower }}
             </span>
         </p>
         {% if report.debris is not empty %}

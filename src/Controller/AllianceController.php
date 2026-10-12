@@ -6,13 +6,17 @@ namespace App\Controller;
 
 use App\Entity\AllianceInvitation;
 use App\Entity\AllianceMember;
+use App\Entity\AlliancePact;
 use App\Entity\Empire;
 use App\Enum\Alliance\AllianceRole;
 use App\Exception\Alliance\InvalidAllianceAction;
 use App\Repository\AllianceMemberRepository;
+use App\Repository\AlliancePactRepository;
 use App\Repository\AllianceRepository;
 use App\Service\Account\GameContext;
 use App\Service\Alliance\Alliances;
+use App\Service\Alliance\Pacts;
+use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -20,7 +24,8 @@ use Symfony\Component\Routing\Attribute\Route;
 
 /**
  * Écran « Alliance » (§4.10) : sans alliance, la fonder ou accepter une invitation ; membre, consulter l'alliance et
- * ses membres, inviter (fondateur, diplomates), gérer les rôles et exclure (fondateur), partir ou dissoudre. Toutes
+ * ses membres, inviter (fondateur, diplomates), gérer les rôles, exclure et régler le partage des rapports de combat
+ * (fondateur), partir ou dissoudre. Pactes de non-agression (§4.10.1), avec ou sans alliance. Toutes
  * les actions passent en POST avec le jeton CSRF « alliance ».
  */
 final class AllianceController extends AbstractController
@@ -30,6 +35,9 @@ final class AllianceController extends AbstractController
         private readonly AllianceRepository $alliances,
         private readonly AllianceMemberRepository $members,
         private readonly Alliances $service,
+        private readonly Pacts $pacts,
+        private readonly AlliancePactRepository $pactRepository,
+        private readonly ClockInterface $clock,
     ) {}
 
     #[Route('/alliance', name: 'app_alliance', methods: ['GET'])]
@@ -46,7 +54,47 @@ final class AllianceController extends AbstractController
             'invitations' => null === $member ? $this->alliances->findInvitationsFor($empire) : [],
             'pending' => null !== $member && $member->getRole()->canRecruit() ? $this->alliances->findInvitationsOf($member->getAlliance()) : [],
             'roles' => [AllianceRole::Diplomat, AllianceRole::Member],
+            'pacts' => $this->pactRepository->findOpenFor($empire, $this->clock->now()),
+            'max_pact_days' => AlliancePact::MAX_DAYS,
+            'now' => $this->clock->now(),
         ]);
+    }
+
+    #[Route('/alliance/partage', name: 'app_alliance_share', methods: ['POST'])]
+    public function share(Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($request): string {
+            $share = $request->request->getBoolean('share');
+            $this->service->shareCombatReports($empire, $share);
+
+            return $share ? 'Les rapports de combat des membres sont désormais partagés avec l’alliance.' : 'Les rapports de combat ne sont plus partagés.';
+        });
+    }
+
+    #[Route('/alliance/pactes', name: 'app_alliance_pact_propose', methods: ['POST'])]
+    public function proposePact(Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($request): string {
+            $pact = $this->pacts->propose($empire, $request->request->getString('name'), $request->request->getInt('days'));
+
+            return \sprintf('Pacte de %d jours proposé à %s.', $pact->getDays(), $pact->getPartner()->getName());
+        });
+    }
+
+    #[Route('/alliance/pactes/{id}/{decision}', name: 'app_alliance_pact_answer', methods: ['POST'], requirements: ['id' => '\d+', 'decision' => 'accepter|refuser'])]
+    public function answerPact(AlliancePact $pact, string $decision, Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($pact, $decision): string {
+            $other = $pact->counterpart($empire)->getName();
+            if ('accepter' === $decision) {
+                $this->pacts->accept($pact, $empire);
+
+                return \sprintf('Pacte conclu avec %s jusqu’au %s.', $other, $pact->getEndsAt()?->format('d/m/Y'));
+            }
+            $this->pacts->dismiss($pact, $empire);
+
+            return $pact->getProposer() === $empire ? \sprintf('Proposition à %s retirée.', $other) : \sprintf('Proposition de %s refusée.', $other);
+        });
     }
 
     #[Route('/alliance/fonder', name: 'app_alliance_found', methods: ['POST'])]
