@@ -75,11 +75,12 @@ final readonly class FleetDispatch
                 $this->checkRefuelTarget($fleet, $step, $rank + 1);
             }
             // Aucune action agressive entre alliés (§4.10.1) : pas d'attaque sur la planète d'un allié
-            $owner = FleetAction::JoinBattle === $step->action && null !== $step->destination->planetId
-                ? $this->entityManager->find(Planet::class, $step->destination->planetId)?->getOwner()
+            $target = FleetAction::JoinBattle === $step->action && null !== $step->destination->planetId
+                ? $this->entityManager->find(Planet::class, $step->destination->planetId)
                 : null;
-            if (null !== $owner && $this->allegiances->allied($owner, $fleet->getEmpire())) {
-                throw new InvalidFleetMission(\sprintf('Ordre %d : %s est un allié (même empire, alliance ou pacte) : pas d’attaque possible.', $rank + 1, $owner->getName()));
+            if (null !== $target && $this->allegiances->planetAllied($target, $fleet->getEmpire())) {
+                $holder = $target->getOwner()?->getName() ?? $target->getAlliance()?->getName() ?? (string) $target;
+                throw new InvalidFleetMission(\sprintf('Ordre %d : %s est un allié (même empire, alliance ou pacte) : pas d’attaque possible.', $rank + 1, $holder));
             }
         }
         // Espionnage : uniquement des sondes, et seule une sonde espionne (§4.6)

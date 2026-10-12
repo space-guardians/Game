@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Combat;
 
 use App\Entity\Empire;
+use App\Entity\Planet;
 use App\Repository\AllianceMemberRepository;
 use App\Repository\AlliancePactRepository;
 use Psr\Clock\ClockInterface;
@@ -34,6 +35,21 @@ final readonly class Allegiances
         }
 
         return $this->pacts->activeBetween($a, $b, $this->clock->now());
+    }
+
+    /**
+     * La planète est-elle tenue par cet empire ou un allié : son empire propriétaire, ou l'alliance dont il est membre
+     * (planète d'alliance) ? Une planète libre n'est l'alliée de personne.
+     */
+    public function planetAllied(Planet $planet, Empire $empire): bool
+    {
+        $owner = $planet->getOwner();
+        if (null !== $owner) {
+            return $this->allied($owner, $empire);
+        }
+        $alliance = $planet->getAlliance();
+
+        return null !== $alliance && $this->members->findOneByEmpire($empire)?->getAlliance() === $alliance;
     }
 
     /**

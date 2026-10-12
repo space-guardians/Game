@@ -8,17 +8,23 @@ use App\Entity\Empire;
 use App\Enum\Admin\AdminRole;
 use App\Factory\AdminUserFactory;
 use App\Factory\EmpireFactory;
+use App\Model\Economy\Resources;
 use App\Repository\AllianceMemberRepository;
+use App\Repository\PlanetRepository;
+use App\Service\Alliance\AlliancePlanets;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Clock\Test\ClockSensitiveTrait;
 use Zenstruck\Foundry\Test\Factories;
 
 /**
- * Écran « Alliance » (§4.10) : fondation, invitation, acceptation, gestion des rôles, départ ; consultation dans le
- * panneau.
+ * Écran « Alliance » (§4.10) : fondation, invitation, acceptation, gestion des rôles, départ, planète d'alliance ;
+ * consultation dans le panneau.
  */
 final class AllianceTest extends WebTestCase
 {
+    use ClockSensitiveTrait;
     use Factories;
 
     private KernelBrowser $client;
@@ -104,6 +110,38 @@ final class AllianceTest extends WebTestCase
         $this->client->followRedirect();
 
         self::assertSelectorTextContains('#partage', 'partagés avec toute l’alliance');
+    }
+
+    public function testFounderBuildsAnAlliancePlanetThenManagesIt(): void
+    {
+        $clock = self::mockTime('2026-10-12 10:00:00');
+        [$ana] = $this->empires('Ana');
+        $home = $ana->getHomePlanet();
+        $home->storeResources(new Resources(100_000, 100_000, 100_000), $clock->now());
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+        $orbit = 1;
+        while (null !== self::getContainer()->get(PlanetRepository::class)->findOneBy(['system' => $home->getSystem(), 'position.orbit' => $orbit])) {
+            ++$orbit;
+        }
+        $this->client->loginUser($ana->getUser());
+        $this->client->request('GET', '/alliance');
+        $this->client->submitForm('Fonder', ['name' => 'Ligue', 'tag' => 'LGS']);
+        $this->client->followRedirect();
+
+        $this->client->submitForm('Construire la planète', ['name' => 'Bastion', 'orbit' => (string) $orbit]);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Construction de Bastion lancée');
+        self::assertSelectorTextContains('#planete', 'en construction jusqu’au 13/10/2026 10:00');
+        self::assertSelectorNotExists('#batiments-alliance');
+
+        $clock->sleep(AlliancePlanets::BUILD_HOURS * 3600);
+        $this->client->request('GET', '/alliance');
+        self::assertSelectorTextContains('#planete', 'intégrité 100 %');
+        self::assertSelectorTextContains('#batiments-alliance', 'Scanner');
+        $this->client->submitForm('Commander', ['quantity' => '2']);
+        $this->client->followRedirect();
+        // Stock vide : les membres doivent d'abord l'alimenter
+        self::assertSelectorTextContains('.sg-alert', 'Stock de la planète d’alliance insuffisant');
     }
 
     public function testRefusalIsShown(): void

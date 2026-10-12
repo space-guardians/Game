@@ -9,11 +9,13 @@ use App\Entity\Fleet;
 use App\Entity\FleetOrder;
 use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
+use App\Enum\Combat\CombatSide;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Enum\Fleet\FleetStatus;
 use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
+use App\Service\Alliance\AlliancePlanets;
 use App\Service\Fleet\FleetMovements;
 use App\Service\Scheduling\EventScheduler;
 use App\Service\Scheduling\ScheduledEventHandler;
@@ -43,6 +45,7 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
         private EventScheduler $scheduler,
         private Allegiances $allegiances,
         private Pillage $pillage,
+        private AlliancePlanets $alliancePlanets,
     ) {}
 
     public static function type(): string
@@ -104,15 +107,18 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
             return;
         }
 
-        // Planète d'un empire non allié : ses défenses se joignent aux défenseurs (§4.8)
+        // Planète d'un empire ou d'une alliance non alliés : ses défenses se joignent aux défenseurs (§4.8, §4.10)
         $planetId = $battle->getLocation()->planetId;
         $planet = null === $planetId ? null : $this->entityManager->find(Planet::class, $planetId);
-        $owner = $planet?->getOwner();
-        $defended = null !== $owner && !$this->allegiances->allied($owner, $initiator) ? $planet : null;
+        $defended = null !== $planet && $planet->isClaimed() && !$this->allegiances->planetAllied($planet, $initiator) ? $planet : null;
 
         $this->fight->fight($battle, $attackers, $defenders, $at, $defended);
-        // Victoire sur une planète ennemie : les assaillants survivants pillent avant de repartir
+        // Victoire sur une planète ennemie : les assaillants survivants pillent avant de repartir ; une planète
+        // d'alliance perd de son intégrité, jusqu'à sa destruction
         $this->pillage->plunder($battle, $initiator, array_values(array_filter($attackers, static fn(Fleet $fleet): bool => !$fleet->isEmpty())), $at);
+        if (null !== $defended && CombatSide::Attacker === $battle->getWinner()) {
+            $this->alliancePlanets->conquered($defended, $at);
+        }
         $this->entityManager->flush();
 
         // Les flottes venues combattre (de part et d'autre) et encore debout terminent leur ordre, puis enchaînent

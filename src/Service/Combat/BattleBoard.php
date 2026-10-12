@@ -26,6 +26,7 @@ final readonly class BattleBoard
         private FleetRepository $fleets,
         private FleetTravel $travel,
         private PlanetRepository $planets,
+        private Allegiances $allegiances,
     ) {}
 
     /** @return list<Battle> par heure de résolution */
@@ -68,6 +69,9 @@ final readonly class BattleBoard
         }
         $planetId = $battle->getLocation()->planetId;
 
-        return null !== $planetId && $this->planets->find($planetId)?->getOwner() === $empire;
+        $planet = null === $planetId ? null : $this->planets->find($planetId);
+
+        // Planète de l'empire, d'un allié ou de son alliance
+        return null !== $planet && $this->allegiances->planetAllied($planet, $empire);
     }
 }

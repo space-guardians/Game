@@ -56,7 +56,7 @@ final class CombatReports implements ResetInterface
             $groups[] = [
                 'side' => $group->side->value,
                 'fleet' => $fleet?->getName() ?? (null !== $defended ? 'Défenses planétaires' : '—'),
-                'empire' => $fleet?->getEmpire()->getName() ?? $defended?->getOwner()?->getName() ?? '—',
+                'empire' => $fleet?->getEmpire()->getName() ?? $defended?->getOwner()?->getName() ?? $defended?->getAlliance()?->getName() ?? '—',
                 'type' => $group->typeName,
                 'class' => $group->classCode,
                 'row' => $group->row->value,
