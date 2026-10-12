@@ -1,0 +1,14 @@
+{# Nouvelle conversation (§4.12.2) : destinataires, objet, message #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Nouveau message — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · Messagerie{% endblock %}
+{% block heading %}Nouveau message{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="new-message-title">
+        <h2 id="new-message-title" class="sg-section-title">Rédiger</h2>
+        <twig:MessageComposer recipients="{{ recipients }}"/>
+        <a href="{{ path('app_messaging') }}">Retour aux conversations</a>
+    </section>
+{% endblock %}

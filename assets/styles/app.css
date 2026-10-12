@@ -1536,3 +1536,78 @@ a:hover {
     padding: 0;
     list-style: none;
 }
+
+/* Messagerie : compteur de non lus, liste des conversations, messages, rédaction */
+.sg-sidenav__badge:not(:empty) {
+    margin-left: auto;
+    padding: 0 6px;
+    border-radius: 8px;
+    background: var(--sg-gold);
+    color: var(--sg-gold-ink);
+    font-family: var(--sg-font-mono);
+    font-size: 12px;
+}
+
+.sg-messaging__header,
+.sg-messaging__actions,
+.sg-messaging__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+}
+
+.sg-messaging__header {
+    justify-content: space-between;
+}
+
+.sg-messaging__tabs a[aria-current="page"] {
+    font-weight: 600;
+}
+
+.sg-conversations,
+.sg-messages {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0;
+    padding: 0;
+    list-style: none;
+}
+
+.sg-conversation {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    border: 1px solid var(--sg-line-strong);
+}
+
+.sg-conversation.is-unread .sg-conversation__title {
+    font-weight: 600;
+}
+
+.sg-message {
+    padding: 10px 12px;
+    border: 1px solid var(--sg-line-strong);
+    background: var(--sg-panel-raised);
+}
+
+.sg-message--mine {
+    border-color: var(--sg-cyan);
+}
+
+.sg-message__body {
+    margin: 4px 0 0;
+}
+
+.sg-composer {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sg-composer__body {
+    min-height: 6em;
+}

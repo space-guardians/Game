@@ -24,6 +24,18 @@ final class EmpireRepository extends ServiceEntityRepository
         return $this->findOneBy(['user' => $user]);
     }
 
+    /** Empire désigné par son nom, sans tenir compte de la casse ni des espaces superflus */
+    public function findOneByName(string $name): ?Empire
+    {
+        /** @var Empire|null */
+        return $this->createQueryBuilder('e')
+            ->where('LOWER(e.name) = LOWER(:name)')
+            ->setParameter('name', Empire::normalizeName($name))
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     /** Sans tenir compte de la casse ni des espaces superflus : « Orion » et « orion » sont le même nom */
     public function nameExists(string $name): bool
     {

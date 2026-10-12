@@ -7,6 +7,7 @@ namespace App\Twig\Components;
 use App\Entity\Empire;
 use App\Entity\Planet;
 use App\Service\Account\GameContext;
+use App\Service\Messaging\Messaging;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
@@ -21,7 +22,16 @@ final class SideNav
 
     public function __construct(
         private readonly GameContext $context,
+        private readonly Messaging $messaging,
     ) {}
+
+    /** Conversations non lues, mises à jour en direct par les Turbo Streams de la messagerie */
+    public function getUnreadMessages(): int
+    {
+        $empire = $this->context->empire();
+
+        return null === $empire ? 0 : $this->messaging->unreadCount($empire);
+    }
 
     public function getEmpire(): ?Empire
     {

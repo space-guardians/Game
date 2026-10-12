@@ -1,0 +1,11 @@
+{# Nouveau message, poussé à chaque participant : conversation ouverte, liste des conversations, compteur de non lus #}
+<turbo-stream action="append" target="conversation-{{ message.conversation.id }}-messages">
+    <template>{{ include('messaging/_message.html.twig', {message: message, viewer: viewer}) }}</template>
+</turbo-stream>
+<turbo-stream action="remove" target="conversation-row-{{ message.conversation.id }}"></turbo-stream>
+<turbo-stream action="prepend" target="conversations-inbox">
+    <template>{{ include('messaging/_row.html.twig', {place: place, viewer: viewer}) }}</template>
+</turbo-stream>
+<turbo-stream action="update" target="sg-unread-messages">
+    <template>{{ unread > 0 ? unread : '' }}</template>
+</turbo-stream>
