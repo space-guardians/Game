@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Service\Espionage;
 
+use App\Entity\CombatReport;
 use App\Entity\Empire;
 use App\Entity\EspionageReport;
 use App\Entity\Fleet;
@@ -11,6 +12,7 @@ use App\Entity\GlobalPosition;
 use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
+use App\Enum\Combat\CombatSide;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Exception\Fleet\InvalidFleetMission;
@@ -25,6 +27,7 @@ use App\Repository\ShipTypeRepository;
 use App\Repository\TechnologyRepository;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Scheduling\ScheduledEventResolver;
+use App\Tests\Fixtures\Mercure\PublishedUpdates;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Clock\ClockInterface;
@@ -105,6 +108,59 @@ final class EspionageTest extends KernelTestCase
         self::assertSame('Aucune flotte à espionner à cette position.', $probes->getOrders()[0]->getFailure());
     }
 
+    public function testProbesRiskDetectionWithEqualTechnologies(): void
+    {
+        [$spy, $planet] = $this->target();
+
+        $this->send($this->probes($spy, 3), SpacePosition::planet($planet));
+
+        // 3 sondes, niveaux égaux : 6 %
+        self::assertEqualsWithDelta(0.06, $this->report()->getDetectionChance(), 1e-9);
+    }
+
+    public function testDetectedProbesAreShotDownAndTheTargetIsWarned(): void
+    {
+        [$spy, $planet] = $this->target();
+        // Cible bien plus avancée : détection certaine
+        $owner = $planet->getOwner();
+        \assert(null !== $owner);
+        $this->research($owner, 'espionage', 8);
+        $probes = $this->probes($spy, 1);
+        $probesId = $probes->getId();
+
+        $this->send($probes, SpacePosition::planet($planet));
+
+        $report = $this->report();
+        self::assertSame(1.0, $report->getDetectionChance());
+        self::assertTrue($report->isDetected());
+        // La garde et les lanceurs de missiles abattent la sonde
+        $this->entityManager()->clear();
+        self::assertNull($this->entityManager()->find(Fleet::class, $probesId));
+        $combat = $this->entityManager()->getRepository(CombatReport::class)->findOneBy([]);
+        self::assertStringContainsString('(sondes repérées)', (string) $combat?->getLocationLabel());
+        self::assertSame(CombatSide::Defender, $combat?->getWinner());
+        // Alerte en direct à la cible
+        $topics = array_map(static fn($update): string => $update->getTopics()[0] . ' ' . $update->getData(), self::getContainer()->get(PublishedUpdates::class)->all());
+        self::assertNotEmpty(array_filter($topics, static fn(string $line): bool => str_starts_with($line, '/empire/' . $owner->getId()) && str_contains($line, 'Sondes d’espionnage de')));
+    }
+
+    public function testDetectedProbesWithNobodyToFightThemCarryOn(): void
+    {
+        [$spy, $planet] = $this->target(guarded: false);
+        $owner = $planet->getOwner();
+        \assert(null !== $owner);
+        $this->research($owner, 'espionage', 8);
+        $probes = $this->probes($spy, 1);
+
+        $this->send($probes, SpacePosition::planet($planet));
+
+        self::assertTrue($this->report()->isDetected());
+        $this->entityManager()->clear();
+        $probes = $this->entityManager()->find(Fleet::class, $probes->getId());
+        self::assertSame(FleetOrderStatus::Done, $probes?->getOrders()[0]?->getStatus());
+        self::assertSame(0, $this->entityManager()->getRepository(CombatReport::class)->count([]));
+    }
+
     public function testOnlyProbesCanSpy(): void
     {
         [$spy, $planet] = $this->target();
@@ -121,7 +177,7 @@ final class EspionageTest extends KernelTestCase
      *
      * @return array{Empire, Planet}
      */
-    private function target(): array
+    private function target(bool $guarded = true): array
     {
         $spy = EmpireFactory::createOne(['foundedAt' => $this->clock->now()]);
         $home = $spy->getHomePlanet()->getSystem();
@@ -135,9 +191,11 @@ final class EspionageTest extends KernelTestCase
         $mine = self::getContainer()->get(BuildingTypeRepository::class)->findOneByCode('metal_mine');
         \assert(null !== $mine);
         $planet->setBuildingLevel($mine, 4);
-        $planet->addShips($this->type('rocket_launcher'), 10);
         $this->research($owner, 'weapons', 2);
-        $this->fleet($owner, $planet, 'Garde', ['cruiser' => 4]);
+        if ($guarded) {
+            $planet->addShips($this->type('rocket_launcher'), 10);
+            $this->fleet($owner, $planet, 'Garde', ['cruiser' => 4]);
+        }
 
         return [$spy, $planet];
     }

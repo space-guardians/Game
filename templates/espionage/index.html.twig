@@ -30,7 +30,7 @@
                         <tr>
                             <td class="sg-mono">{{ report.spiedAt|date('d/m H:i') }}</td>
                             <td class="sg-mono">{{ report.locationLabel }}</td>
-                            <td>{{ report.targetName ?? 'Personne' }}</td>
+                            <td>{{ report.targetName ?? 'Personne' }}{% if report.detected %} <twig:Chip label="Repérées" tone="red"/>{% endif %}</td>
                             <td><a href="{{ path('app_espionage_report', {id: report.id}) }}">Lire le rapport</a></td>
                         </tr>
                     {% endfor %}

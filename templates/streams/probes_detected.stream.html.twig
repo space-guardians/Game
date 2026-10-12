@@ -1,0 +1,10 @@
+{# Sondes ennemies repérées, poussé par Mercure à l'empire espionné #}
+<turbo-stream action="append" target="sg-notifications">
+    <template>
+        <div class="sg-toast" data-controller="toast">
+            <twig:AlertBanner variant="attack">
+                Sondes d’espionnage de {{ spy }} repérées en {{ location }}.
+            </twig:AlertBanner>
+        </div>
+    </template>
+</turbo-stream>

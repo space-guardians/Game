@@ -19,6 +19,18 @@ final class EspionageRulesTest extends TestCase
         self::assertSame(0, $rules->score(1, 1, 0));
     }
 
+    public function testDetectionGrowsWithProbesAndTheTargetsLead(): void
+    {
+        $rules = new EspionageRules();
+
+        self::assertEqualsWithDelta(0.02, $rules->detectionChance(3, 3, 1), 1e-9);
+        self::assertEqualsWithDelta(0.2, $rules->detectionChance(3, 3, 10), 1e-9);
+        // Cible en avance de 3 niveaux : × 8 ; en retard de 2 : ÷ 4
+        self::assertEqualsWithDelta(0.16, $rules->detectionChance(0, 3, 1), 1e-9);
+        self::assertEqualsWithDelta(0.005, $rules->detectionChance(5, 3, 1), 1e-9);
+        self::assertSame(1.0, $rules->detectionChance(0, 10, 5));
+    }
+
     public function testSectionsAreRevealedStepByStep(): void
     {
         $rules = new EspionageRules();

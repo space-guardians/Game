@@ -41,7 +41,22 @@ final class EspionageReport
         private readonly int $score,
         #[ORM\Column(type: Types::JSON)]
         private readonly array $sections,
+        /** Chance de détection courue, et issue du tirage (#53) */
+        #[ORM\Column]
+        private readonly float $detectionChance = 0.0,
+        #[ORM\Column]
+        private readonly bool $detected = false,
     ) {}
+
+    public function getDetectionChance(): float
+    {
+        return $this->detectionChance;
+    }
+
+    public function isDetected(): bool
+    {
+        return $this->detected;
+    }
 
     public function getId(): ?int
     {

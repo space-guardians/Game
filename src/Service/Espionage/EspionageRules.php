@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Service\Espionage;
 
 /**
- * Niveau de détail d'un rapport d'espionnage (§4.9), sans état ni base. Valeurs provisoires avant l'équilibrage (§7) :
- * score = niveau d'espionnage de l'espion − niveau de la cible + (sondes envoyées − 1) ; chaque section se révèle à
- * partir d'un score : ressources toujours, flottes dès 0, défenses dès 1, bâtiments dès 2, recherches dès 3.
+ * Niveau de détail et risque de détection de l'espionnage (§4.9), sans état ni base. Valeurs provisoires avant
+ * l'équilibrage (§7) :
+ * - score = niveau d'espionnage de l'espion − niveau de la cible + (sondes envoyées − 1) ; chaque section se révèle à
+ *   partir d'un score : ressources toujours, flottes dès 0, défenses dès 1, bâtiments dès 2, recherches dès 3 ;
+ * - chance de détection = 2 % par sonde, doublée par niveau d'espionnage d'avance de la cible (divisée par deux par
+ *   niveau de retard), plafonnée à 100 %.
  */
 final readonly class EspionageRules
 {
@@ -31,6 +34,15 @@ final readonly class EspionageRules
         self::BUILDINGS => 2,
         self::RESEARCH => 3,
     ];
+
+    /** Chance de détection par sonde, à niveaux d'espionnage égaux */
+    public const float DETECTION_PER_PROBE = 0.02;
+
+    /** Probabilité (0 à 1) que les sondes soient repérées par la cible */
+    public function detectionChance(int $spyLevel, int $targetLevel, int $probes): float
+    {
+        return min(1.0, max(0, $probes) * self::DETECTION_PER_PROBE * 2 ** ($targetLevel - $spyLevel));
+    }
 
     public function score(int $spyLevel, int $targetLevel, int $probes): int
     {

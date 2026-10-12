@@ -27,6 +27,10 @@
         <p class="sg-entity__meta" id="cible">
             {{ report.targetName ?? 'Aucun empire' }} · {{ report.spiedAt|date('d/m/Y H:i:s') }} · niveau de détail <span class="sg-mono">{{ report.score }}</span>
         </p>
+        <p class="sg-entity__meta" id="detection">
+            Risque de détection : <span class="sg-mono">{{ (report.detectionChance * 100)|round(1) }} %</span> ·
+            {% if report.detected %}<strong>vos sondes ont été repérées</strong>{% else %}vos sondes sont passées inaperçues{% endif %}
+        </p>
         <a href="{{ path('app_espionage_reports') }}">Tous les rapports</a>
     </section>
 

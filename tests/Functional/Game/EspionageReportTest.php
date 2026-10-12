@@ -42,6 +42,8 @@ final class EspionageReportTest extends WebTestCase
         self::assertSelectorTextContains('#fleets', 'Croiseur');
         self::assertSelectorTextContains('#defenses', 'Non révélé : niveau de détail insuffisant.');
         self::assertSelectorTextContains('#research', 'Non révélé');
+        self::assertSelectorTextContains('#detection', 'Risque de détection : 2 %');
+        self::assertSelectorTextContains('#detection', 'vos sondes ont été repérées');
     }
 
     public function testOthersCannotReadIt(): void
@@ -61,7 +63,7 @@ final class EspionageReportTest extends WebTestCase
         $report = new EspionageReport($spy, '1:42:7', 'Cible', new \DateTimeImmutable('2026-10-11 12:00:00'), 0, [
             'resources' => ['metal' => 5000.0, 'crystal' => 3000.0, 'deuterium' => 1000.0],
             'fleets' => [['name' => 'Garde', 'empire' => 'Cible', 'ships' => ['Croiseur' => 4]]],
-        ]);
+        ], 0.02, true);
         $entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $entityManager->persist($report);
         $entityManager->flush();

@@ -4,20 +4,25 @@ declare(strict_types=1);
 
 namespace App\Service\Espionage;
 
+use App\Entity\Battle;
 use App\Entity\Empire;
 use App\Entity\EspionageReport;
 use App\Entity\Fleet;
 use App\Entity\Planet;
 use App\Entity\SpaceLocation;
 use App\Repository\FleetRepository;
+use App\Service\Combat\Allegiances;
+use App\Service\Combat\BattleFight;
 use App\Service\Combat\Battles;
 use App\Service\Economy\PlanetResources;
 use Doctrine\ORM\EntityManagerInterface;
+use Random\Randomizer;
 
 /**
  * Espionnage (§4.9) : des sondes arrivées sur une planète, ou auprès d'une flotte, rédigent un rapport pour leur
  * empire. Le niveau de détail dépend des technologies d'espionnage respectives et du nombre de sondes
- * (EspionageRules). La détection des sondes par la cible relève de #53.
+ * (EspionageRules). La cible peut repérer les sondes : elle est alors prévenue, et ses flottes et défenses sur place
+ * les combattent aussitôt.
  */
 final readonly class Espionage
 {
@@ -26,6 +31,10 @@ final readonly class Espionage
         private FleetRepository $fleets,
         private PlanetResources $resources,
         private EntityManagerInterface $entityManager,
+        private Randomizer $randomizer,
+        private EspionageAlerts $alerts,
+        private Allegiances $allegiances,
+        private BattleFight $fight,
     ) {}
 
     /**
@@ -50,7 +59,11 @@ final readonly class Espionage
                 $target = $fleet->getEmpire();
             }
         }
-        $score = $this->rules->score($this->level($spy), null === $target ? 0 : $this->level($target), $probes->shipCount());
+        $targetLevel = null === $target ? 0 : $this->level($target);
+        $score = $this->rules->score($this->level($spy), $targetLevel, $probes->shipCount());
+        // Risque de détection (#53) : seule une cible peut repérer les sondes
+        $chance = null === $target ? 0.0 : $this->rules->detectionChance($this->level($spy), $targetLevel, $probes->shipCount());
+        $detected = $chance > 0 && $this->randomizer->nextFloat() < $chance;
 
         $sections = [];
         foreach ($this->rules->revealed($score) as $section) {
@@ -60,9 +73,39 @@ final readonly class Espionage
             }
         }
 
-        $this->entityManager->persist(new EspionageReport($spy, mb_substr($locationLabel, 0, 80), $target?->getName(), $at, $score, $sections));
+        $this->entityManager->persist(new EspionageReport($spy, mb_substr($locationLabel, 0, 80), $target?->getName(), $at, $score, $sections, $chance, $detected));
+
+        if ($detected && null !== $target) {
+            $this->alerts->detected($target, $spy, $locationLabel);
+            $this->engage($probes, $location, $locationLabel, $planet, $fleets, $at);
+        }
 
         return null;
+    }
+
+    /**
+     * Sondes repérées : les flottes non alliées présentes et les défenses de la planète (si elle n'est pas alliée)
+     * les combattent aussitôt, avec rapport de combat pour les deux camps.
+     *
+     * @param list<Fleet> $fleets flottes d'autres empires sur place
+     */
+    private function engage(Fleet $probes, SpaceLocation $location, string $locationLabel, ?Planet $planet, array $fleets, \DateTimeImmutable $at): void
+    {
+        $spy = $probes->getEmpire();
+        $defenders = array_values(array_filter($fleets, fn(Fleet $fleet): bool => !$this->allegiances->allied($fleet->getEmpire(), $spy)));
+        $owner = $planet?->getOwner();
+        $defended = null !== $owner && !$this->allegiances->allied($owner, $spy) ? $planet : null;
+        $hasDefenses = false;
+        foreach ($defended?->getShips() ?? [] as $stock) {
+            $hasDefenses = $hasDefenses || ($stock->getType()->isDefense() && $stock->getQuantity() > 0);
+        }
+        if ([] === $defenders && !$hasDefenses) {
+            return;
+        }
+
+        $battle = new Battle($location, mb_substr($locationLabel . ' (sondes repérées)', 0, 60), $at, $at);
+        $this->entityManager->persist($battle);
+        $this->fight->fight($battle, [$probes], $defenders, $at, $defended);
     }
 
     /**
