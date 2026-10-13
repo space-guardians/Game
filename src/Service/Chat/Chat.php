@@ -28,6 +28,8 @@ final readonly class Chat
 
     public const int MAX_LENGTH = 500;
 
+    public const string GROUP_PREFIX = 'group:';
+
     public function __construct(
         private ChatBuffer $buffer,
         private ChatPresence $presence,
@@ -36,6 +38,7 @@ final readonly class Chat
         private RateLimiterFactoryInterface $limiter,
         private ClockInterface $clock,
         private EmpireRepository $empires,
+        private ChatGroups $groups,
     ) {}
 
     /**
@@ -44,7 +47,8 @@ final readonly class Chat
      */
     public function post(Empire $author, string $channel, string $body): ChatMessage
     {
-        $recipient = self::PUBLIC_CHANNEL === $channel ? null : $this->privatePeer($author, $channel);
+        $group = str_starts_with($channel, self::GROUP_PREFIX) ? $this->groups->memberOf($author, substr($channel, \strlen(self::GROUP_PREFIX))) : null;
+        $recipient = self::PUBLIC_CHANNEL === $channel || null !== $group ? null : $this->privatePeer($author, $channel);
         if (null !== $recipient && !$this->presence->isOnline($recipient)) {
             throw new ChatRecipientOffline($recipient);
         }
@@ -64,7 +68,11 @@ final readonly class Chat
         // Écrire, c'est être là
         $this->presence->heartbeat($author);
         $data = json_encode($message, \JSON_THROW_ON_ERROR);
-        if (null === $recipient) {
+        if (null !== $group) {
+            // Groupe : sur le topic personnel de chaque participant (fan-out serveur, §5.7) ; il reste actif
+            $this->groups->touch($group->id);
+            $this->hub->publish(new Update($this->groups->topics($group), $data, private: true));
+        } elseif (null === $recipient) {
             $this->hub->publish(new Update(ChatTopics::PUBLIC, $data, private: true));
         } else {
             // Message privé : sur le topic personnel des deux joueurs (fan-out serveur, §5.7)
@@ -131,7 +139,10 @@ final readonly class Chat
      */
     public function recent(Empire $viewer, string $channel): array
     {
-        if (self::PUBLIC_CHANNEL !== $channel) {
+        if (str_starts_with($channel, self::GROUP_PREFIX)) {
+            // Groupe : seulement pour ses participants
+            $this->groups->memberOf($viewer, substr($channel, \strlen(self::GROUP_PREFIX)));
+        } elseif (self::PUBLIC_CHANNEL !== $channel) {
             // Discussion privée : seulement si le joueur en fait partie
             $this->privatePeer($viewer, $channel);
         }

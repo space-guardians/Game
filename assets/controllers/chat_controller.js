@@ -23,6 +23,9 @@ const state = {
     presence: null,
     // Discussions privées ouvertes (§4.12.1) : canal → interlocuteur, gardées pour la session de l'onglet du navigateur
     privates: new Map(),
+    // Groupes (§4.12.1) : canal → composition, tenue à jour par le serveur
+    groups: new Map(),
+    groupsLoaded: false,
 };
 
 const PRIVATES_KEY = 'sg-chat-privates';
@@ -46,13 +49,31 @@ function restorePrivates() {
 }
 
 export default class extends Controller {
-    static targets = ['toggle', 'panel', 'tabs', 'tab', 'logs', 'log', 'input', 'error', 'total', 'presence', 'peer'];
+    static targets = [
+        'toggle',
+        'panel',
+        'tabs',
+        'tab',
+        'logs',
+        'log',
+        'input',
+        'error',
+        'total',
+        'presence',
+        'peer',
+        'group',
+        'groupMembers',
+        'groupAddForm',
+        'groupAdd',
+        'groupName',
+    ];
     static values = {
         hub: String,
         sendUrl: String,
         historyUrl: String,
         presenceUrl: String,
         privateUrl: String,
+        groupsUrl: String,
         token: String,
         me: Number,
     };
@@ -68,6 +89,8 @@ export default class extends Controller {
                     const data = JSON.parse(event.data);
                     if (data.type === 'message' && this.store(data)) {
                         state.listener?.(data);
+                    } else if (data.type === 'group' || data.type === 'group_left') {
+                        state.groupListener?.(data);
                     }
                 } catch {
                     // Donnée qui n'est pas un message de chat (flux Turbo du jeu) : ignorée
@@ -80,6 +103,12 @@ export default class extends Controller {
         for (const [channel, peer] of state.privates) {
             this.ensureTab(channel, peer);
         }
+        state.groupListener = (event) =>
+            event.type === 'group' ? this.upsertGroup(event.group) : this.dropGroup(event.channel);
+        for (const group of state.groups.values()) {
+            this.upsertGroup(group);
+        }
+        this.loadGroups();
         this.panelTarget.hidden = !state.open;
         this.toggleTarget.setAttribute('aria-expanded', String(state.open));
         for (const log of this.logTargets) {
@@ -129,6 +158,7 @@ export default class extends Controller {
 
     disconnect() {
         state.listener = null;
+        state.groupListener = null;
         state.beat = null;
     }
 
@@ -158,6 +188,7 @@ export default class extends Controller {
             this.markRead(state.active);
         }
         this.loadHistory(state.active);
+        this.renderGroupPanel();
     }
 
     async send(event) {
@@ -215,7 +246,7 @@ export default class extends Controller {
         state.privates.delete(channel);
         state.unread.delete(channel);
         savePrivates();
-        this.tabFor(channel)?.remove();
+        this.exactTab(channel)?.remove();
         this.logFor(channel)?.remove();
         if (state.active === channel) {
             this.select({ currentTarget: this.tabFor('public') });
@@ -229,7 +260,14 @@ export default class extends Controller {
             state.privates.set(channel, peer);
             savePrivates();
         }
-        if (this.tabTargets.some((tab) => tab.dataset.channel === channel)) {
+        this.openTab(channel, peer.name, peer.id, 'closePrivate', 'Fermer la discussion');
+    }
+
+    /** Onglet d'un canal (discussion privée ou groupe), avec son fil */
+    openTab(channel, label, peerId, closeAction, closeTitle) {
+        const existing = this.tabTargets.find((tab) => tab.dataset.channel === channel);
+        if (existing) {
+            existing.querySelector('.sg-chat__tab-label').textContent = label;
             return;
         }
         const id = channel.replace(/[^a-z0-9-]/gi, '-');
@@ -243,9 +281,9 @@ export default class extends Controller {
         tab.dataset.chatTarget = 'tab';
         tab.dataset.channel = channel;
         tab.dataset.action = 'chat#select';
-        const status = document.createElement('span');
-        status.className = 'sg-chat__status';
-        status.dataset.peer = String(peer.id);
+        const name = document.createElement('span');
+        name.className = 'sg-chat__tab-label';
+        name.textContent = label;
         const badge = document.createElement('span');
         badge.className = 'sg-chat__badge';
         badge.dataset.chatBadge = channel;
@@ -253,10 +291,17 @@ export default class extends Controller {
         const close = document.createElement('span');
         close.className = 'sg-chat__close';
         close.textContent = '×';
-        close.title = 'Fermer la discussion';
+        close.title = closeTitle;
         close.dataset.channel = channel;
-        close.dataset.action = 'click->chat#closePrivate';
-        tab.append(status, peer.name, ' ', badge, close);
+        close.dataset.action = `click->chat#${closeAction}`;
+        if (peerId !== null) {
+            // Discussion privée : présence de l'interlocuteur
+            const status = document.createElement('span');
+            status.className = 'sg-chat__status';
+            status.dataset.peer = String(peerId);
+            tab.append(status);
+        }
+        tab.append(name, ' ', badge, close);
         this.tabsTarget.append(tab);
 
         const log = document.createElement('ol');
@@ -270,6 +315,142 @@ export default class extends Controller {
         log.dataset.channel = channel;
         this.logsTarget.append(log);
         this.renderPeers();
+    }
+
+    async loadGroups() {
+        if (state.groupsLoaded) {
+            return;
+        }
+        state.groupsLoaded = true;
+        try {
+            const response = await fetch(this.groupsUrlValue, { headers: { Accept: 'application/json' } });
+            if (response.ok) {
+                for (const group of await response.json()) {
+                    this.upsertGroup(group);
+                }
+            }
+        } catch {
+            state.groupsLoaded = false;
+        }
+    }
+
+    upsertGroup(group) {
+        state.groups.set(group.channel, group);
+        this.openTab(group.channel, group.name, null, 'leaveGroup', 'Quitter le groupe');
+        this.renderGroupPanel();
+    }
+
+    dropGroup(channel) {
+        state.groups.delete(channel);
+        state.unread.delete(channel);
+        state.messages.delete(channel);
+        this.exactTab(channel)?.remove();
+        this.logFor(channel)?.remove();
+        if (state.active === channel) {
+            this.select({ currentTarget: this.tabFor('public') });
+        }
+        this.renderBadges();
+        this.renderGroupPanel();
+    }
+
+    async createGroup(event) {
+        event.preventDefault();
+        const name = this.groupNameTarget.value.trim();
+        if (name === '') {
+            return;
+        }
+        const data = await this.manage(this.groupsUrlValue, { name });
+        if (data?.group) {
+            this.groupNameTarget.value = '';
+            this.upsertGroup(data.group);
+            this.select({ currentTarget: this.tabFor(data.group.channel) });
+        }
+    }
+
+    async addToGroup(event) {
+        event.preventDefault();
+        const group = state.groups.get(state.active);
+        const name = this.groupAddTarget.value.trim();
+        if (!group || name === '') {
+            return;
+        }
+        const data = await this.manage(`${this.groupsUrlValue}/${group.id}/ajouter`, { name });
+        if (data?.group) {
+            this.groupAddTarget.value = '';
+            this.upsertGroup(data.group);
+        }
+    }
+
+    async removeFromGroup(event) {
+        const group = state.groups.get(state.active);
+        if (group) {
+            const data = await this.manage(`${this.groupsUrlValue}/${group.id}/retirer`, {
+                empire: Number(event.currentTarget.dataset.empire),
+            });
+            if (data?.group) {
+                this.upsertGroup(data.group);
+            }
+        }
+    }
+
+    async leaveGroup(event) {
+        event.stopPropagation();
+        const channel = event.currentTarget.dataset.channel ?? state.active;
+        const group = state.groups.get(channel);
+        if (group && (await this.manage(`${this.groupsUrlValue}/${group.id}/quitter`, {})) !== null) {
+            this.dropGroup(channel);
+        }
+    }
+
+    /** Requête de gestion d'un groupe ; renvoie la réponse, ou null en cas de refus (affiché) */
+    async manage(url, payload) {
+        this.errorTarget.textContent = '';
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.tokenValue },
+                body: JSON.stringify(payload),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                this.showError(data, 'Action impossible.');
+                return null;
+            }
+            return data;
+        } catch {
+            this.errorTarget.textContent = 'Connexion perdue : réessayez.';
+            return null;
+        }
+    }
+
+    /** Participants du groupe affiché ; ajout et retrait pour son créateur */
+    renderGroupPanel() {
+        if (!this.hasGroupTarget) {
+            return;
+        }
+        const group = state.groups.get(state.active);
+        this.groupTarget.hidden = !group;
+        if (!group) {
+            return;
+        }
+        const owner = group.ownerId === this.meValue;
+        this.groupAddFormTarget.hidden = !owner;
+        this.groupMembersTarget.replaceChildren('Participants : ');
+        group.members.forEach((member, index) => {
+            const name = document.createElement('span');
+            name.textContent = member.id === group.ownerId ? `${member.name} (créateur)` : member.name;
+            this.groupMembersTarget.append(index > 0 ? ', ' : '', name);
+            if (owner && member.id !== this.meValue) {
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'sg-chat__close';
+                remove.textContent = '×';
+                remove.title = `Retirer ${member.name}`;
+                remove.dataset.empire = String(member.id);
+                remove.dataset.action = 'chat#removeFromGroup';
+                this.groupMembersTarget.append(remove);
+            }
+        });
     }
 
     showError(data, fallback) {
@@ -405,6 +586,10 @@ export default class extends Controller {
         }
         this.totalTarget.textContent = String(total);
         this.totalTarget.hidden = total === 0;
+    }
+
+    exactTab(channel) {
+        return this.tabTargets.find((tab) => tab.dataset.channel === channel);
     }
 
     tabFor(channel) {

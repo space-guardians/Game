@@ -8,6 +8,7 @@ use App\Factory\EmpireFactory;
 use App\Model\Chat\ChatTopics;
 use App\Service\Chat\Chat;
 use App\Service\Chat\ChatBuffer;
+use App\Service\Chat\ChatGroups;
 use App\Service\Chat\ChatPresence;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -142,6 +143,46 @@ final class ChatTest extends WebTestCase
         $this->post(['channel' => (string) $chat['channel'], 'body' => 'Salut Bob'], $token);
         self::assertResponseStatusCodeSame(201);
         self::getContainer()->get(ChatBuffer::class)->clear((string) $chat['channel']);
+    }
+
+    public function testGroupIsCreatedFilledListedAndLeft(): void
+    {
+        $bob = EmpireFactory::createOne(['name' => 'Bob']);
+        $ana = EmpireFactory::createOne(['name' => 'Ana']);
+        self::getContainer()->get(ChatPresence::class)->heartbeat($bob);
+        $this->client->loginUser($ana->getUser());
+        $crawler = $this->client->request('GET', '/');
+        $token = (string) $crawler->filter('#sg-chat')->attr('data-chat-token-value');
+        self::assertSame('/chat/groupes', $crawler->filter('#sg-chat')->attr('data-chat-groups-url-value'));
+
+        $group = $this->manage('/chat/groupes', ['name' => 'Escadre'], $token)['group'];
+        self::assertSame(['Escadre', $ana->getId()], [$group['name'], $group['ownerId']]);
+        $group = $this->manage(\sprintf('/chat/groupes/%s/ajouter', $group['id']), ['name' => 'Bob'], $token)['group'];
+        self::assertSame(['Ana', 'Bob'], array_column($group['members'], 'name'));
+
+        $this->client->request('GET', '/chat/groupes');
+        self::assertSame([$group['channel']], array_column(json_decode((string) $this->client->getResponse()->getContent(), true), 'channel'));
+        $this->post(['channel' => $group['channel'], 'body' => 'À l’attaque'], $token);
+        self::assertResponseStatusCodeSame(201);
+
+        self::assertSame(['Bob'], array_column($this->manage(\sprintf('/chat/groupes/%s/quitter', $group['id']), [], $token)['group']['members'], 'name'));
+        $this->client->request('GET', '/chat/groupes');
+        self::assertSame('[]', $this->client->getResponse()->getContent());
+        self::getContainer()->get(ChatGroups::class)->delete($group['id']);
+        self::getContainer()->get(ChatBuffer::class)->clear($group['channel']);
+    }
+
+    /**
+     * @param array<string, string> $payload
+     *
+     * @return array<mixed>
+     */
+    private function manage(string $url, array $payload, string $token): array
+    {
+        $this->client->request('POST', $url, server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $token], content: json_encode($payload, \JSON_THROW_ON_ERROR));
+        self::assertResponseIsSuccessful();
+
+        return json_decode((string) $this->client->getResponse()->getContent(), true);
     }
 
     public function testHeartbeatRequiresTheCsrfToken(): void
