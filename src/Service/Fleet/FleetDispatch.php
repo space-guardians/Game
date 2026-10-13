@@ -14,6 +14,7 @@ use App\Enum\Fleet\FleetAction;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
+use App\Service\Alliance\TeleportGates;
 use App\Service\Combat\Allegiances;
 use App\Service\Economy\PlanetResources;
 use App\Service\Scheduling\ScheduledEventResolver;
@@ -40,6 +41,7 @@ final readonly class FleetDispatch
         private ClockInterface $clock,
         private ColonyLimit $colonyLimit,
         private Allegiances $allegiances,
+        private TeleportGates $teleports,
     ) {}
 
     /**
@@ -73,6 +75,14 @@ final readonly class FleetDispatch
             }
             if (FleetAction::Refuel === $step->action) {
                 $this->checkRefuelTarget($fleet, $step, $rank + 1);
+            }
+            // Porte de téléportation de son alliance, reliée et en service (vérifié à nouveau à l'arrivée)
+            $gate = FleetAction::Teleport === $step->action && null !== $step->destination->planetId
+                ? $this->entityManager->find(Planet::class, $step->destination->planetId)
+                : null;
+            $refusal = null === $gate ? null : $this->teleports->refusal($gate, $fleet->getEmpire());
+            if (null !== $refusal) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : %s', $rank + 1, $refusal));
             }
             // Aucune action agressive entre alliés (§4.10.1) : pas d'attaque sur la planète d'un allié
             $target = FleetAction::JoinBattle === $step->action && null !== $step->destination->planetId

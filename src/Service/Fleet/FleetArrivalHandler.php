@@ -15,6 +15,7 @@ use App\Enum\Combat\InterceptionOutcome;
 use App\Enum\Fleet\FleetAction;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
+use App\Service\Alliance\TeleportGates;
 use App\Service\Combat\Allegiances;
 use App\Service\Combat\DebrisFields;
 use App\Service\Combat\Interceptions;
@@ -52,6 +53,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private DebrisFields $debris,
         private Espionage $espionage,
         private Allegiances $allegiances,
+        private TeleportGates $teleports,
     ) {}
 
     public static function type(): string
@@ -73,6 +75,11 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
 
         if ($movement->isStranding()) {
             $this->strand($movement);
+
+            return;
+        }
+        if ($movement->isTeleport()) {
+            $this->leaveGate($movement);
 
             return;
         }
@@ -114,8 +121,10 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         }
         if ($hold) {
             // Décision d'exploration ou bataille attendue : la flotte reste sur place, ses ordres restants reprendront
-            // ensuite
-            $fleet->station();
+            // ensuite ; entrée dans une porte de téléportation : elle est déjà repartie, en transit
+            if (FleetAction::Teleport !== $order->getAction()) {
+                $fleet->station();
+            }
             $this->entityManager->flush();
 
             return;
@@ -136,6 +145,25 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         }
 
         return $this->interceptions->enter($fleet, $origin, $destination, $arrival);
+    }
+
+    /**
+     * Sortie d'une porte de téléportation (§4.10) : la flotte apparaît sur la planète de la porte reliée, sans
+     * interception (elle n'a pas franchi la lisière du système), l'ordre est accompli et les suivants reprennent.
+     */
+    private function leaveGate(FleetMovement $movement): void
+    {
+        $fleet = $movement->getFleet();
+        $order = $movement->getOrder();
+        $arrival = $movement->getArrivesAt();
+        $speedPercent = $movement->getSpeedPercent();
+        $exit = $movement->getTeleportExit();
+        \assert(null !== $exit);
+        $this->entityManager->remove($movement);
+        $fleet->arriveAt(SpaceLocation::of(SpacePosition::planet($exit)), $exit);
+        $order->complete($arrival);
+        $this->entityManager->flush();
+        $this->movements->launchNext($fleet, $arrival, $speedPercent);
     }
 
     /** Panne de carburant : la flotte s'immobilise là où son réservoir s'est vidé ; ses ordres restants attendent */
@@ -204,6 +232,16 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 $battle = $this->battles->findScheduledFor($fleet);
                 if (null === $battle || $battle->getResolvesAt() < $arrival) {
                     $order->fail('La bataille a déjà eu lieu.', $arrival);
+
+                    return false;
+                }
+
+                return true;
+            case FleetAction::Teleport:
+                // Entrée par la porte : la flotte repart aussitôt en transit, l'ordre s'accomplit à la sortie
+                $failure = null === $planet ? 'Plus de planète à cette position.' : $this->teleports->enter($fleet, $order, $planet, $arrival, $speedPercent);
+                if (null !== $failure) {
+                    $order->fail($failure, $arrival);
 
                     return false;
                 }
