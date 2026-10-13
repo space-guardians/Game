@@ -25,6 +25,11 @@ final readonly class Resources
         return new self();
     }
 
+    public function isZero(): bool
+    {
+        return 0.0 === $this->metal && 0.0 === $this->crystal && 0.0 === $this->deuterium;
+    }
+
     public function plus(self $other): self
     {
         return new self($this->metal + $other->metal, $this->crystal + $other->crystal, $this->deuterium + $other->deuterium);
