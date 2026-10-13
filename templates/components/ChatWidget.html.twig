@@ -1,0 +1,31 @@
+{# Chat en ligne (§4.12.1, §5.7) : widget à onglets, permanent entre les navigations Turbo, piloté par le contrôleur Stimulus « chat ». L'appel à mercure() pose le cookie d'abonnement : topics du chat et topics du jeu. #}
+{% set topics = chat_topics() %}
+<aside id="sg-chat" class="sg-chat" data-turbo-permanent aria-label="Chat en ligne"
+    data-controller="chat"
+    data-chat-hub-value="{{ mercure(topics, {subscribe: topics|merge(player_topics())}) }}"
+    data-chat-send-url-value="{{ path('app_chat_send') }}"
+    data-chat-history-url-value="{{ path('app_chat_history') }}"
+    data-chat-token-value="{{ csrf_token('chat') }}"
+    data-chat-me-value="{{ chat_author_id() }}">
+    <button type="button" class="sg-chat__toggle sg-cut-8" data-action="chat#toggle" data-chat-target="toggle" aria-expanded="false" aria-controls="sg-chat-panel">
+        <twig:Icon name="mail" size="16"/>
+        Chat
+        <span class="sg-chat__badge" data-chat-target="total" hidden></span>
+    </button>
+    <div class="sg-chat__panel sg-panel sg-cut-14" id="sg-chat-panel" data-chat-target="panel" hidden>
+        <div class="sg-chat__tabs" role="tablist" aria-label="Canaux">
+            <button type="button" role="tab" class="sg-chat__tab" id="sg-chat-tab-public" aria-selected="true" aria-controls="sg-chat-log-public"
+                data-chat-target="tab" data-channel="public" data-action="chat#select">
+                Public
+                <span class="sg-chat__badge" data-chat-badge="public" hidden></span>
+            </button>
+        </div>
+        <ol class="sg-chat__log" id="sg-chat-log-public" role="tabpanel" aria-labelledby="sg-chat-tab-public" aria-live="polite"
+            data-chat-target="log" data-channel="public"></ol>
+        <form class="sg-chat__form" data-action="chat#send">
+            <input class="sg-input sg-chat__input" type="text" name="body" maxlength="500" autocomplete="off" aria-label="Message" placeholder="Écrire…" data-chat-target="input">
+            <twig:Btn type="submit" label="Envoyer" variant="primary" size="sm"/>
+        </form>
+        <p class="sg-chat__error" role="status" data-chat-target="error"></p>
+    </div>
+</aside>

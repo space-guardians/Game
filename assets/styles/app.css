@@ -1654,3 +1654,110 @@ a:hover {
     color: var(--sg-gold);
     background: var(--sg-panel-raised);
 }
+
+/* Chat en ligne (§4.12.1) : widget permanent en bas à droite, onglets par canal */
+.sg-chat {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 19;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.sg-chat__toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border: 1px solid var(--sg-line-strong);
+    color: var(--sg-text);
+    background: var(--sg-panel-raised);
+    font-family: var(--sg-font-display);
+    cursor: pointer;
+}
+
+.sg-chat__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(380px, calc(100vw - 32px));
+    height: min(460px, calc(100vh - 160px));
+}
+
+.sg-chat__panel[hidden] {
+    display: none;
+}
+
+.sg-chat__tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+}
+
+.sg-chat__tab {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border: 1px solid var(--sg-line);
+    color: var(--sg-text-2);
+    background: transparent;
+    cursor: pointer;
+}
+
+.sg-chat__tab[aria-selected="true"] {
+    color: var(--sg-cyan);
+    border-color: var(--sg-cyan);
+}
+
+.sg-chat__badge {
+    min-width: 18px;
+    padding: 0 5px;
+    color: var(--sg-gold-ink);
+    background: var(--sg-gold);
+    font-family: var(--sg-font-mono);
+    font-size: 11px;
+    text-align: center;
+}
+
+.sg-chat__log {
+    flex: 1;
+    margin: 0;
+    padding: 0;
+    overflow-y: auto;
+    list-style: none;
+}
+
+.sg-chat__line {
+    padding: 2px 0;
+    color: var(--sg-text-2);
+    overflow-wrap: anywhere;
+}
+
+.sg-chat__line--mine strong {
+    color: var(--sg-gold);
+}
+
+.sg-chat__time {
+    color: var(--sg-text-4);
+    font-size: 11px;
+}
+
+.sg-chat__form {
+    display: flex;
+    gap: 8px;
+}
+
+.sg-chat__input {
+    flex: 1;
+}
+
+.sg-chat__error {
+    min-height: 1em;
+    margin: 0;
+    color: var(--sg-danger);
+    font-size: 12px;
+}

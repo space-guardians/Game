@@ -20,6 +20,9 @@ parameters:
         crystal: { 1: 0.4, 2: 0.3, 3: 0.2 }
     app.economy.universe_speed: 1.0
 
+    # Chat en ligne (§5.7) : préfixe des clés Redis du tampon des canaux
+    app.chat.buffer_prefix: 'chat:buffer:'
+
 services:
     # default configuration for services in *this* file
     _defaults:
@@ -44,7 +47,16 @@ services:
     # Aléatoire non reproductible (graines de génération…) : moteur sûr par défaut
     Random\Randomizer: ~
 
+    # Connexion Redis de l'état éphémère du chat (§5.7)
+    app.redis:
+        class: Redis
+        factory: ['Symfony\Component\Cache\Adapter\RedisAdapter', 'createConnection']
+        arguments: ['%env(REDIS_URL)%']
+
 when@test:
+    parameters:
+        app.chat.buffer_prefix: 'test:chat:buffer:'
+
     services:
         _defaults:
             autowire: true
