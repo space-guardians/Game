@@ -81,3 +81,16 @@
 .sg-admin-indicator-label {
     color: var(--text-muted);
 }
+
+/* Suivi de la progression (fiche joueur) : graphiques en grille */
+.sg-admin-progress {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+    gap: 16px;
+}
+
+.sg-admin-progress__chart {
+    margin: 0;
+    padding: 12px 16px;
+    border: 1px solid var(--border-color);
+}
