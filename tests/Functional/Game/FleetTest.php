@@ -7,9 +7,11 @@ namespace App\Tests\Functional\Game;
 use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\GlobalPosition;
+use App\Entity\Merchant;
 use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
+use App\Entity\StarSystem;
 use App\Factory\EmpireFactory;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\SpacePosition;
@@ -174,6 +176,44 @@ final class FleetTest extends WebTestCase
         self::assertSelectorTextContains('#flottes .sg-fleet__orders', 'Stationner');
         self::assertSelectorTextContains('#flottes .sg-fleet__orders', 'En cours');
         self::assertSelectorNotExists('#flottes form[action$="/dissoudre"]');
+    }
+
+    public function testMarketDeliveryTargetsTheMerchantStationOfTheSystem(): void
+    {
+        $empire = $this->login();
+        $home = $empire->getHomePlanet();
+        $fleet = new Fleet($empire, 'Convoi', $home, new \DateTimeImmutable());
+        $fleet->addShips($this->ship('small_cargo'), 2);
+        $fleet->refuel(1000);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($fleet);
+        $address = $home->getAddress();
+        $form = fn(): array => [
+            'steps[0][galaxy]' => (string) $address->galaxy,
+            'steps[0][system]' => (string) $address->system,
+            'steps[0][position]' => '',
+            'steps[0][action]' => 'market_deliver',
+            'steps[2][action]' => '',
+            'speed' => '100',
+        ];
+
+        // Sans marchand dans le système : refusé
+        $entityManager->flush();
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+        self::assertSelectorTextContains('#aide-marche', 'Livraison au marchand');
+        $this->client->submit($crawler->selectButton('Envoyer la flotte')->form($form()));
+        self::assertSelectorTextContains('body', 'Ordre 1 : aucun marchand dans ce système.');
+
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist(new Merchant($entityManager->getReference(StarSystem::class, $home->getSystem()->getId()), 'Comptoir du foyer', 3.0, -2.0));
+        $entityManager->flush();
+        $crawler = $this->client->request('GET', \sprintf('/flotte/%d/envoyer', $fleet->getId()));
+        $this->client->submit($crawler->selectButton('Envoyer la flotte')->form($form()));
+
+        self::assertResponseRedirects('/flotte');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'en route vers Comptoir du foyer');
+        self::assertSelectorTextContains('#flottes .sg-fleet__orders', 'Livraison au marchand');
     }
 
     public function testAttackSchedulesABattleShownOnTheFleet(): void

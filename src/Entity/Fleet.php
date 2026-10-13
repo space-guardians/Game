@@ -260,6 +260,17 @@ final class Fleet implements \Stringable
         [$this->cargoMetal, $this->cargoCrystal, $this->cargoDeuterium] = [$cargo->metal, $cargo->crystal, $cargo->deuterium];
     }
 
+    /**
+     * Retire une partie de la cargaison (livraison à un marchand).
+     *
+     * @throws \InvalidArgumentException si la cargaison ne la contient pas
+     */
+    public function unloadPart(Resources $resources): void
+    {
+        $cargo = $this->getCargo()->minus($resources);
+        [$this->cargoMetal, $this->cargoCrystal, $this->cargoDeuterium] = [$cargo->metal, $cargo->crystal, $cargo->deuterium];
+    }
+
     /** Décharge toute la cargaison */
     public function unload(): Resources
     {

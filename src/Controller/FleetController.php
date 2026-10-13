@@ -334,6 +334,16 @@ final class FleetController extends AbstractController
 
                 continue;
             }
+            // Marché : la station du marchand du système saisi (§4.15)
+            if ($action->targetsMerchant()) {
+                $merchant = $this->destinations->merchant((int) ($row['galaxy'] ?? 0), (int) ($row['system'] ?? 0));
+                if (null === $merchant) {
+                    throw new InvalidFleetMission(\sprintf('Ordre %d : aucun marchand dans ce système.', $index + 1));
+                }
+                $steps[] = new MissionStep($merchant['position'], $action, $merchant['label']);
+
+                continue;
+            }
             $orbit = trim((string) ($row['position'] ?? ''));
             $destination = $this->destinations->resolve((int) ($row['galaxy'] ?? 0), (int) ($row['system'] ?? 0), '' === $orbit ? null : (int) $orbit);
             if (null === $destination) {

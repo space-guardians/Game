@@ -27,6 +27,11 @@
             le système entier. Les ordres s’enchaînent ; il n’y a pas de retour automatique : le dernier ordre propose de
             stationner au point de départ, à modifier ou retirer.
         </p>
+        <p class="sg-field__help" id="aide-marche">
+            Marché : « Livraison au marchand » et « Retrait chez le marchand » visent la station du marchand du système saisi
+            (sans position). La livraison règle vos transactions en cours chez lui que la cargaison couvre ; le retrait
+            charge ce qu’il garde pour vous.
+        </p>
         {% if colony_slots %}
             <p class="sg-field__help" id="emplacements-colonies">
                 Colonies : <span class="sg-mono">{{ colony_slots.colonies }} / {{ colony_slots.max }}</span>
