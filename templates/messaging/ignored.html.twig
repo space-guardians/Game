@@ -1,0 +1,36 @@
+{# Joueurs ignorés (§4.12.4) : ni leurs messages de chat ni ceux de la messagerie, et ils ne peuvent plus vous ajouter à un groupe ou à une conversation #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Joueurs ignorés — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }} · Messagerie{% endblock %}
+{% block heading %}Joueurs ignorés{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="ignored-title">
+        <h2 id="ignored-title" class="sg-section-title">Liste des joueurs ignorés</h2>
+        <p class="sg-entity__meta">Vous ne recevez plus les messages d’un joueur ignoré, ni dans le chat (ses messages y sont masqués) ni dans la messagerie, et il ne peut plus vous ajouter à un groupe ou à une conversation.</p>
+        <form method="post" action="{{ path('app_messaging_ignore') }}" class="sg-messaging__add">
+            <input type="hidden" name="_token" value="{{ csrf_token('messaging-ignore') }}">
+            <label class="sg-field__label" for="ignorer">Ignorer un joueur</label>
+            <input class="sg-input" type="text" id="ignorer" name="name" maxlength="30" required placeholder="Nom de l’empire">
+            <twig:Btn type="submit" label="Ignorer" variant="ghost" size="sm"/>
+        </form>
+        {% if ignores is empty %}
+            <p class="sg-empty">Vous n’ignorez aucun joueur.</p>
+        {% else %}
+            <ul class="sg-conversations" id="ignored-players">
+                {% for ignore in ignores %}
+                    <li class="sg-conversation">
+                        <span class="sg-conversation__title">{{ ignore.ignored.name }}</span>
+                        <span class="sg-entity__meta sg-mono">depuis le {{ ignore.createdAt|date('d/m/Y') }}</span>
+                        <form method="post" action="{{ path('app_messaging_unignore', {id: ignore.ignored.id}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token('messaging-ignore') }}">
+                            <twig:Btn type="submit" label="Ne plus ignorer" variant="ghost" size="sm"/>
+                        </form>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+        <a href="{{ path('app_messaging') }}">Retour aux conversations</a>
+    </section>
+{% endblock %}

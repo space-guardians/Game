@@ -10,6 +10,7 @@ use App\Exception\Chat\ChatRefused;
 use App\Model\Chat\ChatGroup;
 use App\Model\Chat\ChatTopics;
 use App\Repository\EmpireRepository;
+use App\Service\Messaging\IgnoredPlayers;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mercure\HubInterface;
 use Symfony\Component\Mercure\Update;
@@ -36,6 +37,7 @@ final readonly class ChatGroups
         private EmpireRepository $empires,
         private ChatPresence $presence,
         private HubInterface $hub,
+        private IgnoredPlayers $ignored,
     ) {}
 
     /** @throws ChatRefused */
@@ -69,6 +71,10 @@ final readonly class ChatGroups
         }
         if (\count($group->members) >= self::MAX_MEMBERS) {
             throw new ChatRefused(\sprintf('Un groupe compte au plus %d participants.', self::MAX_MEMBERS));
+        }
+        if ($this->ignored->blocks($empire, $by)) {
+            // Un joueur ignoré ne peut ajouter celui qui l'ignore (§4.12.4)
+            throw new ChatRefused(\sprintf('%s n’accepte pas vos invitations.', $empire->getName()));
         }
         if (!$this->presence->isOnline($empire)) {
             throw new ChatRecipientOffline($empire);
@@ -160,14 +166,17 @@ final readonly class ChatGroups
     }
 
     /**
-     * Topics personnels des participants (fan-out des messages du groupe).
+     * Topics personnels des participants (fan-out des messages du groupe), hormis ceux des empires exclus.
+     *
+     * @param list<int> $except
      *
      * @return list<string>
      */
-    public function topics(ChatGroup $group): array
+    public function topics(ChatGroup $group, array $except = []): array
     {
         $topics = [];
-        foreach ($this->empires->findBy(['id' => array_keys($group->members)]) as $member) {
+        $ids = array_values(array_diff(array_keys($group->members), $except));
+        foreach ([] === $ids ? [] : $this->empires->findBy(['id' => $ids]) as $member) {
             $topics[] = ChatTopics::user($member->getUser());
         }
 

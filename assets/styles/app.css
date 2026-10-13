@@ -1768,6 +1768,11 @@ a:hover {
     font-size: 12px;
 }
 
+.sg-chat__link {
+    align-self: flex-start;
+    font-size: 12px;
+}
+
 .sg-chat__status {
     display: inline-block;
     width: 7px;

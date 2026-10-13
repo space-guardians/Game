@@ -9,7 +9,10 @@
     <section class="sg-panel sg-cut-14" aria-labelledby="conversations-title">
         <div class="sg-messaging__header">
             <h2 id="conversations-title" class="sg-section-title">Conversations</h2>
-            <twig:Btn label="Nouveau message" href="{{ path('app_messaging_new') }}" variant="primary" size="sm"/>
+            <div class="sg-messaging__actions">
+                <twig:Btn label="Joueurs ignorés" href="{{ path('app_messaging_ignored') }}" variant="ghost" size="sm"/>
+                <twig:Btn label="Nouveau message" href="{{ path('app_messaging_new') }}" variant="primary" size="sm"/>
+            </div>
         </div>
         <turbo-frame id="conversations">
             <nav class="sg-messaging__tabs" aria-label="Dossiers">

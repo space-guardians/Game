@@ -9,7 +9,8 @@
     data-chat-private-url-value="{{ path('app_chat_private') }}"
     data-chat-groups-url-value="{{ path('app_chat_groups') }}"
     data-chat-token-value="{{ csrf_token('chat') }}"
-    data-chat-me-value="{{ chat_author_id() }}">
+    data-chat-me-value="{{ chat_author_id() }}"
+    data-chat-ignored-value="{{ chat_ignored_ids()|json_encode }}">
     <button type="button" class="sg-chat__toggle sg-cut-8" data-action="chat#toggle" data-chat-target="toggle" aria-expanded="false" aria-controls="sg-chat-panel">
         <twig:Icon name="mail" size="16"/>
         Chat
@@ -48,5 +49,6 @@
             <input class="sg-input sg-chat__input" type="text" maxlength="40" autocomplete="off" aria-label="Nom du nouveau groupe" placeholder="Nouveau groupe…" data-chat-target="groupName">
             <twig:Btn type="submit" label="Créer" variant="ghost" size="sm"/>
         </form>
+        <a class="sg-chat__link" href="{{ path('app_messaging_ignored') }}">Joueurs ignorés</a>
     </div>
 </aside>

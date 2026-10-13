@@ -26,6 +26,15 @@
                 <input type="hidden" name="_token" value="{{ csrf_token('messaging-clear-' ~ conversation.id) }}">
                 <twig:Btn type="submit" label="Supprimer de mon côté" variant="ghost" size="sm"/>
             </form>
+            {% if not conversation.system and not conversation.group %}
+                {% for participant in conversation.participants|filter(participant => participant.empire is not same as(empire) and participant.empire.id not in ignored) %}
+                    <form method="post" action="{{ path('app_messaging_ignore') }}">
+                        <input type="hidden" name="_token" value="{{ csrf_token('messaging-ignore') }}">
+                        <input type="hidden" name="name" value="{{ participant.empire.name }}">
+                        <twig:Btn type="submit" label="Ignorer {{ participant.empire.name }}" variant="ghost" size="sm"/>
+                    </form>
+                {% endfor %}
+            {% endif %}
             {% if conversation.group and place.active %}
                 <form method="post" action="{{ path('app_messaging_leave', {id: conversation.id}) }}">
                     <input type="hidden" name="_token" value="{{ csrf_token('messaging-leave-' ~ conversation.id) }}">

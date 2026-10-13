@@ -150,6 +150,36 @@ final class MessagingTest extends WebTestCase
         self::assertSame('/combats/42', $crawler->selectLink('Voir le détail')->attr('href'));
     }
 
+    public function testPlayersAreIgnoredFromAConversationAndListedOnTheirScreen(): void
+    {
+        [$ana, $bob] = $this->empires('Ana', 'Bob');
+        $conversation = self::getContainer()->get(Messaging::class)->start($bob, ['Ana'], null, 'Message de Bob');
+        $this->client->loginUser($ana->getUser());
+
+        $this->client->request('GET', '/messagerie/' . $conversation->getId());
+        self::assertSelectorTextContains('#conversation-' . $conversation->getId() . '-messages', 'Message de Bob');
+        $this->client->submitForm('Ignorer Bob');
+        self::assertResponseRedirects('/messagerie/ignores');
+        $crawler = $this->client->followRedirect();
+        self::assertSelectorTextContains('body', 'Vous ignorez désormais Bob.');
+        self::assertSelectorTextContains('#ignored-players', 'Bob');
+        // Ses messages disparaissent de la conversation, et le widget de chat connaît la liste
+        self::assertSame('[' . $bob->getId() . ']', $crawler->filter('#sg-chat')->attr('data-chat-ignored-value'));
+        $this->client->request('GET', '/messagerie/' . $conversation->getId());
+        self::assertSelectorTextNotContains('#conversation-' . $conversation->getId() . '-messages', 'Message de Bob');
+        self::assertSelectorNotExists('button:contains("Ignorer Bob")');
+
+        $this->client->request('GET', '/messagerie/ignores');
+        $this->client->submitForm('Ne plus ignorer');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('body', 'Vous n’ignorez plus Bob.');
+        self::assertSelectorNotExists('#ignored-players');
+
+        $this->client->submitForm('Ignorer', ['name' => 'Ana']);
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('body', 'Vous ne pouvez pas vous ignorer vous-même.');
+    }
+
     /** @return list<Empire> */
     private function empires(string ...$names): array
     {

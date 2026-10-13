@@ -28,6 +28,8 @@ const state = {
     groupsLoaded: false,
     // Alliance (§4.10) : canal, tag et membres avec leur présence, transmis à chaque battement
     alliance: null,
+    // Joueurs ignorés (§4.12.4) : leurs messages ne sont ni gardés ni affichés ; null tant que non initialisé
+    ignored: null,
 };
 
 const PRIVATES_KEY = 'sg-chat-privates';
@@ -78,10 +80,15 @@ export default class extends Controller {
         groupsUrl: String,
         token: String,
         me: Number,
+        ignored: Array,
     };
 
     connect() {
         state.listener = (message) => this.receive(message);
+        state.ignoredListener = (ids) => this.updateIgnored(ids);
+        if (state.ignored === null) {
+            state.ignored = new Set(this.ignoredValue);
+        }
         if (!state.source || state.hub !== this.hubValue) {
             state.source?.close();
             state.hub = this.hubValue;
@@ -89,8 +96,12 @@ export default class extends Controller {
             state.source.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    if (data.type === 'message' && this.store(data)) {
-                        state.listener?.(data);
+                    if (data.type === 'message') {
+                        if (!state.ignored?.has(data.authorId) && this.store(data)) {
+                            state.listener?.(data);
+                        }
+                    } else if (data.type === 'ignored') {
+                        state.ignoredListener?.(data.ids);
                     } else if (data.type === 'group' || data.type === 'group_left') {
                         state.groupListener?.(data);
                     }
@@ -510,6 +521,20 @@ export default class extends Controller {
             const online = state.online.has(Number(status.dataset.peer));
             status.classList.toggle('is-online', online);
             status.title = online ? 'En ligne' : 'Hors ligne';
+        }
+    }
+
+    // Liste des joueurs ignorés modifiée (§4.12.4) : leurs messages déjà reçus disparaissent
+    updateIgnored(ids) {
+        state.ignored = new Set(ids);
+        for (const [channel, list] of state.messages) {
+            state.messages.set(
+                channel,
+                list.filter((message) => !state.ignored.has(message.authorId)),
+            );
+        }
+        for (const log of this.logTargets) {
+            this.renderLog(log.dataset.channel);
         }
     }
 
