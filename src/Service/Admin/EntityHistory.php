@@ -33,6 +33,7 @@ use App\Entity\ShipClass;
 use App\Entity\ShipType;
 use App\Entity\ShipyardOrder;
 use App\Entity\Technology;
+use App\Entity\TeleportLink;
 use App\Entity\User;
 use App\Enum\Admin\AuditOrigin;
 use App\Model\Admin\AuditedEntity;
@@ -66,6 +67,7 @@ final readonly class EntityHistory
         AlliancePact::class => 'Pactes de non-agression',
         AlliancePlanet::class => 'Planètes d’alliance',
         AllianceBuilding::class => 'Bâtiments d’alliance',
+        TeleportLink::class => 'Liaisons des portes de téléportation',
         BuildingQueueItem::class => 'Constructions en cours',
         BuildingType::class => 'Types de bâtiments',
         ClassMatchup::class => 'Matrice des classes',

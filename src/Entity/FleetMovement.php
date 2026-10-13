@@ -10,7 +10,8 @@ use Doctrine\ORM\Mapping as ORM;
 
 /**
  * Déplacement en cours d'une flotte vers la destination de son ordre en cours (§4.6) : départ, arrivée planifiée
- * (événement de jeu), pourcentage de vitesse, et panne de carburant éventuelle en chemin. Supprimé à l'arrivée.
+ * (événement de jeu), pourcentage de vitesse, et panne de carburant éventuelle en chemin — ou transit par une porte de
+ * téléportation. Supprimé à l'arrivée.
  */
 #[ORM\Entity(repositoryClass: FleetMovementRepository::class)]
 #[ORM\UniqueConstraint(name: 'fleet_movement_fleet_unique', fields: ['fleet'])]
@@ -33,6 +34,14 @@ final class FleetMovement implements \Stringable
      */
     #[ORM\Column]
     private float $reach = 1.0;
+
+    /**
+     * Transit par une porte de téléportation (§4.10) : planète de la porte de sortie. La flotte, intouchable, ne peut
+     * pas rebrousser chemin et en ressort à l'arrivée ; l'ordre en cours reste celui de la porte d'entrée.
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
+    private ?Planet $teleportExit = null;
 
     public function __construct(
         #[ORM\ManyToOne]
@@ -104,6 +113,21 @@ final class FleetMovement implements \Stringable
     public function isStranding(): bool
     {
         return $this->reach < 1.0;
+    }
+
+    public function throughGate(Planet $exit): void
+    {
+        $this->teleportExit = $exit;
+    }
+
+    public function isTeleport(): bool
+    {
+        return null !== $this->teleportExit;
+    }
+
+    public function getTeleportExit(): ?Planet
+    {
+        return $this->teleportExit;
     }
 
     public function getEvent(): ?ScheduledEvent

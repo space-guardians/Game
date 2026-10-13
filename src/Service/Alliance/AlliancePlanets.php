@@ -41,7 +41,7 @@ use Symfony\Component\Lock\LockFactory;
 final readonly class AlliancePlanets
 {
     /** Planètes d'alliance au plus par alliance (« une, ou plusieurs », §7) */
-    public const int MAX_PER_ALLIANCE = 1;
+    public const int MAX_PER_ALLIANCE = 3;
 
     public const int BUILD_HOURS = 24;
 

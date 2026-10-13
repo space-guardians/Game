@@ -121,11 +121,158 @@
         </section>
 
         <section class="sg-panel sg-cut-14" aria-labelledby="alliance-planet-title" id="planete-alliance">
-            <h2 id="alliance-planet-title" class="sg-section-title">Planète d’alliance</h2>
-            {% if alliance_planet is null %}
+            <h2 id="alliance-planet-title" class="sg-section-title">Planètes d’alliance</h2>
+            {% set manager = member.role.canRecruit %}
+            {% if alliance_planets is empty %}
+                <p class="sg-empty">Aucune planète d’alliance pour l’instant.</p>
+            {% endif %}
+            {% for view in alliance_planets %}
+                {% set alliance_planet = view.planet %}
+                {% set id = alliance_planet.id %}
+                {% set built = alliance_planet.builtAt(now) %}
+                <article class="sg-alliance__planet" id="planete-{{ id }}">
+                    <h3 class="sg-section-title">{{ alliance_planet.name }}</h3>
+                    <p class="sg-entity__meta">
+                        <span class="sg-mono">{{ alliance_planet.planet }}</span> ·
+                        {% if built %}intégrité {{ alliance_planet.integrity }} %{% else %}en construction jusqu’au <span class="sg-mono">{{ alliance_planet.completesAt|date('d/m/Y H:i') }}</span>{% endif %}
+                    </p>
+                    <p class="sg-entity__meta">
+                        Stock : {{ view.stock.metal|round(0, 'floor')|number_format(0, ',', ' ') }} métal ·
+                        {{ view.stock.crystal|round(0, 'floor')|number_format(0, ',', ' ') }} cristal ·
+                        {{ view.stock.deuterium|round(0, 'floor')|number_format(0, ',', ' ') }} deutérium — alimenté par les transports des membres.
+                    </p>
+                    {% if built %}
+                        <table class="sg-table" id="batiments-{{ id }}">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Bâtiment unique</th>
+                                    <th scope="col">Niveau</th>
+                                    <th scope="col">Niveau suivant</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for type in alliance_building_types %}
+                                    {% set level = alliance_planet.buildingLevel(type) %}
+                                    {% set cost = type.cost(level + 1) %}
+                                    <tr>
+                                        <td><strong>{{ type.label }}</strong><br><span class="sg-field__help">{{ type.description }}</span></td>
+                                        <td class="sg-mono">{{ level }}</td>
+                                        <td>
+                                            <span class="sg-mono">{{ cost.metal|number_format(0, ',', ' ') }} / {{ cost.crystal|number_format(0, ',', ' ') }} / {{ cost.deuterium|number_format(0, ',', ' ') }}</span>
+                                            {% if manager %}
+                                                <form method="post" action="{{ path('app_alliance_planet_raise', {id: id, type: type.value}) }}">
+                                                    <input type="hidden" name="_token" value="{{ token }}">
+                                                    <twig:Btn type="submit" label="{{ level == 0 ? 'Construire' : 'Améliorer' }}" variant="ghost" size="sm"/>
+                                                </form>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+
+                        <h4 class="sg-section-title">Scanner</h4>
+                        {% if view.scan_range <= 0 %}
+                            <p class="sg-empty">Pas de scanner : construisez-le pour repérer les flottes des autres empires autour de la planète.</p>
+                        {% else %}
+                            <p class="sg-field__help">Portée {{ view.scan_range|number_format(0, ',', ' ') }} : flottes des autres empires à l’arrêt ou en vol. Tout départ dont le trajet passe à portée alerte aussitôt les membres.</p>
+                            {% if view.scan_contacts is empty %}
+                                <p class="sg-empty" id="scanner-{{ id }}">Aucune flotte à portée.</p>
+                            {% else %}
+                                <table class="sg-table" id="scanner-{{ id }}">
+                                    <thead>
+                                        <tr>
+                                            <th scope="col">Empire</th>
+                                            <th scope="col">Flotte</th>
+                                            <th scope="col">Vaisseaux</th>
+                                            <th scope="col">Distance</th>
+                                            <th scope="col">Mouvement</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for contact in view.scan_contacts %}
+                                            <tr>
+                                                <td>{{ contact.empire }}</td>
+                                                <td>{{ contact.fleet }}</td>
+                                                <td class="sg-mono">{{ contact.ships }}</td>
+                                                <td class="sg-mono">{{ contact.distance|number_format(0, ',', ' ') }}</td>
+                                                <td>
+                                                    {% if contact.inFlight %}
+                                                        vers {{ contact.destination }}, arrivée <span class="sg-mono">{{ contact.arrivesAt|date('d/m H:i') }}</span>
+                                                    {% else %}
+                                                        à l’arrêt
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            {% endif %}
+                        {% endif %}
+
+                        <h4 class="sg-section-title">Porte de téléportation</h4>
+                        {% if alliance_planet.buildingLevel(gate_type) < 1 %}
+                            <p class="sg-empty">Pas de porte : construisez-la, puis reliez-la à la porte d’une autre planète de l’alliance.</p>
+                        {% elseif view.link %}
+                            <p class="sg-entity__meta" id="porte-{{ id }}">
+                                Reliée à <strong>{{ view.link.exitFor(alliance_planet).name }}</strong> (<span class="sg-mono">{{ view.link.exitFor(alliance_planet).planet }}</span>) :
+                                envoyez une flotte en « Téléportation » vers cette planète pour la faire ressortir là-bas.
+                            </p>
+                            {% if manager %}
+                                <form method="post" action="{{ path('app_alliance_gate_unlink', {id: view.link.id}) }}">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <twig:Btn type="submit" label="Rompre la liaison" variant="ghost" size="sm"/>
+                                </form>
+                            {% endif %}
+                        {% else %}
+                            {% set free_gates = alliance_planets|filter(other => other.planet != alliance_planet and other.link is null and other.planet.buildingLevel(gate_type) > 0) %}
+                            <p class="sg-empty" id="porte-{{ id }}">Porte reliée à aucune autre.</p>
+                            {% if manager and free_gates is not empty %}
+                                <form method="post" action="{{ path('app_alliance_gate_link', {id: id}) }}" class="sg-alliance__form">
+                                    <input type="hidden" name="_token" value="{{ token }}">
+                                    <label class="sg-field__label" for="porte-cible-{{ id }}">Relier à</label>
+                                    <select class="sg-input" id="porte-cible-{{ id }}" name="gate">
+                                        {% for other in free_gates %}
+                                            <option value="{{ other.planet.id }}">{{ other.planet.name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <twig:Btn type="submit" label="Relier les portes" variant="primary" size="sm"/>
+                                </form>
+                            {% endif %}
+                        {% endif %}
+
+                        <h4 class="sg-section-title">Défenses</h4>
+                        {% set stocked = alliance_planet.planet.ships|filter(stock => stock.type.defense and stock.quantity > 0) %}
+                        {% if stocked is empty %}
+                            <p class="sg-empty">Aucune défense.</p>
+                        {% else %}
+                            <p class="sg-entity__meta" id="defenses-{{ id }}">{{ stocked|map(stock => stock.quantity ~ ' × ' ~ stock.type.name)|join(' · ') }}</p>
+                        {% endif %}
+                        {% if view.orders is not empty %}
+                            <p class="sg-entity__meta" id="commandes-{{ id }}">En construction : {{ view.orders|map(order => order.quantity ~ ' × ' ~ order.type.name ~ ' (' ~ order.endsAt|date('d/m H:i') ~ ')')|join(' · ') }}</p>
+                        {% endif %}
+                        {% if manager and defense_types is not empty %}
+                            <form method="post" action="{{ path('app_alliance_planet_defenses', {id: id}) }}" class="sg-alliance__form">
+                                <input type="hidden" name="_token" value="{{ token }}">
+                                <label class="sg-field__label" for="defense-type-{{ id }}">Défense</label>
+                                <select class="sg-input" id="defense-type-{{ id }}" name="type">
+                                    {% for type in defense_types %}
+                                        <option value="{{ type.code }}">{{ type.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <label class="sg-field__label" for="defense-quantite-{{ id }}">Quantité</label>
+                                <input class="sg-input sg-mono" type="number" id="defense-quantite-{{ id }}" name="quantity" min="1" value="1" required>
+                                <twig:Btn type="submit" label="Commander" variant="primary" size="sm"/>
+                            </form>
+                        {% endif %}
+                    {% endif %}
+                </article>
+            {% endfor %}
+
+            {% if can_build_planet %}
                 <p class="sg-field__help">
-                    Une planète artificielle, propriété de toute l’alliance : les membres l’alimentent par transport, elle abrite les
-                    bâtiments uniques et se défend avec ses propres défenses. Construction sur une orbite libre, en {{ alliance_planet_hours }} h,
+                    Une planète artificielle, propriété de toute l’alliance (au plus {{ max_alliance_planets }}) : les membres l’alimentent par transport, elle abrite
+                    les bâtiments uniques et se défend avec ses propres défenses. Construction sur une orbite libre, en {{ alliance_planet_hours }} h,
                     pour {{ alliance_planet_cost.metal|number_format(0, ',', ' ') }} métal, {{ alliance_planet_cost.crystal|number_format(0, ',', ' ') }} cristal
                     et {{ alliance_planet_cost.deuterium|number_format(0, ',', ' ') }} deutérium pris sur la planète active du fondateur.
                 </p>
@@ -142,112 +289,6 @@
                         <input class="sg-input sg-mono" type="number" id="planete-orbite" name="orbit" min="1" max="15" required>
                         <twig:Btn type="submit" label="Construire la planète" variant="primary" size="sm"/>
                     </form>
-                {% endif %}
-            {% else %}
-                {% set manager = member.role.canRecruit %}
-                {% set built = alliance_planet.builtAt(now) %}
-                <p class="sg-entity__meta" id="planete">
-                    <strong>{{ alliance_planet.name }}</strong> · <span class="sg-mono">{{ alliance_planet.planet }}</span> ·
-                    {% if built %}intégrité {{ alliance_planet.integrity }} %{% else %}en construction jusqu’au <span class="sg-mono">{{ alliance_planet.completesAt|date('d/m/Y H:i') }}</span>{% endif %}
-                </p>
-                <p class="sg-entity__meta" id="planete-stock">
-                    Stock : {{ alliance_stock.metal|round(0, 'floor')|number_format(0, ',', ' ') }} métal ·
-                    {{ alliance_stock.crystal|round(0, 'floor')|number_format(0, ',', ' ') }} cristal ·
-                    {{ alliance_stock.deuterium|round(0, 'floor')|number_format(0, ',', ' ') }} deutérium — alimenté par les transports des membres.
-                </p>
-                {% if built %}
-                    <table class="sg-table" id="batiments-alliance">
-                        <thead>
-                            <tr>
-                                <th scope="col">Bâtiment unique</th>
-                                <th scope="col">Niveau</th>
-                                <th scope="col">Niveau suivant</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for type in alliance_building_types %}
-                                {% set level = alliance_planet.buildingLevel(type) %}
-                                {% set cost = type.cost(level + 1) %}
-                                <tr>
-                                    <td><strong>{{ type.label }}</strong><br><span class="sg-field__help">{{ type.description }}</span></td>
-                                    <td class="sg-mono">{{ level }}</td>
-                                    <td>
-                                        <span class="sg-mono">{{ cost.metal|number_format(0, ',', ' ') }} / {{ cost.crystal|number_format(0, ',', ' ') }} / {{ cost.deuterium|number_format(0, ',', ' ') }}</span>
-                                        {% if manager %}
-                                            <form method="post" action="{{ path('app_alliance_planet_raise', {type: type.value}) }}">
-                                                <input type="hidden" name="_token" value="{{ token }}">
-                                                <twig:Btn type="submit" label="{{ level == 0 ? 'Construire' : 'Améliorer' }}" variant="ghost" size="sm"/>
-                                            </form>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-
-                    <h3 class="sg-section-title">Scanner</h3>
-                    {% if scan_range <= 0 %}
-                        <p class="sg-empty">Pas de scanner : construisez-le pour repérer les flottes des autres empires autour de la planète.</p>
-                    {% else %}
-                        <p class="sg-field__help">Portée {{ scan_range|number_format(0, ',', ' ') }} : flottes des autres empires à l’arrêt ou en vol. Tout départ dont le trajet passe à portée alerte aussitôt les membres.</p>
-                        {% if scan_contacts is empty %}
-                            <p class="sg-empty" id="scanner">Aucune flotte à portée.</p>
-                        {% else %}
-                            <table class="sg-table" id="scanner">
-                                <thead>
-                                    <tr>
-                                        <th scope="col">Empire</th>
-                                        <th scope="col">Flotte</th>
-                                        <th scope="col">Vaisseaux</th>
-                                        <th scope="col">Distance</th>
-                                        <th scope="col">Mouvement</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for contact in scan_contacts %}
-                                        <tr>
-                                            <td>{{ contact.empire }}</td>
-                                            <td>{{ contact.fleet }}</td>
-                                            <td class="sg-mono">{{ contact.ships }}</td>
-                                            <td class="sg-mono">{{ contact.distance|number_format(0, ',', ' ') }}</td>
-                                            <td>
-                                                {% if contact.inFlight %}
-                                                    vers {{ contact.destination }}, arrivée <span class="sg-mono">{{ contact.arrivesAt|date('d/m H:i') }}</span>
-                                                {% else %}
-                                                    à l’arrêt
-                                                {% endif %}
-                                            </td>
-                                        </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        {% endif %}
-                    {% endif %}
-
-                    <h3 class="sg-section-title">Défenses</h3>
-                    {% set stocked = alliance_planet.planet.ships|filter(stock => stock.type.defense and stock.quantity > 0) %}
-                    {% if stocked is empty %}
-                        <p class="sg-empty">Aucune défense.</p>
-                    {% else %}
-                        <p class="sg-entity__meta" id="defenses-alliance">{{ stocked|map(stock => stock.quantity ~ ' × ' ~ stock.type.name)|join(' · ') }}</p>
-                    {% endif %}
-                    {% if alliance_orders is not empty %}
-                        <p class="sg-entity__meta" id="commandes-alliance">En construction : {{ alliance_orders|map(order => order.quantity ~ ' × ' ~ order.type.name ~ ' (' ~ order.endsAt|date('d/m H:i') ~ ')')|join(' · ') }}</p>
-                    {% endif %}
-                    {% if manager and defense_types is not empty %}
-                        <form method="post" action="{{ path('app_alliance_planet_defenses') }}" class="sg-alliance__form" id="commander-defenses">
-                            <input type="hidden" name="_token" value="{{ token }}">
-                            <label class="sg-field__label" for="defense-type">Défense</label>
-                            <select class="sg-input" id="defense-type" name="type">
-                                {% for type in defense_types %}
-                                    <option value="{{ type.code }}">{{ type.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <label class="sg-field__label" for="defense-quantite">Quantité</label>
-                            <input class="sg-input sg-mono" type="number" id="defense-quantite" name="quantity" min="1" value="1" required>
-                            <twig:Btn type="submit" label="Commander" variant="primary" size="sm"/>
-                        </form>
-                    {% endif %}
                 {% endif %}
             {% endif %}
         </section>

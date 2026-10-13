@@ -89,7 +89,10 @@ final class AlliancePlanetsTest extends KernelTestCase
         }
 
         $alliancePlanet = $this->build($founder, $orbit);
-        $this->assertRefused(fn() => $this->build($founder, $this->freeOrbit($founder)), 'Une alliance compte au plus 1 planète(s) d’alliance.');
+        // Au plus trois planètes par alliance
+        $this->build($founder, $this->freeOrbit($founder), 'Avant-poste');
+        $this->build($founder, $this->freeOrbit($founder), 'Relais');
+        $this->assertRefused(fn() => $this->build($founder, $this->freeOrbit($founder)), 'Une alliance compte au plus 3 planète(s) d’alliance.');
         // En construction : ni bâtiment ni défense
         $this->assertRefused(fn() => $this->planets()->raise($founder, $alliancePlanet, AllianceBuildingType::Scanner), \sprintf('La planète d’alliance est en construction jusqu’au %s.', $alliancePlanet->getCompletesAt()->format('d/m H:i')));
     }

@@ -115,7 +115,11 @@
                                 data-countdown-end-value="{{ movement.arrivesAt.timestamp * 1000 }}"
                                 data-countdown-server-now-value="{{ now.format('Uv') }}">
                                 <p class="sg-entity__meta">
-                                    {{ movement.order.action.label }} vers <span class="sg-mono">{{ movement.order.destinationLabel }}</span>
+                                    {% if movement.teleport %}
+                                        En transit par la porte de téléportation, sortie en <span class="sg-mono">{{ movement.teleportExit }}</span> — intouchable, sans demi-tour possible
+                                    {% else %}
+                                        {{ movement.order.action.label }} vers <span class="sg-mono">{{ movement.order.destinationLabel }}</span>
+                                    {% endif %}
                                     · arrivée à <span class="sg-mono">{{ movement.arrivesAt|date('H:i:s') }}</span>
                                     (<span class="sg-mono" data-countdown-target="remaining">{{ max(0, movement.arrivesAt.timestamp - now.timestamp)|duration }}</span>)
                                 </p>

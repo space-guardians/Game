@@ -63,7 +63,8 @@ final readonly class AllianceScanner
         }
         foreach ($this->movements->findInGalaxy($galaxyId) as $movement) {
             $fleet = $movement->getFleet();
-            if (!$this->foreign($fleet, $alliancePlanet)) {
+            // En transit par une porte de téléportation : hors de l'espace, invisible
+            if ($movement->isTeleport() || !$this->foreign($fleet, $alliancePlanet)) {
                 continue;
             }
             $trajectory = $this->planner->plan($movement->getOrigin()->toPosition(), $movement->getOrder()->getDestination()->toPosition());

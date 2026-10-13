@@ -35,6 +35,9 @@ enum FleetAction: string implements TranslatableInterface
      */
     case Spy = 'spy';
 
+    /** Entrer dans une porte de téléportation de son alliance : la flotte ressort par la porte reliée (§4.10) */
+    case Teleport = 'teleport';
+
     public function label(): string
     {
         return match ($this) {
@@ -46,12 +49,13 @@ enum FleetAction: string implements TranslatableInterface
             self::JoinBattle => 'Rejoindre une bataille',
             self::Recycle => 'Recyclage',
             self::Spy => 'Espionnage',
+            self::Teleport => 'Téléportation',
         };
     }
 
     public function requiresPlanet(): bool
     {
-        return self::Transport === $this || self::Colonize === $this;
+        return self::Transport === $this || self::Colonize === $this || self::Teleport === $this;
     }
 
     public function forbidsPlanet(): bool

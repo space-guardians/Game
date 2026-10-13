@@ -35,6 +35,7 @@ use App\Entity\ShipType;
 use App\Entity\ShipyardOrder;
 use App\Entity\StarSystem;
 use App\Entity\Technology;
+use App\Entity\TeleportLink;
 use App\Entity\User;
 use App\Enum\Admin\AdminRole;
 use App\Enum\Admin\AuditOrigin;
@@ -71,7 +72,7 @@ final class EntityHistoryTest extends KernelTestCase
     {
         $classes = array_map(static fn(AuditedEntity $entity): string => $entity->class, $this->history->entities());
 
-        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Empire::class, Galaxy::class, GalaxyShapeTemplate::class, BuildingType::class, PlanetBuilding::class, BuildingQueueItem::class, Technology::class, Research::class, ResearchQueueItem::class, Prerequisite::class, ShipClass::class, ShipType::class, PlanetShip::class, ShipyardOrder::class, Fleet::class, FleetShip::class, FleetMovement::class, FleetOrder::class, Formation::class, FormationSlot::class, QuestTemplate::class, QuestOutcome::class, ClassMatchup::class, Alliance::class, AllianceMember::class, AlliancePact::class, AlliancePlanet::class, AllianceBuilding::class], $classes);
+        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Empire::class, Galaxy::class, GalaxyShapeTemplate::class, BuildingType::class, PlanetBuilding::class, BuildingQueueItem::class, Technology::class, Research::class, ResearchQueueItem::class, Prerequisite::class, ShipClass::class, ShipType::class, PlanetShip::class, ShipyardOrder::class, Fleet::class, FleetShip::class, FleetMovement::class, FleetOrder::class, Formation::class, FormationSlot::class, QuestTemplate::class, QuestOutcome::class, ClassMatchup::class, Alliance::class, AllianceMember::class, AlliancePact::class, AlliancePlanet::class, AllianceBuilding::class, TeleportLink::class], $classes);
         self::assertNotContains(Planet::class, $classes);
         self::assertNotContains(StarSystem::class, $classes);
     }

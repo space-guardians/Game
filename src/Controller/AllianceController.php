@@ -9,6 +9,7 @@ use App\Entity\AllianceMember;
 use App\Entity\AlliancePact;
 use App\Entity\AlliancePlanet;
 use App\Entity\Empire;
+use App\Entity\TeleportLink;
 use App\Enum\Alliance\AllianceBuildingType;
 use App\Enum\Alliance\AllianceRole;
 use App\Exception\Alliance\InvalidAllianceAction;
@@ -18,11 +19,13 @@ use App\Repository\AlliancePlanetRepository;
 use App\Repository\AllianceRepository;
 use App\Repository\ShipTypeRepository;
 use App\Repository\ShipyardOrderRepository;
+use App\Repository\TeleportLinkRepository;
 use App\Service\Account\GameContext;
 use App\Service\Alliance\AlliancePlanets;
 use App\Service\Alliance\Alliances;
 use App\Service\Alliance\AllianceScanner;
 use App\Service\Alliance\Pacts;
+use App\Service\Alliance\TeleportGates;
 use App\Service\Economy\PlanetResources;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -52,6 +55,8 @@ final class AllianceController extends AbstractController
         private readonly ShipyardOrderRepository $shipyardOrders,
         private readonly PlanetResources $resources,
         private readonly AllianceScanner $scanner,
+        private readonly TeleportGates $teleportGates,
+        private readonly TeleportLinkRepository $teleportLinks,
         private readonly ClockInterface $clock,
     ) {}
 
@@ -60,7 +65,7 @@ final class AllianceController extends AbstractController
     {
         $empire = $this->empire();
         $member = $this->members->findOneByEmpire($empire);
-        $alliancePlanet = null === $member ? null : ($this->alliancePlanetRepository->findOf($member->getAlliance())[0] ?? null);
+        $alliancePlanets = null === $member ? [] : $this->alliancePlanetRepository->findOf($member->getAlliance());
 
         return $this->render('alliance/index.html.twig', [
             'empire' => $empire,
@@ -73,15 +78,21 @@ final class AllianceController extends AbstractController
             'pacts' => $this->pactRepository->findOpenFor($empire, $this->clock->now()),
             'max_pact_days' => AlliancePact::MAX_DAYS,
             'now' => $this->clock->now(),
-            'alliance_planet' => $alliancePlanet,
-            'alliance_stock' => null === $alliancePlanet ? null : $this->resources->snapshot($alliancePlanet->getPlanet())->amounts,
-            'alliance_orders' => null === $alliancePlanet ? [] : $this->shipyardOrders->findForPlanet($alliancePlanet->getPlanet()),
+            'alliance_planets' => array_map(fn(AlliancePlanet $alliancePlanet): array => [
+                'planet' => $alliancePlanet,
+                'stock' => $this->resources->snapshot($alliancePlanet->getPlanet())->amounts,
+                'orders' => $this->shipyardOrders->findForPlanet($alliancePlanet->getPlanet()),
+                'scan_range' => $this->scanner->range($alliancePlanet),
+                'scan_contacts' => $this->scanner->contacts($alliancePlanet),
+                'link' => $this->teleportLinks->findFor($alliancePlanet),
+            ], $alliancePlanets),
+            'can_build_planet' => \count($alliancePlanets) < AlliancePlanets::MAX_PER_ALLIANCE,
+            'max_alliance_planets' => AlliancePlanets::MAX_PER_ALLIANCE,
             'alliance_building_types' => AllianceBuildingType::cases(),
+            'gate_type' => AllianceBuildingType::TeleportGate,
             'defense_types' => $this->shipTypes->findDefensesOrdered(),
             'alliance_planet_cost' => AlliancePlanets::cost(),
             'alliance_planet_hours' => AlliancePlanets::BUILD_HOURS,
-            'scan_range' => null === $alliancePlanet ? 0.0 : $this->scanner->range($alliancePlanet),
-            'scan_contacts' => null === $alliancePlanet ? [] : $this->scanner->contacts($alliancePlanet),
         ]);
     }
 
@@ -138,24 +149,46 @@ final class AllianceController extends AbstractController
         });
     }
 
-    #[Route('/alliance/planete/batiments/{type}', name: 'app_alliance_planet_raise', methods: ['POST'])]
-    public function raiseBuilding(AllianceBuildingType $type, Request $request): Response
+    #[Route('/alliance/planete/{id}/batiments/{type}', name: 'app_alliance_planet_raise', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function raiseBuilding(AlliancePlanet $alliancePlanet, AllianceBuildingType $type, Request $request): Response
     {
-        return $this->act($request, function (Empire $empire) use ($type): string {
-            $level = $this->alliancePlanets->raise($empire, $this->alliancePlanetOf($empire), $type);
+        return $this->act($request, function (Empire $empire) use ($alliancePlanet, $type): string {
+            $level = $this->alliancePlanets->raise($empire, $alliancePlanet, $type);
 
             return \sprintf('%s porté au niveau %d.', $type->label(), $level);
         });
     }
 
-    #[Route('/alliance/planete/defenses', name: 'app_alliance_planet_defenses', methods: ['POST'])]
-    public function orderDefenses(Request $request): Response
+    #[Route('/alliance/planete/{id}/defenses', name: 'app_alliance_planet_defenses', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function orderDefenses(AlliancePlanet $alliancePlanet, Request $request): Response
     {
-        return $this->act($request, function (Empire $empire) use ($request): string {
+        return $this->act($request, function (Empire $empire) use ($alliancePlanet, $request): string {
             $type = $this->shipTypes->findOneByCode($request->request->getString('type')) ?? throw new InvalidAllianceAction('Défense inconnue.');
-            $order = $this->alliancePlanets->orderDefenses($empire, $this->alliancePlanetOf($empire), $type, $request->request->getInt('quantity'));
+            $order = $this->alliancePlanets->orderDefenses($empire, $alliancePlanet, $type, $request->request->getInt('quantity'));
 
             return \sprintf('%d × %s commandé(s) : livraison le %s.', $order->getQuantity(), $type->getName(), $order->getEndsAt()->format('d/m H:i'));
+        });
+    }
+
+    #[Route('/alliance/planete/{id}/porte', name: 'app_alliance_gate_link', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function linkGate(AlliancePlanet $alliancePlanet, Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($alliancePlanet, $request): string {
+            $other = $this->alliancePlanetRepository->find($request->request->getInt('gate')) ?? throw new InvalidAllianceAction('Porte inconnue.');
+            $link = $this->teleportGates->link($empire, $alliancePlanet, $other);
+
+            return \sprintf('Portes reliées : %s ↔ %s.', $link->getGateA()->getName(), $link->getGateB()->getName());
+        });
+    }
+
+    #[Route('/alliance/portes/{id}/supprimer', name: 'app_alliance_gate_unlink', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function unlinkGate(TeleportLink $link, Request $request): Response
+    {
+        return $this->act($request, function (Empire $empire) use ($link): string {
+            $label = \sprintf('%s ↔ %s', $link->getGateA()->getName(), $link->getGateB()->getName());
+            $this->teleportGates->unlink($empire, $link);
+
+            return \sprintf('Liaison %s rompue.', $label);
         });
     }
 
@@ -260,14 +293,6 @@ final class AllianceController extends AbstractController
         }
 
         return $this->redirectToRoute('app_alliance');
-    }
-
-    /** @throws InvalidAllianceAction */
-    private function alliancePlanetOf(Empire $empire): AlliancePlanet
-    {
-        $member = $this->members->findOneByEmpire($empire) ?? throw new InvalidAllianceAction('Vous n’appartenez à aucune alliance.');
-
-        return $this->alliancePlanetRepository->findOf($member->getAlliance())[0] ?? throw new InvalidAllianceAction('Votre alliance n’a pas de planète.');
     }
 
     private function empire(): Empire
