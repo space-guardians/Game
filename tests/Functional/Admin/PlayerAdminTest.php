@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Admin;
 
 use App\Entity\Empire;
+use App\Entity\EmpireSnapshot;
 use App\Enum\Admin\AdminRole;
 use App\Factory\AdminUserFactory;
 use App\Factory\EmpireFactory;
 use App\Factory\UserFactory;
+use App\Model\Ranking\ScoreBreakdown;
+use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Clock\Test\ClockSensitiveTrait;
@@ -104,6 +107,37 @@ final class PlayerAdminTest extends WebTestCase
         $crawler = $this->client->request('GET', '/batiments');
         $this->client->submit($crawler->filter('.sg-entity')->first()->selectButton('Construire niveau 1')->form());
         self::assertResponseRedirects('/batiments');
+    }
+
+    public function testPlayerFileChartsTheProgressAgainstAverageAndTopTen(): void
+    {
+        $orion = EmpireFactory::createOne(['name' => 'Ordre d’Orion']);
+        $vega = EmpireFactory::createOne(['name' => 'Ligue de Véga']);
+        $this->loginAdmin(AdminRole::Moderator);
+
+        $this->client->request('GET', \sprintf('/admin/joueurs/%d', $orion->getId()));
+        self::assertSelectorTextContains('#progression', 'Aucun instantané sur les 30 derniers jours');
+
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        foreach (['-12 hours' => [40, 100], '-6 hours' => [60, 120]] as $offset => [$orionTotal, $vegaTotal]) {
+            $at = new \DateTimeImmutable('2026-10-06 10:00:00')->modify($offset);
+            foreach ([[$orion, $orionTotal], [$vega, $vegaTotal]] as [$empire, $total]) {
+                $entityManager->persist(new EmpireSnapshot($empire, $at, new ScoreBreakdown($total, 0, 0, 0, $total), 10 * $total, 3, 1));
+            }
+        }
+        $entityManager->flush();
+
+        $crawler = $this->client->request('GET', \sprintf('/admin/joueurs/%d', $orion->getId()));
+
+        self::assertResponseIsSuccessful();
+        $charts = $crawler->filter('#progression canvas[data-controller="symfony--ux-chartjs--chart"]');
+        self::assertCount(5, $charts);
+        self::assertSame(['Score global', 'Économie : production horaire', 'Flotte : vaisseaux', 'Planètes', 'Score par catégorie'], $crawler->filter('#progression figcaption')->each(static fn($caption): string => $caption->text()));
+        $score = json_decode((string) $charts->first()->attr('data-symfony--ux-chartjs--chart-view-value'), true);
+        self::assertSame(['05/10 22h', '06/10 04h'], $score['data']['labels']);
+        self::assertSame(['Ordre d’Orion', 'Moyenne des empires', 'Moyenne du top 10'], array_column($score['data']['datasets'], 'label'));
+        self::assertSame([40, 60], $score['data']['datasets'][0]['data']);
+        self::assertEquals([70, 90], $score['data']['datasets'][1]['data']);
     }
 
     private function loginAdmin(AdminRole $role): void

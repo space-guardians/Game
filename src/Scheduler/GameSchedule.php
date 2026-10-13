@@ -7,6 +7,7 @@ namespace App\Scheduler;
 use App\Message\ConsolidateResources;
 use App\Message\RefreshRankings;
 use App\Message\ResolveDueEvents;
+use App\Message\TakeEmpireSnapshots;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Schedule;
@@ -28,6 +29,9 @@ final readonly class GameSchedule implements ScheduleProviderInterface
     /** Recalcul des scores et des classements (§4.11) */
     public const string RANKINGS_FREQUENCY = '15 minutes';
 
+    /** Instantanés des empires pour le suivi de leur progression (§5.6.1, provisoire) */
+    public const string SNAPSHOTS_FREQUENCY = '6 hours';
+
     public function __construct(
         private CacheInterface $cache,
     ) {}
@@ -40,6 +44,7 @@ final readonly class GameSchedule implements ScheduleProviderInterface
             ->processOnlyLastMissedRun(true)
             ->add(RecurringMessage::every(self::DUE_EVENTS_FREQUENCY, new ResolveDueEvents()))
             ->add(RecurringMessage::every(self::RESOURCES_CONSOLIDATION_FREQUENCY, new ConsolidateResources()))
-            ->add(RecurringMessage::every(self::RANKINGS_FREQUENCY, new RefreshRankings()));
+            ->add(RecurringMessage::every(self::RANKINGS_FREQUENCY, new RefreshRankings()))
+            ->add(RecurringMessage::every(self::SNAPSHOTS_FREQUENCY, new TakeEmpireSnapshots()));
     }
 }

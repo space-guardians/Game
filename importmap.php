@@ -38,4 +38,6 @@ return [
     'd3-color' => ['version' => '3.0.1'],
     'd3-timer' => ['version' => '3.0.1'],
     'd3-ease' => ['version' => '3.0.1'],
+    'chart.js' => ['version' => '4.5.1'],
+    '@kurkle/color' => ['version' => '0.3.4'],
 ];

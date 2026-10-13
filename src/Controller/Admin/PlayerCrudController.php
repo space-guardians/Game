@@ -8,6 +8,7 @@ use App\Entity\Empire;
 use App\Enum\Admin\AdminRole;
 use App\Service\Admin\EntityHistory;
 use App\Service\Admin\PlayerFiles;
+use App\Service\Admin\ProgressCharts;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -35,6 +36,7 @@ final class PlayerCrudController extends AbstractCrudController
 
     public function __construct(
         private readonly PlayerFiles $files,
+        private readonly ProgressCharts $progress,
     ) {}
 
     public static function getEntityFqcn(): string
@@ -89,6 +91,9 @@ final class PlayerCrudController extends AbstractCrudController
             $empire = $responseParameters->get('entity')->getInstance();
             \assert($empire instanceof Empire);
             $responseParameters->set('player', $this->files->of($empire));
+            // Suivi de la progression : 30 derniers jours d'instantanés
+            $responseParameters->set('progress_charts', $this->progress->of($empire));
+            $responseParameters->set('progress_days', ProgressCharts::DEFAULT_DAYS);
             $responseParameters->set('history_types', EntityHistory::TYPE_LABELS);
         }
 
