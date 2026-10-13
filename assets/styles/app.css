@@ -1761,3 +1761,22 @@ a:hover {
     color: var(--sg-danger);
     font-size: 12px;
 }
+
+.sg-chat__presence {
+    margin: 0;
+    color: var(--sg-text-3);
+    font-size: 12px;
+}
+
+.sg-chat__status {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 4px;
+    border-radius: 50%;
+    background: var(--sg-text-4);
+}
+
+.sg-chat__status.is-online {
+    background: var(--sg-success);
+}

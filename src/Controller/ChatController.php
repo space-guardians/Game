@@ -6,8 +6,10 @@ namespace App\Controller;
 
 use App\Entity\Empire;
 use App\Exception\Chat\ChatRefused;
+use App\Repository\EmpireRepository;
 use App\Service\Account\GameContext;
 use App\Service\Chat\Chat;
+use App\Service\Chat\ChatPresence;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -22,9 +24,14 @@ final class ChatController extends AbstractController
 {
     public const string CSRF_HEADER = 'X-CSRF-Token';
 
+    /** Joueurs en ligne nommés dans l'indicateur de présence */
+    public const int PRESENCE_SHOWN = 30;
+
     public function __construct(
         private readonly GameContext $context,
         private readonly Chat $chat,
+        private readonly ChatPresence $presence,
+        private readonly EmpireRepository $empires,
     ) {}
 
     #[Route('/chat/messages', name: 'app_chat_send', methods: ['POST'])]
@@ -44,6 +51,28 @@ final class ChatController extends AbstractController
         }
 
         return $this->json($message, Response::HTTP_CREATED);
+    }
+
+    /**
+     * Battement de cœur du widget (§5.7) : le joueur est en ligne ; renvoie les joueurs en ligne pour l'indicateur de
+     * présence.
+     */
+    #[Route('/chat/presence', name: 'app_chat_presence', methods: ['POST'])]
+    public function presence(Request $request): JsonResponse
+    {
+        $empire = $this->empire();
+        if (!$this->isCsrfTokenValid('chat', (string) $request->headers->get(self::CSRF_HEADER))) {
+            return $this->json(['error' => 'La page a expiré : rechargez-la.'], Response::HTTP_FORBIDDEN);
+        }
+        $this->presence->heartbeat($empire);
+        $ids = $this->presence->onlineIds();
+        $shown = $this->empires->findBy(['id' => \array_slice($ids, 0, self::PRESENCE_SHOWN)], ['name' => 'ASC']);
+
+        return $this->json([
+            'count' => \count($ids),
+            'players' => array_map(static fn(Empire $online): array => ['id' => $online->getId(), 'name' => $online->getName()], $shown),
+            'interval' => ChatPresence::HEARTBEAT_SECONDS,
+        ]);
     }
 
     #[Route('/chat/messages', name: 'app_chat_history', methods: ['GET'])]

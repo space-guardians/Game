@@ -5,6 +5,7 @@
     data-chat-hub-value="{{ mercure(topics, {subscribe: topics|merge(player_topics())}) }}"
     data-chat-send-url-value="{{ path('app_chat_send') }}"
     data-chat-history-url-value="{{ path('app_chat_history') }}"
+    data-chat-presence-url-value="{{ path('app_chat_presence') }}"
     data-chat-token-value="{{ csrf_token('chat') }}"
     data-chat-me-value="{{ chat_author_id() }}">
     <button type="button" class="sg-chat__toggle sg-cut-8" data-action="chat#toggle" data-chat-target="toggle" aria-expanded="false" aria-controls="sg-chat-panel">
@@ -20,6 +21,7 @@
                 <span class="sg-chat__badge" data-chat-badge="public" hidden></span>
             </button>
         </div>
+        <p class="sg-chat__presence" data-chat-target="presence" aria-live="polite">Présence en cours de mise à jour…</p>
         <ol class="sg-chat__log" id="sg-chat-log-public" role="tabpanel" aria-labelledby="sg-chat-tab-public" aria-live="polite"
             data-chat-target="log" data-channel="public"></ol>
         <form class="sg-chat__form" data-action="chat#send">

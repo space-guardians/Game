@@ -27,6 +27,7 @@ final readonly class Chat
 
     public function __construct(
         private ChatBuffer $buffer,
+        private ChatPresence $presence,
         private HubInterface $hub,
         #[Autowire(service: 'limiter.chat_message')]
         private RateLimiterFactoryInterface $limiter,
@@ -52,6 +53,8 @@ final readonly class Chat
 
         $message = new ChatMessage(bin2hex(random_bytes(8)), $channel, (int) $author->getId(), $author->getName(), $body, $this->clock->now());
         $this->buffer->push($message);
+        // Écrire, c'est être là
+        $this->presence->heartbeat($author);
         $this->hub->publish(new Update(ChatTopics::PUBLIC, json_encode($message, \JSON_THROW_ON_ERROR), private: true));
 
         return $message;

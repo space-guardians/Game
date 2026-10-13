@@ -16,11 +16,23 @@ const state = {
     open: false,
     active: 'public',
     loaded: new Set(),
+    // Présence (§5.7) : battement de cœur périodique, joueurs en ligne
+    heartbeat: null,
+    beat: null,
+    online: new Set(),
+    presence: null,
 };
 
 export default class extends Controller {
-    static targets = ['toggle', 'panel', 'tab', 'log', 'input', 'error', 'total'];
-    static values = { hub: String, sendUrl: String, historyUrl: String, token: String, me: Number };
+    static targets = ['toggle', 'panel', 'tab', 'log', 'input', 'error', 'total', 'presence'];
+    static values = {
+        hub: String,
+        sendUrl: String,
+        historyUrl: String,
+        presenceUrl: String,
+        token: String,
+        me: Number,
+    };
 
     connect() {
         state.listener = (message) => this.receive(message);
@@ -46,10 +58,48 @@ export default class extends Controller {
         }
         this.select({ currentTarget: this.tabFor(state.active) });
         this.loadHistory(state.active);
+        // Le battement passe par l'instance connectée du moment (le widget survit aux navigations)
+        state.beat = () => this.beat();
+        if (!state.heartbeat) {
+            this.beat();
+            state.heartbeat = setInterval(() => state.beat?.(), 30_000);
+        }
+        this.renderPresence();
+    }
+
+    async beat() {
+        try {
+            const response = await fetch(this.presenceUrlValue, {
+                method: 'POST',
+                headers: { Accept: 'application/json', 'X-CSRF-Token': this.tokenValue },
+            });
+            if (!response.ok) {
+                return;
+            }
+            state.presence = await response.json();
+            state.online = new Set(state.presence.players.map((player) => player.id));
+            this.renderPresence();
+            for (const log of this.logTargets) {
+                this.renderLog(log.dataset.channel);
+            }
+        } catch {
+            // Hors connexion : la présence sera rafraîchie au prochain battement
+        }
+    }
+
+    renderPresence() {
+        if (!this.hasPresenceTarget || !state.presence) {
+            return;
+        }
+        const { count, players } = state.presence;
+        const names = players.map((player) => player.name).join(', ');
+        const more = count > players.length ? ` et ${count - players.length} autre(s)` : '';
+        this.presenceTarget.textContent = `${count} joueur${count > 1 ? 's' : ''} en ligne${names ? ` : ${names}${more}` : ''}`;
     }
 
     disconnect() {
         state.listener = null;
+        state.beat = null;
     }
 
     toggle() {
@@ -178,9 +228,15 @@ export default class extends Controller {
         time.textContent = new Date(message.sentAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
         const author = document.createElement('strong');
         author.textContent = message.author;
+        // Indicateur de présence de l'auteur
+        const status = document.createElement('span');
+        const online = state.online.has(message.authorId);
+        status.className = online ? 'sg-chat__status is-online' : 'sg-chat__status';
+        status.title = online ? 'En ligne' : 'Hors ligne';
+        status.setAttribute('aria-label', status.title);
         const body = document.createElement('span');
         body.textContent = ` ${message.body}`;
-        item.append(time, ' ', author, body);
+        item.append(time, ' ', status, author, body);
 
         return item;
     }
