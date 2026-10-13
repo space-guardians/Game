@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Scheduler;
 
 use App\Message\ConsolidateResources;
+use App\Message\RefreshRankings;
 use App\Message\ResolveDueEvents;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
@@ -24,6 +25,9 @@ final readonly class GameSchedule implements ScheduleProviderInterface
     /** Consolidation légère des stocks (§4.2) : seules les planètes non touchées depuis une heure sont écrites */
     public const string RESOURCES_CONSOLIDATION_FREQUENCY = '1 hour';
 
+    /** Recalcul des scores et des classements (§4.11) */
+    public const string RANKINGS_FREQUENCY = '15 minutes';
+
     public function __construct(
         private CacheInterface $cache,
     ) {}
@@ -35,6 +39,7 @@ final readonly class GameSchedule implements ScheduleProviderInterface
             ->stateful($this->cache)
             ->processOnlyLastMissedRun(true)
             ->add(RecurringMessage::every(self::DUE_EVENTS_FREQUENCY, new ResolveDueEvents()))
-            ->add(RecurringMessage::every(self::RESOURCES_CONSOLIDATION_FREQUENCY, new ConsolidateResources()));
+            ->add(RecurringMessage::every(self::RESOURCES_CONSOLIDATION_FREQUENCY, new ConsolidateResources()))
+            ->add(RecurringMessage::every(self::RANKINGS_FREQUENCY, new RefreshRankings()));
     }
 }

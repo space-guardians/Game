@@ -1,0 +1,82 @@
+{# Écran « Classement » (§4.11) : global ou par catégorie, empires ou alliances #}
+{% extends 'layout/app.html.twig' %}
+
+{% block title %}Classement — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}Classement{% endblock %}
+
+{% block content %}
+    {% set view = alliances_view ? 'alliances' : 'empires' %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="ranking-title">
+        <h2 id="ranking-title" class="sg-section-title">{{ category.label }} — {{ alliances_view ? 'alliances' : 'empires' }}</h2>
+        <nav class="sg-ranking__tabs" aria-label="Catégories">
+            {% for item in categories %}
+                <a class="sg-chip {{ item == category ? 'sg-chip--cyan' : 'sg-chip--neutral' }}" href="{{ path('app_ranking', {categorie: item.value, vue: view}) }}"{% if item == category %} aria-current="page"{% endif %}>{{ item.label }}</a>
+            {% endfor %}
+        </nav>
+        <nav class="sg-ranking__tabs" aria-label="Vue">
+            <a class="sg-chip {{ not alliances_view ? 'sg-chip--cyan' : 'sg-chip--neutral' }}" href="{{ path('app_ranking', {categorie: category.value, vue: 'empires'}) }}"{% if not alliances_view %} aria-current="page"{% endif %}>Empires</a>
+            <a class="sg-chip {{ alliances_view ? 'sg-chip--cyan' : 'sg-chip--neutral' }}" href="{{ path('app_ranking', {categorie: category.value, vue: 'alliances'}) }}"{% if alliances_view %} aria-current="page"{% endif %}>Alliances</a>
+        </nav>
+        <p class="sg-entity__meta" id="mon-rang">
+            {% if rank is null %}
+                Votre empire n’est pas encore classé : les scores sont recalculés toutes les 15 minutes.
+            {% else %}
+                Votre empire : <strong>{{ rank }}<sup>e</sup></strong> avec <span class="sg-mono">{{ own_score.points(category)|format_number }}</span> point(s)
+                {% if own_score %}· calculé le {{ own_score.computedAt|date('d/m H:i') }}{% endif %}
+            {% endif %}
+        </p>
+
+        {% if rows is empty %}
+            <p class="sg-empty">Aucun classement pour l’instant.</p>
+        {% else %}
+            <table class="sg-table" id="classement">
+                <thead>
+                    <tr>
+                        <th scope="col">Rang</th>
+                        <th scope="col">{{ alliances_view ? 'Alliance' : 'Empire' }}</th>
+                        <th scope="col">{{ alliances_view ? 'Membres' : 'Alliance' }}</th>
+                        <th scope="col">Points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        {% if alliances_view %}
+                            {% set own = alliance is not null and row.alliance is same as(alliance) %}
+                            <tr{% if own %} class="is-own" aria-current="true"{% endif %}>
+                                <td class="sg-mono">{{ offset + loop.index }}</td>
+                                <td>{{ row.alliance }}</td>
+                                <td class="sg-mono">{{ row.members }}</td>
+                                <td class="sg-mono">{{ row.points|format_number }}</td>
+                            </tr>
+                        {% else %}
+                            {% set own = row.score.empire is same as(empire) %}
+                            <tr{% if own %} class="is-own" aria-current="true"{% endif %}>
+                                <td class="sg-mono">{{ offset + loop.index }}</td>
+                                <td>{{ row.score.empire.name }}</td>
+                                <td class="sg-mono">{{ row.alliance ? '[' ~ row.alliance ~ ']' : '—' }}</td>
+                                <td class="sg-mono">{{ row.points|format_number }}</td>
+                            </tr>
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% if pages > 1 %}
+                <nav class="sg-ranking__pages" aria-label="Pages">
+                    {% if page > 1 %}
+                        <a href="{{ path('app_ranking', {categorie: category.value, vue: view, page: page - 1}) }}">Précédente</a>
+                    {% endif %}
+                    <span class="sg-mono">Page {{ page }} / {{ pages }}</span>
+                    {% if page < pages %}
+                        <a href="{{ path('app_ranking', {categorie: category.value, vue: view, page: page + 1}) }}">Suivante</a>
+                    {% endif %}
+                </nav>
+            {% endif %}
+        {% endif %}
+        <p class="sg-field__help">
+            Un point par tranche de 1 000 ressources investies dans les bâtiments (économie), les recherches et les vaisseaux et
+            défenses (militaire) ; 50 points par colonie et 5 par événement d’exploration vécu (exploration). Le classement global
+            additionne les catégories. Le classement des alliances cumule les points de leurs membres.
+        </p>
+    </section>
+{% endblock %}

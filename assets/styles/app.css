@@ -1635,3 +1635,22 @@ a:hover {
     flex-direction: column;
     gap: 8px;
 }
+
+/* Classement (§4.11) : onglets, ligne du joueur, pages */
+.sg-ranking__tabs,
+.sg-ranking__pages {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.sg-ranking__tabs .sg-chip {
+    text-decoration: none;
+}
+
+.sg-table tr.is-own td {
+    color: var(--sg-gold);
+    background: var(--sg-panel-raised);
+}
