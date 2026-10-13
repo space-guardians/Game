@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Service\Chat;
 
 use App\Entity\Empire;
+use App\Exception\Chat\ChatRecipientOffline;
 use App\Exception\Chat\ChatRefused;
 use App\Model\Chat\ChatMessage;
 use App\Model\Chat\ChatTopics;
+use App\Model\Chat\PrivateChat;
+use App\Repository\EmpireRepository;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mercure\HubInterface;
@@ -32,13 +35,18 @@ final readonly class Chat
         #[Autowire(service: 'limiter.chat_message')]
         private RateLimiterFactoryInterface $limiter,
         private ClockInterface $clock,
+        private EmpireRepository $empires,
     ) {}
 
-    /** @throws ChatRefused */
+    /**
+     * @throws ChatRefused
+     * @throws ChatRecipientOffline
+     */
     public function post(Empire $author, string $channel, string $body): ChatMessage
     {
-        if (self::PUBLIC_CHANNEL !== $channel) {
-            throw new ChatRefused('Canal de discussion inconnu.');
+        $recipient = self::PUBLIC_CHANNEL === $channel ? null : $this->privatePeer($author, $channel);
+        if (null !== $recipient && !$this->presence->isOnline($recipient)) {
+            throw new ChatRecipientOffline($recipient);
         }
         $body = trim(preg_replace('/\s+/u', ' ', $body) ?? '');
         if ('' === $body) {
@@ -51,13 +59,67 @@ final readonly class Chat
             throw new ChatRefused('Vous écrivez trop vite : patientez quelques secondes.');
         }
 
-        $message = new ChatMessage(bin2hex(random_bytes(8)), $channel, (int) $author->getId(), $author->getName(), $body, $this->clock->now());
+        $message = new ChatMessage(bin2hex(random_bytes(8)), $channel, (int) $author->getId(), $author->getName(), $body, $this->clock->now(), $recipient?->getId(), $recipient?->getName());
         $this->buffer->push($message);
         // Écrire, c'est être là
         $this->presence->heartbeat($author);
-        $this->hub->publish(new Update(ChatTopics::PUBLIC, json_encode($message, \JSON_THROW_ON_ERROR), private: true));
+        $data = json_encode($message, \JSON_THROW_ON_ERROR);
+        if (null === $recipient) {
+            $this->hub->publish(new Update(ChatTopics::PUBLIC, $data, private: true));
+        } else {
+            // Message privé : sur le topic personnel des deux joueurs (fan-out serveur, §5.7)
+            $this->hub->publish(new Update([ChatTopics::user($author->getUser()), ChatTopics::user($recipient->getUser())], $data, private: true));
+        }
 
         return $message;
+    }
+
+    /**
+     * Ouvre une discussion privée avec un joueur connecté, désigné par le nom de son empire.
+     *
+     * @throws ChatRefused
+     * @throws ChatRecipientOffline
+     */
+    public function openPrivate(Empire $author, string $name): PrivateChat
+    {
+        $other = $this->empires->findOneByName(trim($name)) ?? throw new ChatRefused(\sprintf('Aucun empire nommé « %s ».', trim($name)));
+        if ($other === $author) {
+            throw new ChatRefused('On ne discute pas avec soi-même.');
+        }
+        if (!$this->presence->isOnline($other)) {
+            throw new ChatRecipientOffline($other);
+        }
+
+        return new PrivateChat(self::privateChannel($author, $other), (int) $other->getId(), $other->getName());
+    }
+
+    /** Canal d'une discussion privée : le même pour les deux joueurs */
+    public static function privateChannel(Empire $a, Empire $b): string
+    {
+        $ids = [(int) $a->getId(), (int) $b->getId()];
+        sort($ids);
+
+        return \sprintf('private:%d-%d', ...$ids);
+    }
+
+    /**
+     * Interlocuteur d'une discussion privée dont le joueur fait partie.
+     *
+     * @throws ChatRefused
+     */
+    private function privatePeer(Empire $viewer, string $channel): Empire
+    {
+        if (1 !== preg_match('/^private:(\d+)-(\d+)$/', $channel, $ids) || $ids[1] >= $ids[2]) {
+            throw new ChatRefused('Canal de discussion inconnu.');
+        }
+        $viewerId = (int) $viewer->getId();
+        $otherId = match ($viewerId) {
+            (int) $ids[1] => (int) $ids[2],
+            (int) $ids[2] => (int) $ids[1],
+            default => throw new ChatRefused('Canal de discussion inconnu.'),
+        };
+
+        return $this->empires->find($otherId) ?? throw new ChatRefused('Ce joueur n’existe plus.');
     }
 
     /**
@@ -70,7 +132,8 @@ final readonly class Chat
     public function recent(Empire $viewer, string $channel): array
     {
         if (self::PUBLIC_CHANNEL !== $channel) {
-            throw new ChatRefused('Canal de discussion inconnu.');
+            // Discussion privée : seulement si le joueur en fait partie
+            $this->privatePeer($viewer, $channel);
         }
 
         return $this->buffer->recent($channel);

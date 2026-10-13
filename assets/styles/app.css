@@ -1780,3 +1780,15 @@ a:hover {
 .sg-chat__status.is-online {
     background: var(--sg-success);
 }
+
+.sg-chat__logs {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.sg-chat__close {
+    margin-left: 4px;
+    color: var(--sg-text-3);
+}
