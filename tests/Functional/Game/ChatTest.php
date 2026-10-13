@@ -118,6 +118,32 @@ final class ChatTest extends WebTestCase
         self::assertFalse(self::getContainer()->get(ChatPresence::class)->isOnline((int) $ana->getId()));
     }
 
+    public function testPrivateTabWithAnOnlinePlayerOrFallbackToMessaging(): void
+    {
+        $bob = EmpireFactory::createOne(['name' => 'Bob']);
+        $ana = EmpireFactory::createOne(['name' => 'Ana']);
+        $this->client->loginUser($ana->getUser());
+        $crawler = $this->client->request('GET', '/');
+        $token = (string) $crawler->filter('#sg-chat')->attr('data-chat-token-value');
+        self::assertSame('/chat/prive', $crawler->filter('#sg-chat')->attr('data-chat-private-url-value'));
+
+        // Bob hors ligne : renvoi vers la messagerie, destinataire prérempli
+        $this->client->request('POST', '/chat/prive', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $token], content: '{"name":"Bob"}');
+        self::assertResponseStatusCodeSame(409);
+        $refusal = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertSame('/messagerie/nouvelle?a=Bob', $refusal['messaging'] ?? null);
+
+        // Bob connecté : onglet ouvert, message relayé
+        self::getContainer()->get(ChatPresence::class)->heartbeat($bob);
+        $this->client->request('POST', '/chat/prive', server: ['CONTENT_TYPE' => 'application/json', 'HTTP_X_CSRF_TOKEN' => $token], content: '{"name":"Bob"}');
+        self::assertResponseIsSuccessful();
+        $chat = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertSame(['Bob', $bob->getId()], [$chat['peer'] ?? null, $chat['peerId'] ?? null]);
+        $this->post(['channel' => (string) $chat['channel'], 'body' => 'Salut Bob'], $token);
+        self::assertResponseStatusCodeSame(201);
+        self::getContainer()->get(ChatBuffer::class)->clear((string) $chat['channel']);
+    }
+
     public function testHeartbeatRequiresTheCsrfToken(): void
     {
         $ana = EmpireFactory::createOne();

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Empire;
+use App\Exception\Chat\ChatRecipientOffline;
 use App\Exception\Chat\ChatRefused;
 use App\Repository\EmpireRepository;
 use App\Service\Account\GameContext;
@@ -48,9 +49,39 @@ final class ChatController extends AbstractController
             $message = $this->chat->post($empire, (string) ($payload['channel'] ?? ''), (string) ($payload['body'] ?? ''));
         } catch (ChatRefused $refusal) {
             return $this->json(['error' => $refusal->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (ChatRecipientOffline $offline) {
+            return $this->offline($offline);
         }
 
         return $this->json($message, Response::HTTP_CREATED);
+    }
+
+    /** Ouvre un onglet de discussion privée avec un joueur connecté */
+    #[Route('/chat/prive', name: 'app_chat_private', methods: ['POST'])]
+    public function openPrivate(Request $request): JsonResponse
+    {
+        $empire = $this->empire();
+        if (!$this->isCsrfTokenValid('chat', (string) $request->headers->get(self::CSRF_HEADER))) {
+            return $this->json(['error' => 'La page a expiré : rechargez-la.'], Response::HTTP_FORBIDDEN);
+        }
+        $payload = json_decode($request->getContent(), true);
+
+        try {
+            return $this->json($this->chat->openPrivate($empire, (string) (\is_array($payload) ? ($payload['name'] ?? '') : '')));
+        } catch (ChatRefused $refusal) {
+            return $this->json(['error' => $refusal->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (ChatRecipientOffline $offline) {
+            return $this->offline($offline);
+        }
+    }
+
+    /** Interlocuteur hors ligne : refus, avec le lien vers un nouveau message dans la messagerie */
+    private function offline(ChatRecipientOffline $offline): JsonResponse
+    {
+        return $this->json([
+            'error' => $offline->getMessage(),
+            'messaging' => $this->generateUrl('app_messaging_new', ['a' => $offline->recipient->getName()]),
+        ], Response::HTTP_CONFLICT);
     }
 
     /**

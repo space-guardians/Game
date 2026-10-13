@@ -21,15 +21,38 @@ const state = {
     beat: null,
     online: new Set(),
     presence: null,
+    // Discussions privées ouvertes (§4.12.1) : canal → interlocuteur, gardées pour la session de l'onglet du navigateur
+    privates: new Map(),
 };
 
+const PRIVATES_KEY = 'sg-chat-privates';
+
+function savePrivates() {
+    try {
+        sessionStorage.setItem(PRIVATES_KEY, JSON.stringify([...state.privates]));
+    } catch {
+        // Stockage indisponible (navigation privée) : les onglets ne survivront pas à un rechargement
+    }
+}
+
+function restorePrivates() {
+    try {
+        for (const [channel, peer] of JSON.parse(sessionStorage.getItem(PRIVATES_KEY) ?? '[]')) {
+            state.privates.set(channel, peer);
+        }
+    } catch {
+        // Rien à restaurer
+    }
+}
+
 export default class extends Controller {
-    static targets = ['toggle', 'panel', 'tab', 'log', 'input', 'error', 'total', 'presence'];
+    static targets = ['toggle', 'panel', 'tabs', 'tab', 'logs', 'log', 'input', 'error', 'total', 'presence', 'peer'];
     static values = {
         hub: String,
         sendUrl: String,
         historyUrl: String,
         presenceUrl: String,
+        privateUrl: String,
         token: String,
         me: Number,
     };
@@ -50,6 +73,12 @@ export default class extends Controller {
                     // Donnée qui n'est pas un message de chat (flux Turbo du jeu) : ignorée
                 }
             };
+        }
+        if (state.privates.size === 0) {
+            restorePrivates();
+        }
+        for (const [channel, peer] of state.privates) {
+            this.ensureTab(channel, peer);
         }
         this.panelTarget.hidden = !state.open;
         this.toggleTarget.setAttribute('aria-expanded', String(state.open));
@@ -79,6 +108,7 @@ export default class extends Controller {
             state.presence = await response.json();
             state.online = new Set(state.presence.players.map((player) => player.id));
             this.renderPresence();
+            this.renderPeers();
             for (const log of this.logTargets) {
                 this.renderLog(log.dataset.channel);
             }
@@ -147,14 +177,130 @@ export default class extends Controller {
                 this.inputTarget.value = '';
                 return;
             }
-            const data = await response.json().catch(() => ({}));
-            this.errorTarget.textContent = data.error ?? 'Message non envoyé.';
+            this.showError(await response.json().catch(() => ({})), 'Message non envoyé.');
         } catch {
             this.errorTarget.textContent = 'Connexion perdue : message non envoyé.';
         }
     }
 
+    async openPrivate(event) {
+        event.preventDefault();
+        const name = this.peerTarget.value.trim();
+        if (name === '') {
+            return;
+        }
+        this.errorTarget.textContent = '';
+        try {
+            const response = await fetch(this.privateUrlValue, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': this.tokenValue },
+                body: JSON.stringify({ name }),
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+                this.showError(data, 'Discussion impossible.');
+                return;
+            }
+            this.peerTarget.value = '';
+            this.ensureTab(data.channel, { id: data.peerId, name: data.peer });
+            this.select({ currentTarget: this.tabFor(data.channel) });
+        } catch {
+            this.errorTarget.textContent = 'Connexion perdue : réessayez.';
+        }
+    }
+
+    closePrivate(event) {
+        event.stopPropagation();
+        const channel = event.currentTarget.dataset.channel;
+        state.privates.delete(channel);
+        state.unread.delete(channel);
+        savePrivates();
+        this.tabFor(channel)?.remove();
+        this.logFor(channel)?.remove();
+        if (state.active === channel) {
+            this.select({ currentTarget: this.tabFor('public') });
+        }
+        this.renderBadges();
+    }
+
+    /** Onglet d'une discussion privée, créé à la première ouverture ou au premier message reçu */
+    ensureTab(channel, peer) {
+        if (!state.privates.has(channel)) {
+            state.privates.set(channel, peer);
+            savePrivates();
+        }
+        if (this.tabTargets.some((tab) => tab.dataset.channel === channel)) {
+            return;
+        }
+        const id = channel.replace(/[^a-z0-9-]/gi, '-');
+        const tab = document.createElement('button');
+        tab.type = 'button';
+        tab.className = 'sg-chat__tab';
+        tab.id = `sg-chat-tab-${id}`;
+        tab.setAttribute('role', 'tab');
+        tab.setAttribute('aria-selected', 'false');
+        tab.setAttribute('aria-controls', `sg-chat-log-${id}`);
+        tab.dataset.chatTarget = 'tab';
+        tab.dataset.channel = channel;
+        tab.dataset.action = 'chat#select';
+        const status = document.createElement('span');
+        status.className = 'sg-chat__status';
+        status.dataset.peer = String(peer.id);
+        const badge = document.createElement('span');
+        badge.className = 'sg-chat__badge';
+        badge.dataset.chatBadge = channel;
+        badge.hidden = true;
+        const close = document.createElement('span');
+        close.className = 'sg-chat__close';
+        close.textContent = '×';
+        close.title = 'Fermer la discussion';
+        close.dataset.channel = channel;
+        close.dataset.action = 'click->chat#closePrivate';
+        tab.append(status, peer.name, ' ', badge, close);
+        this.tabsTarget.append(tab);
+
+        const log = document.createElement('ol');
+        log.className = 'sg-chat__log';
+        log.id = `sg-chat-log-${id}`;
+        log.hidden = true;
+        log.setAttribute('role', 'tabpanel');
+        log.setAttribute('aria-labelledby', tab.id);
+        log.setAttribute('aria-live', 'polite');
+        log.dataset.chatTarget = 'log';
+        log.dataset.channel = channel;
+        this.logsTarget.append(log);
+        this.renderPeers();
+    }
+
+    showError(data, fallback) {
+        this.errorTarget.textContent = data.error ?? fallback;
+        if (data.messaging) {
+            // Interlocuteur hors ligne : renvoi vers la messagerie
+            const link = document.createElement('a');
+            link.href = data.messaging;
+            link.textContent = 'Écrire dans la messagerie';
+            this.errorTarget.append(' ', link);
+        }
+    }
+
+    renderPeers() {
+        for (const status of this.element.querySelectorAll('.sg-chat__tab [data-peer]')) {
+            const online = state.online.has(Number(status.dataset.peer));
+            status.classList.toggle('is-online', online);
+            status.title = online ? 'En ligne' : 'Hors ligne';
+        }
+    }
+
     receive(message) {
+        if (message.channel.startsWith('private:')) {
+            const mine = message.authorId === this.meValue;
+            this.ensureTab(
+                message.channel,
+                mine
+                    ? { id: message.recipientId, name: message.recipient }
+                    : { id: message.authorId, name: message.author },
+            );
+        }
         this.append(message);
         if (!state.open || state.active !== message.channel) {
             if (message.authorId !== this.meValue) {

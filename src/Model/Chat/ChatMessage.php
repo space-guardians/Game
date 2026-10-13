@@ -18,6 +18,9 @@ final readonly class ChatMessage implements \JsonSerializable
         public string $author,
         public string $body,
         public \DateTimeImmutable $sentAt,
+        /** Destinataire d'un message privé, pour nommer l'onglet chez l'expéditeur */
+        public ?int $recipientId = null,
+        public ?string $recipient = null,
     ) {}
 
     /** @param array<mixed> $data */
@@ -30,13 +33,17 @@ final readonly class ChatMessage implements \JsonSerializable
             (string) ($data['author'] ?? ''),
             (string) ($data['body'] ?? ''),
             new \DateTimeImmutable((string) ($data['sentAt'] ?? 'now')),
+            isset($data['recipientId']) ? (int) $data['recipientId'] : null,
+            isset($data['recipient']) ? (string) $data['recipient'] : null,
         );
     }
 
-    /** @return array{type: string, id: string, channel: string, authorId: int, author: string, body: string, sentAt: string} */
+    /** @return array{type: string, id: string, channel: string, authorId: int, author: string, body: string, sentAt: string, recipientId?: int, recipient?: string} */
     public function jsonSerialize(): array
     {
-        return [
+        $recipient = null === $this->recipientId ? [] : ['recipientId' => $this->recipientId, 'recipient' => (string) $this->recipient];
+
+        return $recipient + [
             'type' => 'message',
             'id' => $this->id,
             'channel' => $this->channel,
