@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Service\Chat;
 
+use App\Entity\Alliance;
 use App\Entity\Empire;
 use App\Exception\Chat\ChatRecipientOffline;
 use App\Exception\Chat\ChatRefused;
 use App\Model\Chat\ChatMessage;
 use App\Model\Chat\ChatTopics;
 use App\Model\Chat\PrivateChat;
+use App\Repository\AllianceMemberRepository;
 use App\Repository\EmpireRepository;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -30,6 +32,8 @@ final readonly class Chat
 
     public const string GROUP_PREFIX = 'group:';
 
+    public const string ALLIANCE_PREFIX = 'alliance:';
+
     public function __construct(
         private ChatBuffer $buffer,
         private ChatPresence $presence,
@@ -39,6 +43,7 @@ final readonly class Chat
         private ClockInterface $clock,
         private EmpireRepository $empires,
         private ChatGroups $groups,
+        private AllianceMemberRepository $members,
     ) {}
 
     /**
@@ -48,7 +53,8 @@ final readonly class Chat
     public function post(Empire $author, string $channel, string $body): ChatMessage
     {
         $group = str_starts_with($channel, self::GROUP_PREFIX) ? $this->groups->memberOf($author, substr($channel, \strlen(self::GROUP_PREFIX))) : null;
-        $recipient = self::PUBLIC_CHANNEL === $channel || null !== $group ? null : $this->privatePeer($author, $channel);
+        $alliance = str_starts_with($channel, self::ALLIANCE_PREFIX) ? $this->allianceOf($author, $channel) : null;
+        $recipient = self::PUBLIC_CHANNEL === $channel || null !== $group || null !== $alliance ? null : $this->privatePeer($author, $channel);
         if (null !== $recipient && !$this->presence->isOnline($recipient)) {
             throw new ChatRecipientOffline($recipient);
         }
@@ -68,7 +74,12 @@ final readonly class Chat
         // Écrire, c'est être là
         $this->presence->heartbeat($author);
         $data = json_encode($message, \JSON_THROW_ON_ERROR);
-        if (null !== $group) {
+        if (null !== $alliance) {
+            // Alliance : sur le topic personnel de chaque membre actuel (fan-out serveur, §5.7) ; un joueur parti ou
+            // exclu ne reçoit plus rien
+            $topics = array_map(static fn($member): string => ChatTopics::user($member->getEmpire()->getUser()), $alliance->getMembers()->toArray());
+            $this->hub->publish(new Update(array_values($topics), $data, private: true));
+        } elseif (null !== $group) {
             // Groupe : sur le topic personnel de chaque participant (fan-out serveur, §5.7) ; il reste actif
             $this->groups->touch($group->id);
             $this->hub->publish(new Update($this->groups->topics($group), $data, private: true));
@@ -99,6 +110,29 @@ final readonly class Chat
         }
 
         return new PrivateChat(self::privateChannel($author, $other), (int) $other->getId(), $other->getName());
+    }
+
+    /** Canal de l'alliance du joueur, ou null s'il n'en a pas */
+    public function allianceChannel(Empire $empire): ?string
+    {
+        $alliance = $this->members->findOneByEmpire($empire)?->getAlliance();
+
+        return null === $alliance ? null : self::ALLIANCE_PREFIX . $alliance->getId();
+    }
+
+    /**
+     * Alliance du canal, dont le joueur doit être membre au moment même (§4.10).
+     *
+     * @throws ChatRefused
+     */
+    private function allianceOf(Empire $empire, string $channel): Alliance
+    {
+        $alliance = $this->members->findOneByEmpire($empire)?->getAlliance();
+        if (null === $alliance || self::ALLIANCE_PREFIX . $alliance->getId() !== $channel) {
+            throw new ChatRefused('Vous ne faites pas partie de cette alliance.');
+        }
+
+        return $alliance;
     }
 
     /** Canal d'une discussion privée : le même pour les deux joueurs */
@@ -142,6 +176,9 @@ final readonly class Chat
         if (str_starts_with($channel, self::GROUP_PREFIX)) {
             // Groupe : seulement pour ses participants
             $this->groups->memberOf($viewer, substr($channel, \strlen(self::GROUP_PREFIX)));
+        } elseif (str_starts_with($channel, self::ALLIANCE_PREFIX)) {
+            // Alliance : seulement pour ses membres actuels
+            $this->allianceOf($viewer, $channel);
         } elseif (self::PUBLIC_CHANNEL !== $channel) {
             // Discussion privée : seulement si le joueur en fait partie
             $this->privatePeer($viewer, $channel);

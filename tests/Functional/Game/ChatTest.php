@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Game;
 
 use App\Factory\EmpireFactory;
 use App\Model\Chat\ChatTopics;
+use App\Service\Alliance\Alliances;
 use App\Service\Chat\Chat;
 use App\Service\Chat\ChatBuffer;
 use App\Service\Chat\ChatGroups;
@@ -183,6 +184,35 @@ final class ChatTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         return json_decode((string) $this->client->getResponse()->getContent(), true);
+    }
+
+    public function testHeartbeatGivesTheAllianceTabAndItsMembersOnline(): void
+    {
+        $ana = EmpireFactory::createOne(['name' => 'Ana']);
+        $bob = EmpireFactory::createOne(['name' => 'Bob']);
+        $cid = EmpireFactory::createOne(['name' => 'Cid']);
+        $alliances = self::getContainer()->get(Alliances::class);
+        $alliances->found($ana, 'Ligue', 'LGS');
+        $alliances->accept($alliances->invite($ana, 'Bob'), $bob);
+        $alliances->accept($alliances->invite($ana, 'Cid'), $cid);
+        self::getContainer()->get(ChatPresence::class)->heartbeat($cid);
+        $this->client->loginUser($ana->getUser());
+        $crawler = $this->client->request('GET', '/');
+        $token = (string) $crawler->filter('#sg-chat')->attr('data-chat-token-value');
+
+        $this->client->request('POST', '/chat/presence', server: ['HTTP_X_CSRF_TOKEN' => $token]);
+
+        $alliance = json_decode((string) $this->client->getResponse()->getContent(), true)['alliance'] ?? null;
+        self::assertSame('LGS', $alliance['tag'] ?? null);
+        self::assertSame(self::getContainer()->get(Chat::class)->allianceChannel($ana), $alliance['channel']);
+        // En ligne d'abord, puis par nom
+        self::assertSame([['Ana', true], ['Cid', true], ['Bob', false]], array_map(static fn(array $member): array => [$member['name'], $member['online']], $alliance['members']));
+
+        // Sans alliance : pas d'onglet
+        $this->client->loginUser(EmpireFactory::createOne()->getUser());
+        $crawler = $this->client->request('GET', '/');
+        $this->client->request('POST', '/chat/presence', server: ['HTTP_X_CSRF_TOKEN' => (string) $crawler->filter('#sg-chat')->attr('data-chat-token-value')]);
+        self::assertNull(json_decode((string) $this->client->getResponse()->getContent(), true)['alliance']);
     }
 
     public function testHeartbeatRequiresTheCsrfToken(): void
