@@ -158,6 +158,9 @@ final readonly class Messaging
     /** @throws InvalidMessage */
     private function activePlace(Conversation $conversation, Empire $empire): ConversationParticipant
     {
+        if ($conversation->isSystem()) {
+            throw new InvalidMessage('Un message du jeu n’appelle pas de réponse.');
+        }
         $place = $conversation->participantOf($empire);
         if (null === $place || !$place->isActive()) {
             throw new InvalidMessage('Vous ne participez plus à cette conversation.');

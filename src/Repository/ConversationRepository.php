@@ -70,6 +70,7 @@ final class ConversationRepository extends ServiceEntityRepository
             ->join('c.participants', 'pa', 'WITH', 'pa.empire = :a AND pa.leftAt IS NULL')
             ->join('c.participants', 'pb', 'WITH', 'pb.empire = :b AND pb.leftAt IS NULL')
             ->andWhere('c.group = false')
+            ->andWhere('c.system = false')
             ->setParameter('a', $a)
             ->setParameter('b', $b)
             ->orderBy('c.id', 'ASC')

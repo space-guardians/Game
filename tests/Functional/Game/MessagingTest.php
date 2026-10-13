@@ -9,6 +9,7 @@ use App\Entity\Message;
 use App\Factory\EmpireFactory;
 use App\Repository\ConversationRepository;
 use App\Service\Messaging\Messaging;
+use App\Service\Messaging\SystemMessenger;
 use App\Twig\Components\MessageComposer;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -108,6 +109,24 @@ final class MessagingTest extends WebTestCase
         $this->client->request('GET', '/messagerie/' . $conversation->getId());
 
         self::assertResponseStatusCodeSame(404);
+    }
+
+    public function testSystemMessageIsShownWithoutReply(): void
+    {
+        [$ana, $bob] = $this->empires('Ana', 'Bob');
+        $conversation = self::getContainer()->get(SystemMessenger::class)->toEmpires([$ana, $bob], 'Maintenance', 'Le serveur redémarre à minuit.');
+        $this->client->loginUser($ana->getUser());
+
+        $this->client->request('GET', '/messagerie');
+        self::assertSelectorTextContains('#conversation-row-' . $conversation->getId(), 'Maintenance');
+        self::assertSelectorTextContains('#conversation-row-' . $conversation->getId(), 'Jeu');
+
+        $this->client->request('GET', '/messagerie/' . $conversation->getId());
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('.sg-message', 'Message du jeu');
+        self::assertSelectorTextContains('#sans-reponse', 'pas de réponse possible');
+        // Les destinataires ne se voient pas entre eux
+        self::assertSelectorTextNotContains('#participants', 'Bob');
     }
 
     /** @return list<Empire> */

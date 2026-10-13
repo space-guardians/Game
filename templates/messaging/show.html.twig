@@ -7,12 +7,16 @@
 
 {% block content %}
     <section class="sg-panel sg-cut-14" aria-labelledby="participants-title">
-        <h2 id="participants-title" class="sg-section-title">{{ conversation.group ? 'Groupe' : 'Conversation à deux' }}</h2>
-        <p class="sg-entity__meta" id="participants">
-            {% for participant in conversation.participants %}
-                {{ participant.empire is same as(empire) ? 'Vous' : participant.empire.name }}{% if not participant.active %} (parti){% endif %}{{ not loop.last ? ',' }}
-            {% endfor %}
-        </p>
+        <h2 id="participants-title" class="sg-section-title">{{ conversation.system ? 'Message du jeu' : (conversation.group ? 'Groupe' : 'Conversation à deux') }}</h2>
+        {% if conversation.system %}
+            <p class="sg-entity__meta" id="participants">Envoyé par le jeu : on n’y répond pas.</p>
+        {% else %}
+            <p class="sg-entity__meta" id="participants">
+                {% for participant in conversation.participants %}
+                    {{ participant.empire is same as(empire) ? 'Vous' : participant.empire.name }}{% if not participant.active %} (parti){% endif %}{{ not loop.last ? ',' }}
+                {% endfor %}
+            </p>
+        {% endif %}
         <div class="sg-messaging__actions">
             <form method="post" action="{{ path('app_messaging_archive', {id: conversation.id}) }}">
                 <input type="hidden" name="_token" value="{{ csrf_token('messaging-archive-' ~ conversation.id) }}">
@@ -47,7 +51,9 @@
             {% endfor %}
         </ol>
         <span id="dernier"></span>
-        {% if place.active %}
+        {% if conversation.system %}
+            <p class="sg-empty" id="sans-reponse">Message du jeu : pas de réponse possible.</p>
+        {% elseif place.active %}
             <twig:MessageComposer :conversationId="conversation.id"/>
         {% else %}
             <p class="sg-empty">Vous avez quitté cette conversation : vous ne pouvez plus y répondre.</p>
