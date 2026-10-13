@@ -7,6 +7,7 @@
     data-chat-history-url-value="{{ path('app_chat_history') }}"
     data-chat-presence-url-value="{{ path('app_chat_presence') }}"
     data-chat-private-url-value="{{ path('app_chat_private') }}"
+    data-chat-groups-url-value="{{ path('app_chat_groups') }}"
     data-chat-token-value="{{ csrf_token('chat') }}"
     data-chat-me-value="{{ chat_author_id() }}">
     <button type="button" class="sg-chat__toggle sg-cut-8" data-action="chat#toggle" data-chat-target="toggle" aria-expanded="false" aria-controls="sg-chat-panel">
@@ -23,6 +24,13 @@
             </button>
         </div>
         <p class="sg-chat__presence" data-chat-target="presence" aria-live="polite">Présence en cours de mise à jour…</p>
+        <div class="sg-chat__group" data-chat-target="group" hidden>
+            <p class="sg-chat__presence" data-chat-target="groupMembers"></p>
+            <form class="sg-chat__form" data-chat-target="groupAddForm" data-action="chat#addToGroup">
+                <input class="sg-input sg-chat__input" type="text" maxlength="30" autocomplete="off" aria-label="Ajouter un joueur au groupe" placeholder="Accueillir un joueur dans le groupe…" data-chat-target="groupAdd">
+                <twig:Btn type="submit" label="Accueillir" variant="ghost" size="sm"/>
+            </form>
+        </div>
         <div class="sg-chat__logs" data-chat-target="logs">
             <ol class="sg-chat__log" id="sg-chat-log-public" role="tabpanel" aria-labelledby="sg-chat-tab-public" aria-live="polite"
                 data-chat-target="log" data-channel="public"></ol>
@@ -35,6 +43,10 @@
         <form class="sg-chat__form" data-action="chat#openPrivate">
             <input class="sg-input sg-chat__input" type="text" name="peer" maxlength="30" autocomplete="off" aria-label="Discuter en privé avec" placeholder="Discuter en privé avec…" data-chat-target="peer">
             <twig:Btn type="submit" label="Ouvrir" variant="ghost" size="sm"/>
+        </form>
+        <form class="sg-chat__form" data-action="chat#createGroup">
+            <input class="sg-input sg-chat__input" type="text" maxlength="40" autocomplete="off" aria-label="Nom du nouveau groupe" placeholder="Nouveau groupe…" data-chat-target="groupName">
+            <twig:Btn type="submit" label="Créer" variant="ghost" size="sm"/>
         </form>
     </div>
 </aside>

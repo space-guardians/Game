@@ -10,6 +10,7 @@ use App\Exception\Chat\ChatRefused;
 use App\Repository\EmpireRepository;
 use App\Service\Account\GameContext;
 use App\Service\Chat\Chat;
+use App\Service\Chat\ChatGroups;
 use App\Service\Chat\ChatPresence;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -33,6 +34,7 @@ final class ChatController extends AbstractController
         private readonly Chat $chat,
         private readonly ChatPresence $presence,
         private readonly EmpireRepository $empires,
+        private readonly ChatGroups $groups,
     ) {}
 
     #[Route('/chat/messages', name: 'app_chat_send', methods: ['POST'])]
@@ -73,6 +75,44 @@ final class ChatController extends AbstractController
         } catch (ChatRecipientOffline $offline) {
             return $this->offline($offline);
         }
+    }
+
+    /** Groupes de chat du joueur, pour rouvrir leurs onglets */
+    #[Route('/chat/groupes', name: 'app_chat_groups', methods: ['GET'])]
+    public function groups(): JsonResponse
+    {
+        return $this->json($this->groups->of($this->empire()));
+    }
+
+    /**
+     * Gestion d'un groupe de chat : création (nom), ajout d'un joueur connecté (nom), retrait d'un participant
+     * (identifiant d'empire), départ.
+     */
+    #[Route('/chat/groupes', name: 'app_chat_group_create', methods: ['POST'], defaults: ['operation' => 'creer', 'id' => ''])]
+    #[Route('/chat/groupes/{id}/{operation}', name: 'app_chat_group_manage', methods: ['POST'], requirements: ['id' => '[0-9a-f]+', 'operation' => 'ajouter|retirer|quitter'])]
+    public function manageGroup(string $id, string $operation, Request $request): JsonResponse
+    {
+        $empire = $this->empire();
+        if (!$this->isCsrfTokenValid('chat', (string) $request->headers->get(self::CSRF_HEADER))) {
+            return $this->json(['error' => 'La page a expiré : rechargez-la.'], Response::HTTP_FORBIDDEN);
+        }
+        $payload = json_decode($request->getContent(), true);
+        $payload = \is_array($payload) ? $payload : [];
+
+        try {
+            $group = match ($operation) {
+                'creer' => $this->groups->create($empire, (string) ($payload['name'] ?? '')),
+                'ajouter' => $this->groups->add($empire, $id, (string) ($payload['name'] ?? '')),
+                'retirer' => $this->groups->remove($empire, $id, (int) ($payload['empire'] ?? 0)),
+                default => $this->groups->leave($empire, $id),
+            };
+        } catch (ChatRefused $refusal) {
+            return $this->json(['error' => $refusal->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        } catch (ChatRecipientOffline $offline) {
+            return $this->offline($offline);
+        }
+
+        return $this->json(['group' => $group]);
     }
 
     /** Interlocuteur hors ligne : refus, avec le lien vers un nouveau message dans la messagerie */
