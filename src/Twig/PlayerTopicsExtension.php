@@ -7,6 +7,7 @@ namespace App\Twig;
 use App\Model\Chat\ChatTopics;
 use App\Model\Scheduling\GameTopics;
 use App\Service\Account\GameContext;
+use App\Service\Messaging\IgnoredPlayers;
 use Twig\Attribute\AsTwigFunction;
 
 /**
@@ -17,6 +18,7 @@ final readonly class PlayerTopicsExtension
 {
     public function __construct(
         private GameContext $context,
+        private IgnoredPlayers $ignored,
     ) {}
 
     /** @return list<string> */
@@ -33,6 +35,19 @@ final readonly class PlayerTopicsExtension
     public function chatAuthorId(): ?int
     {
         return $this->context->empire()?->getId();
+    }
+
+    /**
+     * Joueurs ignorés par le joueur connecté (§4.12.4) : le widget masque leurs messages dans les canaux partagés.
+     *
+     * @return list<int>
+     */
+    #[AsTwigFunction('chat_ignored_ids')]
+    public function chatIgnoredIds(): array
+    {
+        $empire = $this->context->empire();
+
+        return null === $empire ? [] : $this->ignored->idsOf($empire);
     }
 
     /**

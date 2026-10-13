@@ -13,6 +13,7 @@ use App\Model\Chat\ChatTopics;
 use App\Model\Chat\PrivateChat;
 use App\Repository\AllianceMemberRepository;
 use App\Repository\EmpireRepository;
+use App\Service\Messaging\IgnoredPlayers;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Mercure\HubInterface;
@@ -44,6 +45,7 @@ final readonly class Chat
         private EmpireRepository $empires,
         private ChatGroups $groups,
         private AllianceMemberRepository $members,
+        private IgnoredPlayers $ignored,
     ) {}
 
     /**
@@ -55,6 +57,9 @@ final readonly class Chat
         $group = str_starts_with($channel, self::GROUP_PREFIX) ? $this->groups->memberOf($author, substr($channel, \strlen(self::GROUP_PREFIX))) : null;
         $alliance = str_starts_with($channel, self::ALLIANCE_PREFIX) ? $this->allianceOf($author, $channel) : null;
         $recipient = self::PUBLIC_CHANNEL === $channel || null !== $group || null !== $alliance ? null : $this->privatePeer($author, $channel);
+        if (null !== $recipient) {
+            $this->guardPrivate($author, $recipient);
+        }
         if (null !== $recipient && !$this->presence->isOnline($recipient)) {
             throw new ChatRecipientOffline($recipient);
         }
@@ -76,13 +81,21 @@ final readonly class Chat
         $data = json_encode($message, \JSON_THROW_ON_ERROR);
         if (null !== $alliance) {
             // Alliance : sur le topic personnel de chaque membre actuel (fan-out serveur, §5.7) ; un joueur parti ou
-            // exclu ne reçoit plus rien
-            $topics = array_map(static fn($member): string => ChatTopics::user($member->getEmpire()->getUser()), $alliance->getMembers()->toArray());
-            $this->hub->publish(new Update(array_values($topics), $data, private: true));
+            // exclu ne reçoit plus rien, ni un membre qui ignore l'auteur (§4.12.4)
+            $members = array_map(static fn($member): Empire => $member->getEmpire(), $alliance->getMembers()->toArray());
+            $ignoring = $this->ignored->ignoring($author, array_values(array_map(static fn(Empire $member): int => (int) $member->getId(), $members)));
+            $topics = [];
+            foreach ($members as $member) {
+                if (!\in_array((int) $member->getId(), $ignoring, true)) {
+                    $topics[] = ChatTopics::user($member->getUser());
+                }
+            }
+            $this->hub->publish(new Update($topics, $data, private: true));
         } elseif (null !== $group) {
-            // Groupe : sur le topic personnel de chaque participant (fan-out serveur, §5.7) ; il reste actif
+            // Groupe : sur le topic personnel de chaque participant (fan-out serveur, §5.7), sauf ceux qui ignorent
+            // l'auteur (§4.12.4) ; il reste actif
             $this->groups->touch($group->id);
-            $this->hub->publish(new Update($this->groups->topics($group), $data, private: true));
+            $this->hub->publish(new Update($this->groups->topics($group, $this->ignored->ignoring($author, array_keys($group->members))), $data, private: true));
         } elseif (null === $recipient) {
             $this->hub->publish(new Update(ChatTopics::PUBLIC, $data, private: true));
         } else {
@@ -105,11 +118,27 @@ final readonly class Chat
         if ($other === $author) {
             throw new ChatRefused('On ne discute pas avec soi-même.');
         }
+        $this->guardPrivate($author, $other);
         if (!$this->presence->isOnline($other)) {
             throw new ChatRecipientOffline($other);
         }
 
         return new PrivateChat(self::privateChannel($author, $other), (int) $other->getId(), $other->getName());
+    }
+
+    /**
+     * Discussion privée impossible entre un joueur et celui qui l'ignore, dans un sens comme dans l'autre (§4.12.4).
+     *
+     * @throws ChatRefused
+     */
+    private function guardPrivate(Empire $author, Empire $other): void
+    {
+        if ($this->ignored->blocks($other, $author)) {
+            throw new ChatRefused(\sprintf('%s n’accepte pas vos messages.', $other->getName()));
+        }
+        if ($this->ignored->blocks($author, $other)) {
+            throw new ChatRefused(\sprintf('Vous ignorez %s : retirez ce joueur de votre liste pour lui écrire.', $other->getName()));
+        }
     }
 
     /** Canal de l'alliance du joueur, ou null s'il n'en a pas */
@@ -184,6 +213,9 @@ final readonly class Chat
             $this->privatePeer($viewer, $channel);
         }
 
-        return $this->buffer->recent($channel);
+        // Messages des joueurs ignorés masqués (§4.12.4)
+        $ignored = $this->ignored->idsOf($viewer);
+
+        return [] === $ignored ? $this->buffer->recent($channel) : array_values(array_filter($this->buffer->recent($channel), static fn(ChatMessage $message): bool => !\in_array($message->authorId, $ignored, true)));
     }
 }

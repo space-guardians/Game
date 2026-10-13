@@ -7,10 +7,13 @@ namespace App\Controller;
 use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
 use App\Entity\Empire;
+use App\Entity\Message;
 use App\Enum\Messaging\MessageCategory;
 use App\Exception\Messaging\InvalidMessage;
 use App\Repository\ConversationRepository;
+use App\Repository\PlayerIgnoreRepository;
 use App\Service\Account\GameContext;
+use App\Service\Messaging\IgnoredPlayers;
 use App\Service\Messaging\Messaging;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -20,7 +23,8 @@ use Symfony\Component\Routing\Attribute\Route;
 /**
  * Écran « Messagerie » (§4.12.2, §5.7) : conversations de l'empire (boîte et archives, Turbo Frame), nouvelle
  * conversation, conversation ouverte (lue à l'affichage) avec réponse, ajout de participants, départ, archivage et
- * suppression de son côté. La rédaction passe par le Live Component « MessageComposer ».
+ * suppression de son côté. La rédaction passe par le Live Component « MessageComposer ». Liste des joueurs ignorés
+ * (§4.12.4), commune au chat et à la messagerie.
  */
 final class MessagingController extends AbstractController
 {
@@ -28,6 +32,8 @@ final class MessagingController extends AbstractController
         private readonly GameContext $context,
         private readonly ConversationRepository $conversations,
         private readonly Messaging $messaging,
+        private readonly IgnoredPlayers $ignored,
+        private readonly PlayerIgnoreRepository $ignores,
     ) {}
 
     public const string PLAYERS_FOLDER = 'joueurs';
@@ -70,14 +76,62 @@ final class MessagingController extends AbstractController
     {
         [$empire, $conversation, $place] = $this->place($id);
         $this->messaging->markRead($place);
+        // Messages des joueurs ignorés masqués (§4.12.4)
+        $ignored = $this->ignored->idsOf($empire);
+        $visible = static fn(Message $message): bool => $place->sees($message) && !\in_array($message->getAuthor()?->getId(), $ignored, true);
 
         return $this->render('messaging/show.html.twig', [
             'empire' => $empire,
             'planet' => $empire->getActivePlanet(),
             'conversation' => $conversation,
             'place' => $place,
-            'messages' => array_values(array_filter($conversation->getMessages()->toArray(), $place->sees(...))),
+            'messages' => array_values(array_filter($conversation->getMessages()->toArray(), $visible)),
+            'ignored' => $ignored,
         ]);
+    }
+
+    #[Route('/messagerie/ignores', name: 'app_messaging_ignored', methods: ['GET'])]
+    public function ignored(): Response
+    {
+        $empire = $this->empire();
+
+        return $this->render('messaging/ignored.html.twig', [
+            'empire' => $empire,
+            'planet' => $empire->getActivePlanet(),
+            'ignores' => $this->ignores->findOf($empire),
+        ]);
+    }
+
+    #[Route('/messagerie/ignores', name: 'app_messaging_ignore', methods: ['POST'])]
+    public function ignore(Request $request): Response
+    {
+        $empire = $this->empire();
+
+        return $this->ignoreAction($request, fn(): string => \sprintf('Vous ignorez désormais %s.', $this->ignored->ignore($empire, $request->request->getString('name'))->getName()));
+    }
+
+    #[Route('/messagerie/ignores/{id}/retirer', name: 'app_messaging_unignore', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function unignore(int $id, Request $request): Response
+    {
+        $empire = $this->empire();
+
+        return $this->ignoreAction($request, fn(): string => \sprintf('Vous n’ignorez plus %s.', $this->ignored->unignore($empire, $id)->getName()));
+    }
+
+    /** @param callable(): string $action */
+    private function ignoreAction(Request $request, callable $action): Response
+    {
+        if (!$this->isCsrfTokenValid('messaging-ignore', $request->request->getString('_token'))) {
+            $this->addFlash('error', 'La page a expiré : recommencez.');
+        } else {
+            try {
+                $this->addFlash('success', $action());
+            } catch (InvalidMessage $exception) {
+                $this->addFlash('error', $exception->getMessage());
+            }
+        }
+
+        return $this->redirectToRoute('app_messaging_ignored');
     }
 
     #[Route('/messagerie/{id}/participants', name: 'app_messaging_add', methods: ['POST'], requirements: ['id' => '\d+'])]

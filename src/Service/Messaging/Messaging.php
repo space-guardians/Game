@@ -30,6 +30,7 @@ final readonly class Messaging
         private EntityManagerInterface $entityManager,
         private MessagingNotifier $notifier,
         private ClockInterface $clock,
+        private IgnoredPlayers $ignored,
     ) {}
 
     /**
@@ -45,6 +46,9 @@ final readonly class Messaging
         $recipients = $this->resolve($author, $recipientNames);
         if ([] === $recipients) {
             throw new InvalidMessage('Indiquez au moins un destinataire.');
+        }
+        foreach ($recipients as $recipient) {
+            $this->guardRecipient($author, $recipient);
         }
         $body = $this->checkBody($body);
         $subject = null === $subject ? null : trim($subject);
@@ -72,6 +76,14 @@ final readonly class Messaging
     public function reply(Conversation $conversation, Empire $author, string $body): Message
     {
         $this->activePlace($conversation, $author);
+        if (!$conversation->isGroup()) {
+            // À deux : un joueur ignoré n'écrit plus à celui qui l'ignore (§4.12.4)
+            foreach ($conversation->activeParticipants() as $place) {
+                if ($place->getEmpire() !== $author) {
+                    $this->guardRecipient($author, $place->getEmpire());
+                }
+            }
+        }
 
         return $this->post($conversation, $author, $this->checkBody($body), $this->clock->now());
     }
@@ -95,6 +107,9 @@ final readonly class Messaging
         $now = $this->clock->now();
         foreach ($this->resolve($by, $names) as $empire) {
             if (!($conversation->participantOf($empire)?->isActive() ?? false)) {
+                if ($this->ignored->blocks($empire, $by)) {
+                    throw new InvalidMessage(\sprintf('%s n’accepte pas d’être ajouté par vous.', $empire->getName()));
+                }
                 $conversation->add($empire, $now);
                 $added[] = $empire;
             }
@@ -143,14 +158,28 @@ final readonly class Messaging
 
     private function post(Conversation $conversation, Empire $author, string $body, \DateTimeImmutable $at): Message
     {
+        // Les participants qui ignorent l'auteur ne reçoivent pas son message (§4.12.4) : ni notification, ni retour
+        // dans la boîte, et la conversation reste lue s'ils l'avaient lue jusqu'au bout
+        $places = $conversation->activeParticipants();
+        $ignoring = $this->ignored->ignoring($author, array_map(static fn(ConversationParticipant $place): int => (int) $place->getEmpire()->getId(), $places));
+        $upToDate = array_filter($places, static fn(ConversationParticipant $place): bool => !$place->hasUnread());
         $message = $conversation->post($author, $body, $at);
-        // Un nouveau message ramène la conversation dans la boîte de chacun ; l'auteur l'a lue jusqu'à son message
-        foreach ($conversation->activeParticipants() as $place) {
+        $recipients = [];
+        foreach ($places as $place) {
+            if (\in_array((int) $place->getEmpire()->getId(), $ignoring, true)) {
+                if (\in_array($place, $upToDate, true)) {
+                    $place->markRead($at);
+                }
+                continue;
+            }
+            // Un nouveau message ramène la conversation dans la boîte de chacun
             $place->archive(false);
+            $recipients[] = $place;
         }
+        // L'auteur l'a lue jusqu'à son message
         $conversation->participantOf($author)?->markRead($at);
         $this->entityManager->flush();
-        $this->notifier->posted($message);
+        $this->notifier->deliveredTo($message, $recipients);
 
         return $message;
     }
@@ -167,6 +196,14 @@ final readonly class Messaging
         }
 
         return $place;
+    }
+
+    /** @throws InvalidMessage */
+    private function guardRecipient(Empire $author, Empire $recipient): void
+    {
+        if ($this->ignored->blocks($recipient, $author)) {
+            throw new InvalidMessage(\sprintf('%s n’accepte pas vos messages.', $recipient->getName()));
+        }
     }
 
     /** @throws InvalidMessage */
