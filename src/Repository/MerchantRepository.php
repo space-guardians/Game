@@ -6,6 +6,8 @@ namespace App\Repository;
 
 use App\Entity\Galaxy;
 use App\Entity\Merchant;
+use App\Entity\SpaceLocation;
+use App\Entity\StarSystem;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -35,6 +37,23 @@ final class MerchantRepository extends ServiceEntityRepository
             ->orderBy('s.number', 'ASC')
             ->getQuery()
             ->getResult();
+    }
+
+    /** Marchand dont la station est à cette position (un au plus par système) */
+    public function findAt(SpaceLocation $location): ?Merchant
+    {
+        if (null === $location->systemId || null === $location->localX || null === $location->localY || null !== $location->planetId) {
+            return null;
+        }
+        $merchant = $this->findOneBy(['system' => $location->systemId]);
+
+        return null !== $merchant && abs($merchant->getLocalX() - $location->localX) < 0.01 && abs($merchant->getLocalY() - $location->localY) < 0.01 ? $merchant : null;
+    }
+
+    /** Marchand d'un système, s'il y en a un */
+    public function findInSystem(StarSystem $system): ?Merchant
+    {
+        return $this->findOneBy(['system' => $system]);
     }
 
     public function countInGalaxy(Galaxy $galaxy): int

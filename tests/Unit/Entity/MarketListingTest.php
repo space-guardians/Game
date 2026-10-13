@@ -76,6 +76,11 @@ final class MarketListingTest extends TestCase
             self::fail('Le vendeur achète sa propre annonce.');
         } catch (\LogicException) {
         }
+        // Le vendeur peut livrer avant d'avoir un acheteur ; l'acheteur, seulement une fois engagé
+        self::assertTrue($listing->awaitsDeliveryFrom($ana));
+        self::assertFalse($listing->markDelivered($ana));
+        self::assertFalse($listing->awaitsDeliveryFrom($ana));
+        self::assertTrue($listing->cancel($at));
         $this->expectException(\LogicException::class);
         $listing->markDelivered($ana);
     }
@@ -84,7 +89,7 @@ final class MarketListingTest extends TestCase
     {
         $at = new \DateTimeImmutable('2026-10-13 10:00');
         $open = new MarketListing($this->empire('Ana'), $this->merchant(), new Resources(10.0), new Resources(5.0), $at);
-        $open->cancel($at);
+        self::assertFalse($open->cancel($at));
         self::assertSame(MarketListingStatus::Cancelled, $open->getStatus());
 
         $accepted = new MarketListing($this->empire('Ana'), $this->merchant(), new Resources(10.0), new Resources(5.0), $at);

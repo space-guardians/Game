@@ -24,6 +24,7 @@ use App\Service\Combat\Interceptions;
 use App\Service\Economy\PlanetResources;
 use App\Service\Espionage\Espionage;
 use App\Service\Exploration\Explorations;
+use App\Service\Market\Market;
 use App\Service\Messaging\GameReports;
 use App\Service\Scheduling\ScheduledEventHandler;
 use App\Service\Universe\ColonyLimit;
@@ -58,6 +59,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private Allegiances $allegiances,
         private TeleportGates $teleports,
         private GameReports $reports,
+        private Market $market,
     ) {}
 
     public static function type(): string
@@ -277,6 +279,18 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 }
 
                 return true;
+            case FleetAction::MarketDeliver:
+            case FleetAction::MarketCollect:
+                // Marché (§4.15) : livraison des transactions en cours, ou retrait de ce que le marchand garde pour l'empire
+                $failure = FleetAction::MarketDeliver === $order->getAction()
+                    ? $this->market->deliver($fleet, $order->getDestination(), $arrival)
+                    : $this->market->collect($fleet, $order->getDestination());
+                if (null !== $failure) {
+                    $order->fail($failure, $arrival);
+
+                    return false;
+                }
+                break;
             case FleetAction::Colonize:
                 $failure = $this->colonize($fleet, $planet, $arrival);
                 if (null !== $failure) {

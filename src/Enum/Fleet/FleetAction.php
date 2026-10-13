@@ -38,6 +38,15 @@ enum FleetAction: string implements TranslatableInterface
     /** Entrer dans une porte de téléportation de son alliance : la flotte ressort par la porte reliée (§4.10) */
     case Teleport = 'teleport';
 
+    /**
+     * Livre au marchand ce que l'empire doit sur ses transactions en cours chez lui (§4.15) ; vise la station du
+     * marchand d'un système
+     */
+    case MarketDeliver = 'market_deliver';
+
+    /** Retire chez le marchand les ressources qu'il garde pour l'empire, dans la limite des soutes (§4.15) */
+    case MarketCollect = 'market_collect';
+
     public function label(): string
     {
         return match ($this) {
@@ -50,6 +59,8 @@ enum FleetAction: string implements TranslatableInterface
             self::Recycle => 'Recyclage',
             self::Spy => 'Espionnage',
             self::Teleport => 'Téléportation',
+            self::MarketDeliver => 'Livraison au marchand',
+            self::MarketCollect => 'Retrait chez le marchand',
         };
     }
 
@@ -60,7 +71,13 @@ enum FleetAction: string implements TranslatableInterface
 
     public function forbidsPlanet(): bool
     {
-        return self::Explore === $this;
+        return self::Explore === $this || $this->targetsMerchant();
+    }
+
+    /** Action qui vise la station du marchand d'un système (saisie : coordonnées du système) */
+    public function targetsMerchant(): bool
+    {
+        return self::MarketDeliver === $this || self::MarketCollect === $this;
     }
 
     /** Action saisie par coordonnées ; le ravitaillement, lui, vise une flotte (sa position exacte) */

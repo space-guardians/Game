@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Fleet;
 
 use App\Entity\Galaxy;
+use App\Entity\Merchant;
 use App\Entity\Planet;
 use App\Entity\SpaceLocation;
 use App\Entity\StarSystem;
@@ -39,6 +40,20 @@ final readonly class DestinationResolver
         $planet = $this->entityManager->getRepository(Planet::class)->findOneBy(['system' => $system, 'position.orbit' => $orbit]);
 
         return $planet instanceof Planet ? ['position' => SpacePosition::planet($planet), 'label' => (string) $planet->getAddress()] : null;
+    }
+
+    /**
+     * Station du marchand d'un système (§4.15).
+     *
+     * @return array{position: SpacePosition, label: string}|null null sans marchand dans ce système
+     */
+    public function merchant(int $galaxyNumber, int $systemNumber): ?array
+    {
+        $galaxy = $this->entityManager->getRepository(Galaxy::class)->findOneBy(['number' => $galaxyNumber]);
+        $system = null === $galaxy ? null : $this->entityManager->getRepository(StarSystem::class)->findOneBy(['galaxy' => $galaxy, 'number' => $systemNumber]);
+        $merchant = null === $system ? null : $this->entityManager->getRepository(Merchant::class)->findOneBy(['system' => $system]);
+
+        return $merchant instanceof Merchant ? ['position' => $merchant->position(), 'label' => \sprintf('%s (%d:%d)', $merchant->getName(), $galaxyNumber, $systemNumber)] : null;
     }
 
     /**

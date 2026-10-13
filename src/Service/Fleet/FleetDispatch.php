@@ -14,6 +14,7 @@ use App\Enum\Fleet\FleetAction;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
+use App\Repository\MerchantRepository;
 use App\Service\Alliance\TeleportGates;
 use App\Service\Combat\Allegiances;
 use App\Service\Economy\PlanetResources;
@@ -42,6 +43,7 @@ final readonly class FleetDispatch
         private ColonyLimit $colonyLimit,
         private Allegiances $allegiances,
         private TeleportGates $teleports,
+        private MerchantRepository $merchants,
     ) {}
 
     /**
@@ -72,6 +74,9 @@ final readonly class FleetDispatch
             }
             if (FleetAction::Colonize === $step->action) {
                 ++$colonizations;
+            }
+            if ($step->action->targetsMerchant() && null === $this->merchants->findAt(SpaceLocation::of($step->destination))) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : « %s » vise la station d’un marchand.', $rank + 1, $step->action->label()));
             }
             if (FleetAction::Refuel === $step->action) {
                 $this->checkRefuelTarget($fleet, $step, $rank + 1);

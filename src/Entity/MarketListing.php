@@ -14,7 +14,8 @@ use Doctrine\ORM\Mapping as ORM;
  * Annonce du marché (§4.15) : un vendeur propose des ressources contre d'autres, chez un marchand. Un acheteur s'engage
  * (`accept`), puis chacun livre son dû au marchand par une mission de transport ; la transaction n'est validée
  * (`complete`) qu'une fois les deux livraisons faites, chacun pouvant ensuite retirer ce qui lui revient
- * (`MerchantHolding`). Le vendeur retire son annonce tant qu'aucun acheteur ne s'est engagé. Auditée (§5.6.3).
+ * (`MerchantHolding`). Le vendeur peut livrer dès la publication ; il retire son annonce tant qu'aucun acheteur ne
+ * s'est engagé (ce qu'il a livré lui revient alors). Auditée (§5.6.3).
  */
 #[ORM\Entity(repositoryClass: MarketListingRepository::class)]
 #[ORM\Index(name: 'market_listing_status_idx', fields: ['status'])]
@@ -27,22 +28,22 @@ class MarketListing
     private ?int $id = null;
 
     #[ORM\Column]
-    private readonly float $offeredMetal;
+    private float $offeredMetal;
 
     #[ORM\Column]
-    private readonly float $offeredCrystal;
+    private float $offeredCrystal;
 
     #[ORM\Column]
-    private readonly float $offeredDeuterium;
+    private float $offeredDeuterium;
 
     #[ORM\Column]
-    private readonly float $askedMetal;
+    private float $askedMetal;
 
     #[ORM\Column]
-    private readonly float $askedCrystal;
+    private float $askedCrystal;
 
     #[ORM\Column]
-    private readonly float $askedDeuterium;
+    private float $askedDeuterium;
 
     #[ORM\Column(length: 20, enumType: MarketListingStatus::class)]
     private MarketListingStatus $status = MarketListingStatus::Open;
@@ -67,14 +68,14 @@ class MarketListing
     public function __construct(
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-        private readonly Empire $seller,
+        private Empire $seller,
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
-        private readonly Merchant $merchant,
+        private Merchant $merchant,
         Resources $offered,
         Resources $asked,
         #[ORM\Column]
-        private readonly \DateTimeImmutable $createdAt,
+        private \DateTimeImmutable $createdAt,
     ) {
         if ($offered->isZero() || $asked->isZero()) {
             throw new \InvalidArgumentException('Une annonce propose des ressources contre d’autres ressources.');
@@ -171,11 +172,21 @@ class MarketListing
         $this->acceptedAt = $at;
     }
 
+    /** Une livraison de cette partie est-elle attendue ? Le vendeur peut livrer dès la publication, l'acheteur une fois engagé */
+    public function awaitsDeliveryFrom(Empire $party): bool
+    {
+        return match ($party) {
+            $this->seller => !$this->sellerDelivered && \in_array($this->status, [MarketListingStatus::Open, MarketListingStatus::Accepted], true),
+            $this->buyer => !$this->buyerDelivered && MarketListingStatus::Accepted === $this->status,
+            default => false,
+        };
+    }
+
     /** Livraison d'une partie notée ; renvoie vrai quand les deux ont livré (transaction à valider) */
     public function markDelivered(Empire $party): bool
     {
-        if (MarketListingStatus::Accepted !== $this->status) {
-            throw new \LogicException('Aucune livraison n’est attendue pour cette annonce.');
+        if (!$this->awaitsDeliveryFrom($party)) {
+            throw new \LogicException('Aucune livraison n’est attendue de cet empire pour cette annonce.');
         }
         match ($party) {
             $this->seller => $this->sellerDelivered = true,
@@ -195,12 +206,15 @@ class MarketListing
         $this->closedAt = $at;
     }
 
-    public function cancel(\DateTimeImmutable $at): void
+    /** Retire l'annonce ; renvoie vrai si le vendeur avait déjà livré (ses ressources lui reviennent) */
+    public function cancel(\DateTimeImmutable $at): bool
     {
         if (MarketListingStatus::Open !== $this->status) {
             throw new \LogicException('Seule une annonce encore ouverte peut être retirée.');
         }
         $this->status = MarketListingStatus::Cancelled;
         $this->closedAt = $at;
+
+        return $this->sellerDelivered;
     }
 }
