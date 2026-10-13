@@ -20,6 +20,7 @@ use App\Enum\Combat\CombatSide;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Enum\Fleet\FleetStatus;
+use App\Enum\Messaging\MessageCategory;
 use App\Enum\Scheduling\ScheduledEventStatus;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Factory\EmpireFactory;
@@ -31,6 +32,7 @@ use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
 use App\Repository\BuildingTypeRepository;
 use App\Repository\CombatReportRepository;
+use App\Repository\ConversationRepository;
 use App\Repository\DebrisRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Alliance\Alliances;
@@ -127,11 +129,23 @@ final class BattleTest extends KernelTestCase
         // Notification aux deux empires, chacun avec son issue
         $updates = [];
         foreach (self::getContainer()->get(PublishedUpdates::class)->all() as $update) {
-            $updates[$update->getTopics()[0]] = $update->getData();
+            $updates[$update->getTopics()[0]] = ($updates[$update->getTopics()[0]] ?? '') . $update->getData();
         }
         self::assertStringContainsString('victoire', $updates['/empire/' . $attacker->getId()] ?? '');
         self::assertStringContainsString('défaite', $updates['/empire/' . $defender->getId()] ?? '');
         self::assertStringContainsString('/combats/' . $report->getId(), $updates['/empire/' . $defender->getId()]);
+
+        // Rapport automatique dans la messagerie de chacun, catégorie « Combats », avec le lien du rapport (§4.12.2)
+        $conversations = self::getContainer()->get(ConversationRepository::class);
+        foreach ([[$attacker, 'Victoire'], [$defender, 'Défaite']] as [$empire, $outcome]) {
+            $places = $conversations->findPlacesOf($empire, category: MessageCategory::Combat);
+            self::assertCount(1, $places);
+            $conversation = $places[0]->getConversation();
+            self::assertStringStartsWith($outcome, (string) $conversation->getSubject());
+            $message = $conversation->getMessages()->first();
+            self::assertNotFalse($message);
+            self::assertSame('/combats/' . $report->getId(), $message->getLink());
+        }
     }
 
     public function testDestroyedShipsLeaveADebrisFieldThatBuildsUp(): void

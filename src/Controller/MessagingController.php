@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
 use App\Entity\Empire;
+use App\Enum\Messaging\MessageCategory;
 use App\Exception\Messaging\InvalidMessage;
 use App\Repository\ConversationRepository;
 use App\Service\Account\GameContext;
@@ -29,17 +30,26 @@ final class MessagingController extends AbstractController
         private readonly Messaging $messaging,
     ) {}
 
+    public const string PLAYERS_FOLDER = 'joueurs';
+
     #[Route('/messagerie', name: 'app_messaging', methods: ['GET'])]
     public function index(Request $request): Response
     {
         $empire = $this->empire();
         $archived = $request->query->getBoolean('archives');
+        // Dossier : tout, les conversations entre joueurs, ou une catégorie de messages du jeu (§4.12.2)
+        $folder = $request->query->getString('categorie');
+        $category = MessageCategory::tryFrom($folder);
+        $players = self::PLAYERS_FOLDER === $folder;
 
         return $this->render('messaging/index.html.twig', [
             'empire' => $empire,
             'planet' => $empire->getActivePlanet(),
             'archived' => $archived,
-            'places' => $this->conversations->findPlacesOf($empire, $archived),
+            'folder' => null !== $category || $players ? $folder : null,
+            'categories' => MessageCategory::cases(),
+            'players_folder' => self::PLAYERS_FOLDER,
+            'places' => $this->conversations->findPlacesOf($empire, $archived, category: $category, playersOnly: $players),
         ]);
     }
 

@@ -12,6 +12,7 @@ use App\Entity\ShipType;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Enum\Fleet\FleetStatus;
+use App\Enum\Messaging\MessageCategory;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
@@ -19,6 +20,7 @@ use App\Factory\StarSystemFactory;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
+use App\Repository\ConversationRepository;
 use App\Repository\FleetMovementRepository;
 use App\Repository\ShipTypeRepository;
 use App\Repository\TechnologyRepository;
@@ -76,6 +78,10 @@ final class FleetMissionTest extends KernelTestCase
         $fleet = $this->reload($fleet);
         $colony = $this->reloadPlanet($colony);
         self::assertEqualsWithDelta($colonyStock->metal + 3000, $colony->getResources()->metal, 50.0);
+        // Rapport de livraison dans la messagerie (§4.12.2)
+        $transports = $this->gameMessages($empire, MessageCategory::Transport);
+        self::assertArrayHasKey(\sprintf('Transport livré : %s', $colony), $transports);
+        self::assertStringContainsString('3 000 métal, 2 000 cristal, 1 000 deutérium', $transports[\sprintf('Transport livré : %s', $colony)][0]);
         self::assertEquals(new Resources(), $fleet->getCargo());
         self::assertSame(FleetOrderStatus::Done, $fleet->getOrders()[0]?->getStatus());
         self::assertSame(FleetStatus::InFlight, $fleet->getStatus());
@@ -365,5 +371,22 @@ final class FleetMissionTest extends KernelTestCase
     private function dispatch(): FleetDispatch
     {
         return self::getContainer()->get(FleetDispatch::class);
+    }
+
+    /**
+     * Messages du jeu reçus par l'empire dans la catégorie : objet => [corps, lien].
+     *
+     * @return array<string, array{0: string, 1: ?string}>
+     */
+    private function gameMessages(Empire $empire, MessageCategory $category): array
+    {
+        $messages = [];
+        foreach (self::getContainer()->get(ConversationRepository::class)->findPlacesOf($empire, category: $category) as $place) {
+            $message = $place->getConversation()->getMessages()->first();
+            \assert(false !== $message);
+            $messages[(string) $place->getConversation()->getSubject()] = [$message->getBody(), $message->getLink()];
+        }
+
+        return $messages;
     }
 }

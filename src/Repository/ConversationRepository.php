@@ -7,6 +7,7 @@ namespace App\Repository;
 use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
 use App\Entity\Empire;
+use App\Enum\Messaging\MessageCategory;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -25,10 +26,9 @@ final class ConversationRepository extends ServiceEntityRepository
      *
      * @return list<ConversationParticipant>
      */
-    public function findPlacesOf(Empire $empire, bool $archived = false, int $limit = 100): array
+    public function findPlacesOf(Empire $empire, bool $archived = false, int $limit = 100, ?MessageCategory $category = null, bool $playersOnly = false): array
     {
-        /** @var list<ConversationParticipant> $places */
-        $places = $this->getEntityManager()->createQueryBuilder()
+        $query = $this->getEntityManager()->createQueryBuilder()
             ->select('p', 'c')
             ->from(ConversationParticipant::class, 'p')
             ->join('p.conversation', 'c')
@@ -39,9 +39,14 @@ final class ConversationRepository extends ServiceEntityRepository
             ->setParameter('archived', $archived)
             ->orderBy('c.lastMessageAt', 'DESC')
             ->addOrderBy('c.id', 'DESC')
-            ->setMaxResults($limit)
-            ->getQuery()
-            ->getResult();
+            ->setMaxResults($limit);
+        if (null !== $category) {
+            $query->andWhere('c.category = :category')->setParameter('category', $category);
+        } elseif ($playersOnly) {
+            $query->andWhere('c.system = false');
+        }
+        /** @var list<ConversationParticipant> $places */
+        $places = $query->getQuery()->getResult();
 
         return $places;
     }

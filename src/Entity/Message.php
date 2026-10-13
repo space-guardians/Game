@@ -32,7 +32,15 @@ final class Message
         private readonly string $body,
         #[ORM\Column]
         private readonly \DateTimeImmutable $sentAt,
+        /** Lien vers l'écran concerné (rapport de combat, d'espionnage…) pour un message du jeu */
+        #[ORM\Column(length: 255, nullable: true)]
+        private readonly ?string $link = null,
     ) {}
+
+    public function getLink(): ?string
+    {
+        return $this->link;
+    }
 
     public function getId(): ?int
     {

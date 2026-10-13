@@ -5,4 +5,7 @@
         · <span class="sg-mono">{{ message.sentAt|date('d/m H:i') }}</span>
     </p>
     <p class="sg-message__body">{{ message.body|nl2br }}</p>
+    {% if message.link %}
+        <p><a href="{{ message.link }}" data-turbo-frame="_top">Voir le détail</a></p>
+    {% endif %}
 </li>

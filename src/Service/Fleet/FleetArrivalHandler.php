@@ -13,6 +13,8 @@ use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
 use App\Enum\Combat\InterceptionOutcome;
 use App\Enum\Fleet\FleetAction;
+use App\Enum\Messaging\MessageCategory;
+use App\Model\Economy\Resources;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
 use App\Service\Alliance\TeleportGates;
@@ -22,6 +24,7 @@ use App\Service\Combat\Interceptions;
 use App\Service\Economy\PlanetResources;
 use App\Service\Espionage\Espionage;
 use App\Service\Exploration\Explorations;
+use App\Service\Messaging\GameReports;
 use App\Service\Scheduling\ScheduledEventHandler;
 use App\Service\Universe\ColonyLimit;
 use Doctrine\ORM\EntityManagerInterface;
@@ -54,6 +57,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private Espionage $espionage,
         private Allegiances $allegiances,
         private TeleportGates $teleports,
+        private GameReports $reports,
     ) {}
 
     public static function type(): string
@@ -166,6 +170,30 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $this->movements->launchNext($fleet, $arrival, $speedPercent);
     }
 
+    /**
+     * Rapport automatique de livraison (§4.12.2) : à l'empire de la flotte, et au propriétaire de la planète s'il est un
+     * autre empire.
+     */
+    private function reportTransport(Fleet $fleet, Planet $planet, Resources $delivered): void
+    {
+        $amounts = \sprintf('%s métal, %s cristal, %s deutérium', number_format($delivered->metal, 0, ',', ' '), number_format($delivered->crystal, 0, ',', ' '), number_format($delivered->deuterium, 0, ',', ' '));
+        $this->reports->report(
+            $fleet->getEmpire(),
+            MessageCategory::Transport,
+            \sprintf('Transport livré : %s', $planet),
+            \sprintf('La flotte « %s » a livré %s en %s.', $fleet->getName(), $amounts, $planet),
+        );
+        $owner = $planet->getOwner();
+        if (null !== $owner && $owner !== $fleet->getEmpire()) {
+            $this->reports->report(
+                $owner,
+                MessageCategory::Transport,
+                \sprintf('Livraison reçue : %s', $planet),
+                \sprintf('%s vous a livré %s en %s.', $fleet->getEmpire()->getName(), $amounts, $planet),
+            );
+        }
+    }
+
     /** Panne de carburant : la flotte s'immobilise là où son réservoir s'est vidé ; ses ordres restants attendent */
     private function strand(FleetMovement $movement): void
     {
@@ -196,7 +224,9 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 }
                 // Production consolidée jusqu'à l'arrivée, puis déchargement (le stock peut dépasser les dépôts)
                 $snapshot = $this->resources->settle($planet, $arrival);
-                $planet->storeResources($snapshot->amounts->plus($fleet->unload()), $arrival);
+                $delivered = $fleet->unload();
+                $planet->storeResources($snapshot->amounts->plus($delivered), $arrival);
+                $this->reportTransport($fleet, $planet, $delivered);
                 break;
             case FleetAction::Station:
                 break;

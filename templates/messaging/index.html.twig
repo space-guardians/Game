@@ -13,8 +13,15 @@
         </div>
         <turbo-frame id="conversations">
             <nav class="sg-messaging__tabs" aria-label="Dossiers">
-                <a href="{{ path('app_messaging') }}"{% if not archived %} aria-current="page"{% endif %}>Boîte de réception</a>
-                <a href="{{ path('app_messaging', {archives: 1}) }}"{% if archived %} aria-current="page"{% endif %}>Archives</a>
+                <a href="{{ path('app_messaging', {categorie: folder}) }}"{% if not archived %} aria-current="page"{% endif %}>Boîte de réception</a>
+                <a href="{{ path('app_messaging', {archives: 1, categorie: folder}) }}"{% if archived %} aria-current="page"{% endif %}>Archives</a>
+            </nav>
+            <nav class="sg-messaging__tabs" aria-label="Catégories" id="categories">
+                <a href="{{ path('app_messaging', {archives: archived ? 1 : null}) }}"{% if folder is null %} aria-current="page"{% endif %}>Tout</a>
+                <a href="{{ path('app_messaging', {archives: archived ? 1 : null, categorie: players_folder}) }}"{% if folder == players_folder %} aria-current="page"{% endif %}>Joueurs</a>
+                {% for category in categories %}
+                    <a href="{{ path('app_messaging', {archives: archived ? 1 : null, categorie: category.value}) }}"{% if folder == category.value %} aria-current="page"{% endif %}>{{ category.label }}</a>
+                {% endfor %}
             </nav>
             {% if places is empty %}
                 <p class="sg-empty">{{ archived ? 'Aucune conversation archivée.' : 'Aucune conversation pour l’instant.' }}</p>
