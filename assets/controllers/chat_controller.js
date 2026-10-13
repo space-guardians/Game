@@ -26,6 +26,8 @@ const state = {
     // Groupes (§4.12.1) : canal → composition, tenue à jour par le serveur
     groups: new Map(),
     groupsLoaded: false,
+    // Alliance (§4.10) : canal, tag et membres avec leur présence, transmis à chaque battement
+    alliance: null,
 };
 
 const PRIVATES_KEY = 'sg-chat-privates';
@@ -100,6 +102,9 @@ export default class extends Controller {
         if (state.privates.size === 0) {
             restorePrivates();
         }
+        if (state.alliance) {
+            this.openTab(state.alliance.channel, `Alliance [${state.alliance.tag}]`, null, null, null);
+        }
         for (const [channel, peer] of state.privates) {
             this.ensureTab(channel, peer);
         }
@@ -136,6 +141,7 @@ export default class extends Controller {
             }
             state.presence = await response.json();
             state.online = new Set(state.presence.players.map((player) => player.id));
+            this.syncAlliance(state.presence.alliance);
             this.renderPresence();
             this.renderPeers();
             for (const log of this.logTargets) {
@@ -146,8 +152,34 @@ export default class extends Controller {
         }
     }
 
+    /** L'onglet « Alliance » suit l'appartenance du joueur : ouvert s'il est membre, retiré s'il ne l'est plus */
+    syncAlliance(alliance) {
+        const previous = state.alliance;
+        state.alliance = alliance ?? null;
+        if (previous && previous.channel !== state.alliance?.channel) {
+            state.unread.delete(previous.channel);
+            state.messages.delete(previous.channel);
+            this.exactTab(previous.channel)?.remove();
+            this.logFor(previous.channel)?.remove();
+            if (state.active === previous.channel) {
+                this.select({ currentTarget: this.tabFor('public') });
+            }
+            this.renderBadges();
+        }
+        if (state.alliance) {
+            this.openTab(state.alliance.channel, `Alliance [${state.alliance.tag}]`, null, null, null);
+        }
+    }
+
     renderPresence() {
         if (!this.hasPresenceTarget || !state.presence) {
+            return;
+        }
+        if (state.alliance && state.active === state.alliance.channel) {
+            // Onglet de l'alliance : ses membres en ligne
+            const online = state.alliance.members.filter((member) => member.online);
+            const names = online.map((member) => member.name).join(', ');
+            this.presenceTarget.textContent = `Membres en ligne : ${online.length} / ${state.alliance.members.length}${names ? ` — ${names}` : ''}`;
             return;
         }
         const { count, players } = state.presence;
@@ -189,6 +221,7 @@ export default class extends Controller {
         }
         this.loadHistory(state.active);
         this.renderGroupPanel();
+        this.renderPresence();
     }
 
     async send(event) {
@@ -301,8 +334,16 @@ export default class extends Controller {
             status.dataset.peer = String(peerId);
             tab.append(status);
         }
-        tab.append(name, ' ', badge, close);
-        this.tabsTarget.append(tab);
+        tab.append(name, ' ', badge);
+        if (closeAction) {
+            tab.append(close);
+        }
+        if (channel.startsWith('alliance:')) {
+            // L'alliance juste après le canal public
+            this.tabFor('public').after(tab);
+        } else {
+            this.tabsTarget.append(tab);
+        }
 
         const log = document.createElement('ol');
         log.className = 'sg-chat__log';

@@ -7,6 +7,7 @@ namespace App\Controller;
 use App\Entity\Empire;
 use App\Exception\Chat\ChatRecipientOffline;
 use App\Exception\Chat\ChatRefused;
+use App\Repository\AllianceMemberRepository;
 use App\Repository\EmpireRepository;
 use App\Service\Account\GameContext;
 use App\Service\Chat\Chat;
@@ -35,6 +36,7 @@ final class ChatController extends AbstractController
         private readonly ChatPresence $presence,
         private readonly EmpireRepository $empires,
         private readonly ChatGroups $groups,
+        private readonly AllianceMemberRepository $members,
     ) {}
 
     #[Route('/chat/messages', name: 'app_chat_send', methods: ['POST'])]
@@ -139,10 +141,22 @@ final class ChatController extends AbstractController
         $ids = $this->presence->onlineIds();
         $shown = $this->empires->findBy(['id' => \array_slice($ids, 0, self::PRESENCE_SHOWN)], ['name' => 'ASC']);
 
+        // Canal d'alliance (§4.10) : l'onglet suit l'appartenance du joueur, avec les membres et leur présence
+        $alliance = $this->members->findOneByEmpire($empire)?->getAlliance();
+        $allies = [];
+        if (null !== $alliance) {
+            $statuses = $this->presence->statuses(array_map(static fn($member): int => (int) $member->getEmpire()->getId(), $alliance->getMembers()->toArray()));
+            foreach ($alliance->getMembers() as $member) {
+                $allies[] = ['id' => $member->getEmpire()->getId(), 'name' => $member->getEmpire()->getName(), 'online' => $statuses[(int) $member->getEmpire()->getId()] ?? false];
+            }
+            usort($allies, static fn(array $a, array $b): int => [!$a['online'], $a['name']] <=> [!$b['online'], $b['name']]);
+        }
+
         return $this->json([
             'count' => \count($ids),
             'players' => array_map(static fn(Empire $online): array => ['id' => $online->getId(), 'name' => $online->getName()], $shown),
             'interval' => ChatPresence::HEARTBEAT_SECONDS,
+            'alliance' => null === $alliance ? null : ['channel' => $this->chat->allianceChannel($empire), 'tag' => $alliance->getTag(), 'members' => $allies],
         ]);
     }
 
