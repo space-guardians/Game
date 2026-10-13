@@ -9,10 +9,14 @@ use App\Exception\Universe\GalaxyNumberTaken;
 use App\Model\Universe\CreatedGalaxy;
 use App\Model\Universe\SpiralGalaxyShape;
 use App\Repository\GalaxyRepository;
+use App\Service\Market\Merchants;
 use Doctrine\ORM\EntityManagerInterface;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 
 /**
- * Génère une galaxie et l'ajoute à l'univers, sans toucher aux galaxies existantes (§2.1). Partagé par la
+ * Génère une galaxie et l'ajoute à l'univers, sans toucher aux galaxies existantes (§2.1), avec ses marchands
+ * (§4.15), placés d'après la même graine. Partagé par la
  * commande app:galaxy:generate et la génération depuis le panneau d'administration (§5.5).
  */
 final readonly class GalaxyCreator
@@ -21,6 +25,7 @@ final readonly class GalaxyCreator
         private GalaxyGenerator $generator,
         private GalaxyRepository $galaxies,
         private EntityManagerInterface $entityManager,
+        private Merchants $merchants,
     ) {}
 
     /**
@@ -46,7 +51,11 @@ final readonly class GalaxyCreator
             SystemPlacer::DEFAULT_MIN_DISTANCE,
         );
 
-        return new CreatedGalaxy($galaxy, $galaxy->getSystems()->count(), $this->persist($galaxy), $this->radius($galaxy));
+        $planets = $this->persist($galaxy);
+        $merchants = $this->merchants->place($galaxy, new Randomizer(new Mt19937($seed)));
+        $this->entityManager->flush();
+
+        return new CreatedGalaxy($galaxy, $galaxy->getSystems()->count(), $planets, $this->radius($galaxy), \count($merchants));
     }
 
     /** @return int nombre de planètes enregistrées */

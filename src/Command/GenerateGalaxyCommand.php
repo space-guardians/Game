@@ -76,6 +76,7 @@ final readonly class GenerateGalaxyCommand
             ['Graine' => (string) $seed],
             ['Systèmes' => (string) $created->systems],
             ['Planètes' => (string) $created->planets],
+            ['Marchands' => (string) $created->merchants],
             ['Rayon' => \sprintf('%.0f', $created->radius)],
             ['Durée' => \sprintf('%.1f s', (hrtime(true) - $start) / 1e9)],
         );

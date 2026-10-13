@@ -22,6 +22,9 @@ use App\Entity\Formation;
 use App\Entity\FormationSlot;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
+use App\Entity\MarketListing;
+use App\Entity\Merchant;
+use App\Entity\MerchantHolding;
 use App\Entity\PlanetBuilding;
 use App\Entity\PlanetShip;
 use App\Entity\Prerequisite;
@@ -68,6 +71,9 @@ final readonly class EntityHistory
         AlliancePlanet::class => 'Planètes d’alliance',
         AllianceBuilding::class => 'Bâtiments d’alliance',
         TeleportLink::class => 'Liaisons des portes de téléportation',
+        Merchant::class => 'Marchands',
+        MerchantHolding::class => 'Ressources gardées par les marchands',
+        MarketListing::class => 'Annonces du marché',
         BuildingQueueItem::class => 'Constructions en cours',
         BuildingType::class => 'Types de bâtiments',
         ClassMatchup::class => 'Matrice des classes',

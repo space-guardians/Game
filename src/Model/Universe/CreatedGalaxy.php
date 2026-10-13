@@ -17,5 +17,6 @@ final readonly class CreatedGalaxy
         public int $planets,
         /** Distance au centre du système le plus éloigné */
         public float $radius,
+        public int $merchants = 0,
     ) {}
 }

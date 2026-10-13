@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Admin;
 
 use App\Entity\Galaxy;
 use App\Entity\GlobalPosition;
+use App\Entity\Merchant;
 use App\Entity\OrbitalPosition;
 use App\Entity\Planet;
 use App\Entity\StarSystem;
@@ -16,6 +17,7 @@ use App\Factory\GalaxyFactory;
 use App\Factory\PlanetFactory;
 use App\Factory\StarSystemFactory;
 use App\Repository\GalaxyRepository;
+use App\Repository\MerchantRepository;
 use App\Repository\PlanetRepository;
 use App\Repository\StarSystemRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -51,6 +53,7 @@ final class UniverseAdminTest extends WebTestCase
         yield 'galaxies' => ['/admin/galaxies'];
         yield 'systèmes' => ['/admin/systemes'];
         yield 'planètes' => ['/admin/planetes'];
+        yield 'marchands' => ['/admin/marchands'];
     }
 
     #[DataProvider('universePages')]
@@ -164,6 +167,29 @@ final class UniverseAdminTest extends WebTestCase
         $this->client->followRedirect();
         self::assertSelectorTextContains('body', 'n’a pas été supprimée : 1 planète appartient à des empires.');
         self::assertNotNull(self::getContainer()->get(GalaxyRepository::class)->find($this->galaxy->getId()));
+    }
+
+    public function testGameDesignerListsAndRenamesMerchants(): void
+    {
+        $merchant = new Merchant($this->system, 'Comptoir 1-342', 3.0, -2.0);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($merchant);
+        $entityManager->flush();
+        $this->loginAs(AdminRole::GameDesigner);
+
+        $this->client->request('GET', '/admin');
+        self::assertSelectorTextContains('#main-menu', 'Marchands');
+        $this->client->request('GET', '/admin/marchands');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('table', 'Comptoir 1-342');
+        self::assertSelectorTextContains('table', 'Système 342 (galaxie 1)');
+        self::assertSelectorNotExists('a.action-new');
+
+        $this->client->request('GET', \sprintf('/admin/marchands/%d/edit', $merchant->getId()));
+        self::assertResponseIsSuccessful();
+        $this->client->submitForm('Sauvegarder les modifications', ['Merchant[name]' => 'Bazar des Gardiens']);
+        self::assertResponseRedirects();
+        self::assertSame('Bazar des Gardiens', self::getContainer()->get(MerchantRepository::class)->find($merchant->getId())?->getName());
     }
 
     private function loginAs(AdminRole $role): void

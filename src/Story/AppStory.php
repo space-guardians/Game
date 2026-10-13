@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Story;
 
 use App\Factory\GalaxyShapeTemplateFactory;
+use App\Service\Market\Merchants;
 use App\Service\Universe\GalaxyGenerator;
+use Random\Engine\Mt19937;
+use Random\Randomizer;
 use Zenstruck\Foundry\Attribute\AsFixture;
 use Zenstruck\Foundry\Story;
 
@@ -14,7 +17,7 @@ use function Zenstruck\Foundry\Persistence\save;
 
 /**
  * Données de développement (make fixtures) : une galaxie générée avec une graine fixe, identique
- * d'un chargement à l'autre (même résultat que « app:galaxy:generate --seed=1 »).
+ * d'un chargement à l'autre, avec ses marchands (même résultat que « app:galaxy:generate --seed=1 »).
  */
 #[AsFixture(name: 'main')]
 final class AppStory extends Story
@@ -23,6 +26,7 @@ final class AppStory extends Story
 
     public function __construct(
         private readonly GalaxyGenerator $galaxyGenerator,
+        private readonly Merchants $merchants,
     ) {}
 
     public function build(): void
@@ -34,7 +38,7 @@ final class AppStory extends Story
 
         $galaxy = $this->galaxyGenerator->generate(1, 'Voie des Gardiens', self::SEED);
 
-        flush_after(static function () use ($galaxy): void {
+        flush_after(function () use ($galaxy): void {
             save($galaxy);
             foreach ($galaxy->getSystems() as $system) {
                 save($system);
@@ -42,6 +46,7 @@ final class AppStory extends Story
                     save($planet);
                 }
             }
+            $this->merchants->place($galaxy, new Randomizer(new Mt19937(self::SEED)));
         });
     }
 }
