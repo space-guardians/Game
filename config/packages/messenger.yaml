@@ -26,6 +26,8 @@ framework:
             App\Message\GenerateGalaxy: async
             # Réveils différés des événements planifiés (§5.2)
             App\Message\ResolveScheduledEvent: async
+            # Messages système à un large public, livrés par lots (§5.7)
+            App\Message\DeliverSystemMessage: async
 
 when@test:
     framework:

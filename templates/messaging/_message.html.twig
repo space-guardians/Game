@@ -1,7 +1,7 @@
 {# Un message, vu par un participant (« vous » pour ses propres messages) #}
 <li class="sg-message{{ message.author is same as(viewer) ? ' sg-message--mine' }}" id="message-{{ message.id }}">
     <p class="sg-entity__meta">
-        <strong>{{ message.author is null ? 'Système' : (message.author is same as(viewer) ? 'Vous' : message.author.name) }}</strong>
+        <strong>{{ message.author is null ? 'Message du jeu' : (message.author is same as(viewer) ? 'Vous' : message.author.name) }}</strong>
         · <span class="sg-mono">{{ message.sentAt|date('d/m H:i') }}</span>
     </p>
     <p class="sg-message__body">{{ message.body|nl2br }}</p>

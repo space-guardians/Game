@@ -1,0 +1,43 @@
+{# Annonces (§4.12.2, §5.6.1) : message du jeu à des joueurs, à une alliance ou à tous les joueurs #}
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block page_title 'Annonces' %}
+{% block content_title 'Annonces' %}
+
+{% block main %}
+    <p>
+        Un message du jeu arrive dans la messagerie des destinataires, sans réponse possible. Une alliance ou tous les
+        joueurs sont servis en arrière-plan, par lots : l’envoi peut prendre quelques instants.
+    </p>
+
+    <form method="post" action="{{ path('admin_announcement_send') }}" id="annonce"
+          data-controller="confirm" data-confirm-message-value="Envoyer cette annonce ?" data-action="confirm#ask">
+        <input type="hidden" name="_token" value="{{ csrf_token('admin_announcement_send') }}">
+        <fieldset class="mb-3">
+            <legend class="form-label">Destinataires</legend>
+            {% for audience in audiences %}
+                <div class="form-check">
+                    <input class="form-check-input" type="radio" name="audience" id="audience-{{ audience.value }}" value="{{ audience.value }}"{% if (values.audience ?? 'all') == audience.value %} checked{% endif %}>
+                    <label class="form-check-label" for="audience-{{ audience.value }}">{{ audience.label }}</label>
+                </div>
+            {% endfor %}
+        </fieldset>
+        <div class="mb-3">
+            <label class="form-label" for="recipients">Joueurs (noms d’empires séparés par des virgules)</label>
+            <input class="form-control" type="text" id="recipients" name="recipients" value="{{ values.recipients ?? '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="alliance">Alliance (tag)</label>
+            <input class="form-control" type="text" id="alliance" name="alliance" maxlength="5" value="{{ values.alliance ?? '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="subject">Objet</label>
+            <input class="form-control" type="text" id="subject" name="subject" maxlength="120" value="{{ values.subject ?? '' }}">
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="body">Message</label>
+            <textarea class="form-control" id="body" name="body" rows="6" required>{{ values.body ?? '' }}</textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Envoyer l’annonce</button>
+    </form>
+{% endblock %}

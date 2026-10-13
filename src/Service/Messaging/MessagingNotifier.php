@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Messaging;
 
+use App\Entity\ConversationParticipant;
 use App\Entity\Message;
 use App\Model\Scheduling\GameTopics;
 use App\Repository\ConversationRepository;
@@ -28,7 +29,17 @@ final readonly class MessagingNotifier
 
     public function posted(Message $message): void
     {
-        foreach ($message->getConversation()->activeParticipants() as $place) {
+        $this->deliveredTo($message, $message->getConversation()->activeParticipants());
+    }
+
+    /**
+     * Annonce le message aux seuls participants donnés (livraison d'un message système par lots).
+     *
+     * @param list<ConversationParticipant> $places
+     */
+    public function deliveredTo(Message $message, array $places): void
+    {
+        foreach ($places as $place) {
             $empire = $place->getEmpire();
             try {
                 $this->hub->publish(new Update(

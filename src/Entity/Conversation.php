@@ -45,6 +45,9 @@ final class Conversation
         private readonly ?string $subject,
         #[ORM\Column]
         private readonly \DateTimeImmutable $createdAt,
+        /** Message du jeu (§4.12.2) : auteur nul, pas de réponse possible, destinataires invisibles entre eux */
+        #[ORM\Column(name: 'is_system', options: ['default' => false])]
+        private readonly bool $system = false,
     ) {
         $this->lastMessageAt = $createdAt;
         $this->participants = new ArrayCollection();
@@ -59,6 +62,11 @@ final class Conversation
     public function isGroup(): bool
     {
         return $this->group;
+    }
+
+    public function isSystem(): bool
+    {
+        return $this->system;
     }
 
     public function getSubject(): ?string
@@ -127,6 +135,9 @@ final class Conversation
     {
         if (null !== $this->subject && '' !== $this->subject) {
             return $this->subject;
+        }
+        if ($this->system) {
+            return 'Message du jeu';
         }
         $others = [];
         foreach ($this->participants as $participant) {
