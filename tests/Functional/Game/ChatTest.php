@@ -8,6 +8,7 @@ use App\Factory\EmpireFactory;
 use App\Model\Chat\ChatTopics;
 use App\Service\Chat\Chat;
 use App\Service\Chat\ChatBuffer;
+use App\Service\Chat\ChatPresence;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Zenstruck\Foundry\Test\Factories;
@@ -26,11 +27,13 @@ final class ChatTest extends WebTestCase
     {
         $this->client = self::createClient();
         self::getContainer()->get(ChatBuffer::class)->clear(Chat::PUBLIC_CHANNEL);
+        self::getContainer()->get(ChatPresence::class)->clear();
     }
 
     protected function tearDown(): void
     {
         self::getContainer()->get(ChatBuffer::class)->clear(Chat::PUBLIC_CHANNEL);
+        self::getContainer()->get(ChatPresence::class)->clear();
         parent::tearDown();
     }
 
@@ -91,6 +94,39 @@ final class ChatTest extends WebTestCase
         $this->post(['channel' => 'public', 'body' => 'Sans jeton'], 'faux');
         self::assertResponseStatusCodeSame(403);
         self::assertSame([], self::getContainer()->get(ChatBuffer::class)->recent(Chat::PUBLIC_CHANNEL));
+    }
+
+    public function testHeartbeatShowsWhoIsOnlineAndLogoutGoesOffline(): void
+    {
+        $bob = EmpireFactory::createOne(['name' => 'Bob']);
+        self::getContainer()->get(ChatPresence::class)->heartbeat($bob);
+        $ana = EmpireFactory::createOne(['name' => 'Ana']);
+        $this->client->loginUser($ana->getUser());
+        $crawler = $this->client->request('GET', '/');
+        $token = (string) $crawler->filter('#sg-chat')->attr('data-chat-token-value');
+        self::assertSame('/chat/presence', $crawler->filter('#sg-chat')->attr('data-chat-presence-url-value'));
+
+        $this->client->request('POST', '/chat/presence', server: ['HTTP_X_CSRF_TOKEN' => $token]);
+
+        self::assertResponseIsSuccessful();
+        $presence = json_decode((string) $this->client->getResponse()->getContent(), true);
+        self::assertSame(2, $presence['count'] ?? null);
+        self::assertSame(['Ana', 'Bob'], array_column($presence['players'] ?? [], 'name'));
+        self::assertTrue(self::getContainer()->get(ChatPresence::class)->isOnline((int) $ana->getId()));
+
+        $this->client->request('GET', '/deconnexion');
+        self::assertFalse(self::getContainer()->get(ChatPresence::class)->isOnline((int) $ana->getId()));
+    }
+
+    public function testHeartbeatRequiresTheCsrfToken(): void
+    {
+        $ana = EmpireFactory::createOne();
+        $this->client->loginUser($ana->getUser());
+
+        $this->client->request('POST', '/chat/presence', server: ['HTTP_X_CSRF_TOKEN' => 'faux']);
+
+        self::assertResponseStatusCodeSame(403);
+        self::assertFalse(self::getContainer()->get(ChatPresence::class)->isOnline((int) $ana->getId()));
     }
 
     /** @param array<string, string> $payload */

@@ -22,6 +22,8 @@ parameters:
 
     # Chat en ligne (§5.7) : préfixe des clés Redis du tampon des canaux
     app.chat.buffer_prefix: 'chat:buffer:'
+    # Présence des joueurs (§5.7) : clé Redis de l'ensemble des derniers battements
+    app.chat.presence_key: 'chat:presence'
 
 services:
     # default configuration for services in *this* file
@@ -56,6 +58,7 @@ services:
 when@test:
     parameters:
         app.chat.buffer_prefix: 'test:chat:buffer:'
+        app.chat.presence_key: 'test:chat:presence'
 
     services:
         _defaults:
