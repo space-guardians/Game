@@ -14,6 +14,7 @@
             <twig:Turbo:Stream:From :topics="player_topics()" private/>
         {% endif %}
         <div id="sg-notifications" class="sg-toasts" aria-live="polite" data-turbo-permanent></div>
+        {% if chat_topics() is not empty %}<twig:ChatWidget/>{% endif %}
         <twig:TopBar/>
         <div class="sg-app__body">
             <twig:SideNav current="{{ app.current_route }}"/>

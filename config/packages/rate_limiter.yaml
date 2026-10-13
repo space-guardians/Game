@@ -1,0 +1,7 @@
+framework:
+    rate_limiter:
+        # Chat en ligne (§4.12.1, §5.7) : messages par joueur, fenêtre glissante
+        chat_message:
+            policy: sliding_window
+            limit: 8
+            interval: '20 seconds'
