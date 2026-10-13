@@ -10,6 +10,7 @@ use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
 use App\Entity\Empire;
 use App\Entity\Message;
+use App\Enum\Messaging\MessageCategory;
 use App\Enum\Messaging\SystemAudience;
 use App\Exception\Messaging\InvalidMessage;
 use App\Message\DeliverSystemMessage;
@@ -39,9 +40,9 @@ final readonly class SystemMessenger
     ) {}
 
     /** @throws InvalidMessage */
-    public function toEmpire(Empire $empire, ?string $subject, string $body): Conversation
+    public function toEmpire(Empire $empire, ?string $subject, string $body, MessageCategory $category = MessageCategory::Announcement, ?string $link = null): Conversation
     {
-        return $this->toEmpires([$empire], $subject, $body);
+        return $this->toEmpires([$empire], $subject, $body, $category, $link);
     }
 
     /**
@@ -49,13 +50,13 @@ final readonly class SystemMessenger
      *
      * @throws InvalidMessage
      */
-    public function toEmpires(array $empires, ?string $subject, string $body): Conversation
+    public function toEmpires(array $empires, ?string $subject, string $body, MessageCategory $category = MessageCategory::Announcement, ?string $link = null): Conversation
     {
         $empires = array_values(array_unique($empires, \SORT_REGULAR));
         if ([] === $empires) {
             throw new InvalidMessage('Indiquez au moins un destinataire.');
         }
-        $conversation = $this->open($subject, $body);
+        $conversation = $this->open($subject, $body, $category, $link);
         if (\count($empires) <= self::IMMEDIATE_LIMIT) {
             $this->deliver($conversation, $empires);
         } else {
@@ -114,7 +115,7 @@ final readonly class SystemMessenger
     }
 
     /** @throws InvalidMessage */
-    private function open(?string $subject, string $body): Conversation
+    private function open(?string $subject, string $body, MessageCategory $category = MessageCategory::Announcement, ?string $link = null): Conversation
     {
         $body = trim($body);
         if ('' === $body) {
@@ -128,8 +129,8 @@ final readonly class SystemMessenger
             throw new InvalidMessage(\sprintf('L’objet compte au plus %d caractères.', Conversation::SUBJECT_MAX_LENGTH));
         }
         $now = $this->clock->now();
-        $conversation = new Conversation(false, '' === $subject ? null : $subject, $now, system: true);
-        $conversation->post(null, $body, $now);
+        $conversation = new Conversation(false, '' === $subject ? null : $subject, $now, system: true, category: $category);
+        $conversation->post(null, $body, $now, $link);
         $this->entityManager->persist($conversation);
         $this->entityManager->flush();
 

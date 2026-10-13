@@ -11,11 +11,13 @@ use App\Entity\QuestOutcome;
 use App\Entity\QuestTemplate;
 use App\Entity\SpaceLocation;
 use App\Enum\Exploration\ExplorationEventStatus;
+use App\Enum\Messaging\MessageCategory;
 use App\Exception\Exploration\InvalidQuestChoice;
 use App\Model\Exploration\ExplorationContext;
 use App\Repository\ExplorationEventInstanceRepository;
 use App\Repository\QuestTemplateRepository;
 use App\Service\Fleet\FleetMovements;
+use App\Service\Messaging\GameReports;
 use App\Service\Scheduling\EventScheduler;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
@@ -46,6 +48,7 @@ final readonly class Explorations
         private FleetMovements $movements,
         private LockFactory $lockFactory,
         private ClockInterface $clock,
+        private GameReports $reports,
     ) {}
 
     /**
@@ -157,6 +160,13 @@ final readonly class Explorations
             $expiresAt = $event->getExpiresAt();
             \assert(null !== $expiresAt);
             $this->scheduler->schedule(ExplorationExpiryHandler::TYPE, $expiresAt, null, ['event' => $event->getId()]);
+            $this->reports->report(
+                $event->getEmpire(),
+                MessageCategory::Expedition,
+                \sprintf('Décision attendue : %s', $event->getTitle()),
+                \sprintf('Votre flotte en %s attend votre décision avant le %s.', $event->getLocationLabel(), $expiresAt->format('d/m H:i')),
+                'app_exploration',
+            );
 
             return $event;
         }
@@ -193,13 +203,31 @@ final readonly class Explorations
             } else {
                 $report[] = \sprintf('Suite : « %s ».', $next->getName());
                 $event->resolve($outcome, implode("\n\n", $report), $at);
+                $this->reportExpedition($event, $report);
 
                 return $this->start($next, $fleet, $event->getLocation(), $event->getLocationLabel(), $at, $event->getSpeedPercent(), $event, $depth + 1);
             }
         }
         $event->resolve($outcome, implode("\n\n", $report), $at);
+        $this->reportExpedition($event, $report);
 
         return null;
+    }
+
+    /**
+     * Rapport automatique d'expédition (§4.12.2) : récit de l'issue et de ses effets.
+     *
+     * @param list<string> $report
+     */
+    private function reportExpedition(ExplorationEventInstance $event, array $report): void
+    {
+        $this->reports->report(
+            $event->getEmpire(),
+            MessageCategory::Expedition,
+            \sprintf('Expédition : %s', $event->getTitle()),
+            \sprintf("%s\n\n%s", $event->getLocationLabel(), implode("\n\n", $report)),
+            'app_exploration',
+        );
     }
 
     /** Effets d'une issue : vaisseaux perdus, cargaison gagnée ou perdue. Renvoie leur résumé, ou une chaîne vide */

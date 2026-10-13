@@ -6,12 +6,16 @@ namespace App\Service\Combat;
 
 use App\Entity\Battle;
 use App\Entity\CombatReport;
+use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\Planet;
 use App\Enum\Combat\AttackAngle;
+use App\Enum\Combat\CombatSide;
+use App\Enum\Messaging\MessageCategory;
 use App\Model\Combat\CombatResult;
 use App\Model\Economy\Resources;
 use App\Model\Scheduling\GameTopics;
+use App\Service\Messaging\GameReports;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Mercure\HubInterface;
@@ -35,6 +39,7 @@ final class CombatReports implements ResetInterface
         private readonly Environment $twig,
         private readonly LoggerInterface $logger,
         private readonly CombatReportReaders $readers,
+        private readonly GameReports $gameReports,
     ) {}
 
     /**
@@ -91,8 +96,37 @@ final class CombatReports implements ResetInterface
         );
         $this->entityManager->persist($report);
         $this->pending[] = $report;
+        $this->reportToEngaged($battle, $report, $result->winner, $defended);
 
         return $report;
+    }
+
+    /**
+     * Rapport automatique dans la messagerie de chaque empire engagé (§4.12.2), y compris le propriétaire d'une planète
+     * dont seules les défenses ont combattu.
+     */
+    private function reportToEngaged(Battle $battle, CombatReport $report, ?CombatSide $winner, ?Planet $defended): void
+    {
+        /** @var array<int, array{0: Empire, 1: CombatSide}> $engaged */
+        $engaged = [];
+        foreach ($battle->getParticipants() as $participant) {
+            $engaged[(int) $participant->getEmpire()->getId()] ??= [$participant->getEmpire(), $participant->getSide()];
+        }
+        $owner = $defended?->getOwner();
+        if (null !== $owner) {
+            $engaged[(int) $owner->getId()] ??= [$owner, CombatSide::Defender];
+        }
+        foreach ($engaged as [$empire, $side]) {
+            $outcome = null === $winner ? 'Combat indécis' : ($winner === $side ? 'Victoire' : 'Défaite');
+            $this->gameReports->report(
+                $empire,
+                MessageCategory::Combat,
+                \sprintf('%s : %s', $outcome, $report->getLocationLabel()),
+                \sprintf('%s en %s. Le rapport détaillé (forces, pertes, débris, pillage) est dans l’écran Combats.', $outcome, $report->getLocationLabel()),
+                'app_combat_report',
+                static fn(): array => ['id' => $report->getId()],
+            );
+        }
     }
 
     /** Résolution validée : chaque empire engagé reçoit une notification par rapport */

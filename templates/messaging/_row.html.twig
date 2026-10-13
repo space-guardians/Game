@@ -3,7 +3,7 @@
 <li class="sg-conversation{{ place.hasUnread ? ' is-unread' }}" id="conversation-row-{{ conversation.id }}">
     <a href="{{ path('app_messaging_show', {id: conversation.id}) }}" data-turbo-frame="_top">
         <span class="sg-conversation__title">{{ conversation.titleFor(viewer) }}</span>
-        {% if conversation.system %}<twig:Chip label="Jeu" tone="violet"/>{% endif %}
+        {% if conversation.system %}<twig:Chip label="{{ conversation.category ? conversation.category.label : 'Jeu' }}" tone="violet"/>{% endif %}
         {% if conversation.group %}<twig:Chip label="Groupe" tone="cyan"/>{% endif %}
         {% if place.hasUnread %}<twig:Chip label="Non lu" tone="gold" dot/>{% endif %}
         {% if not place.active %}<twig:Chip label="Quittée" tone="neutral"/>{% endif %}

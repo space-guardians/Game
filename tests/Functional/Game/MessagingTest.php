@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Game;
 
 use App\Entity\Empire;
 use App\Entity\Message;
+use App\Enum\Messaging\MessageCategory;
 use App\Factory\EmpireFactory;
 use App\Repository\ConversationRepository;
 use App\Service\Messaging\Messaging;
@@ -119,7 +120,7 @@ final class MessagingTest extends WebTestCase
 
         $this->client->request('GET', '/messagerie');
         self::assertSelectorTextContains('#conversation-row-' . $conversation->getId(), 'Maintenance');
-        self::assertSelectorTextContains('#conversation-row-' . $conversation->getId(), 'Jeu');
+        self::assertSelectorTextContains('#conversation-row-' . $conversation->getId(), 'Annonces');
 
         $this->client->request('GET', '/messagerie/' . $conversation->getId());
         self::assertResponseIsSuccessful();
@@ -127,6 +128,26 @@ final class MessagingTest extends WebTestCase
         self::assertSelectorTextContains('#sans-reponse', 'pas de réponse possible');
         // Les destinataires ne se voient pas entre eux
         self::assertSelectorTextNotContains('#participants', 'Bob');
+    }
+
+    public function testGameReportsAreFiledByCategoryWithALink(): void
+    {
+        [$ana, $bob] = $this->empires('Ana', 'Bob');
+        $report = self::getContainer()->get(SystemMessenger::class)->toEmpire($ana, 'Victoire : 1:1:1', 'Victoire en 1:1:1.', MessageCategory::Combat, '/combats/42');
+        $private = self::getContainer()->get(Messaging::class)->start($bob, ['Ana'], null, 'Salut');
+        $this->client->loginUser($ana->getUser());
+
+        $this->client->request('GET', '/messagerie?categorie=combat');
+        self::assertSelectorExists('#conversation-row-' . $report->getId());
+        self::assertSelectorNotExists('#conversation-row-' . $private->getId());
+        self::assertSelectorTextContains('#categories [aria-current="page"]', 'Combats');
+
+        $this->client->request('GET', '/messagerie?categorie=joueurs');
+        self::assertSelectorExists('#conversation-row-' . $private->getId());
+        self::assertSelectorNotExists('#conversation-row-' . $report->getId());
+
+        $crawler = $this->client->request('GET', '/messagerie/' . $report->getId());
+        self::assertSame('/combats/42', $crawler->selectLink('Voir le détail')->attr('href'));
     }
 
     /** @return list<Empire> */

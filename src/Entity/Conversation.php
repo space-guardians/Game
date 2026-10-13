@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\Messaging\MessageCategory;
 use App\Repository\ConversationRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -48,6 +49,9 @@ final class Conversation
         /** Message du jeu (§4.12.2) : auteur nul, pas de réponse possible, destinataires invisibles entre eux */
         #[ORM\Column(name: 'is_system', options: ['default' => false])]
         private readonly bool $system = false,
+        /** Catégorie d'un message du jeu (annonce, rapport de combat…) ; nulle entre joueurs */
+        #[ORM\Column(length: 20, nullable: true, enumType: MessageCategory::class)]
+        private readonly ?MessageCategory $category = null,
     ) {
         $this->lastMessageAt = $createdAt;
         $this->participants = new ArrayCollection();
@@ -67,6 +71,11 @@ final class Conversation
     public function isSystem(): bool
     {
         return $this->system;
+    }
+
+    public function getCategory(): ?MessageCategory
+    {
+        return $this->category;
     }
 
     public function getSubject(): ?string
@@ -121,9 +130,9 @@ final class Conversation
         return $this->messages;
     }
 
-    public function post(?Empire $author, string $body, \DateTimeImmutable $at): Message
+    public function post(?Empire $author, string $body, \DateTimeImmutable $at, ?string $link = null): Message
     {
-        $message = new Message($this, $author, $body, $at);
+        $message = new Message($this, $author, $body, $at, $link);
         $this->messages->add($message);
         $this->lastMessageAt = $at;
 

@@ -18,6 +18,7 @@ use App\Enum\Exploration\QuestStatus;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
 use App\Enum\Fleet\FleetStatus;
+use App\Enum\Messaging\MessageCategory;
 use App\Exception\Exploration\InvalidQuestChoice;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Factory\EmpireFactory;
@@ -29,6 +30,7 @@ use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BuildingTypeRepository;
+use App\Repository\ConversationRepository;
 use App\Repository\ExplorationEventInstanceRepository;
 use App\Repository\FleetMovementRepository;
 use App\Repository\ShipTypeRepository;
@@ -36,6 +38,7 @@ use App\Repository\TechnologyRepository;
 use App\Service\Exploration\ExplorationExpiryHandler;
 use App\Service\Exploration\Explorations;
 use App\Service\Fleet\FleetDispatch;
+use App\Service\Messaging\GameReports;
 use App\Service\Scheduling\ScheduledEventResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -98,6 +101,10 @@ final class ExplorationTest extends KernelTestCase
         self::assertSame(FleetOrderStatus::Done, $fleet->getOrders()[0]?->getStatus());
         self::assertSame(FleetStatus::InFlight, $fleet->getStatus());
         self::assertSame(2, self::getContainer()->get(FleetMovementRepository::class)->findActiveFor($fleet)?->getOrder()->getRank());
+        // Rapport d'expédition dans la messagerie (§4.12.2)
+        $expeditions = $this->gameMessages($empire, MessageCategory::Expedition);
+        self::assertStringContainsString('Des conteneurs intacts.', $expeditions['Expédition : Épave'][0] ?? '');
+        self::assertSame('/exploration', $expeditions['Expédition : Épave'][1] ?? null);
     }
 
     public function testNothingHappensWhenNoQuestIsEligible(): void
@@ -140,7 +147,11 @@ final class ExplorationTest extends KernelTestCase
 
         $investigate = $event->getTemplate()?->getOutcomes()->first();
         \assert(false !== $investigate && null !== $investigate);
+        self::assertArrayHasKey('Décision attendue : Signal', $this->gameMessages($empire, MessageCategory::Expedition));
         self::getContainer()->get(Explorations::class)->choose($event, $investigate, $fleet->getEmpire());
+        // Décision prise hors événement (requête) : le rapport part avec la réponse
+        self::getContainer()->get(GameReports::class)->send();
+        self::assertArrayHasKey('Expédition : Signal', $this->gameMessages($empire, MessageCategory::Expedition));
 
         self::assertSame(ExplorationEventStatus::Resolved, $event->getStatus());
         self::assertSame(200.0, $fleet->getCargo()->crystal);
@@ -348,5 +359,22 @@ final class ExplorationTest extends KernelTestCase
     private function entityManager(): EntityManagerInterface
     {
         return self::getContainer()->get(EntityManagerInterface::class);
+    }
+
+    /**
+     * Messages du jeu reçus par l'empire dans la catégorie : objet => [corps, lien].
+     *
+     * @return array<string, array{0: string, 1: ?string}>
+     */
+    private function gameMessages(Empire $empire, MessageCategory $category): array
+    {
+        $messages = [];
+        foreach (self::getContainer()->get(ConversationRepository::class)->findPlacesOf($empire, category: $category) as $place) {
+            $message = $place->getConversation()->getMessages()->first();
+            \assert(false !== $message);
+            $messages[(string) $place->getConversation()->getSubject()] = [$message->getBody(), $message->getLink()];
+        }
+
+        return $messages;
     }
 }

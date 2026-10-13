@@ -15,6 +15,7 @@ use App\Entity\SpaceLocation;
 use App\Enum\Combat\CombatSide;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FleetOrderStatus;
+use App\Enum\Messaging\MessageCategory;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
@@ -23,6 +24,7 @@ use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BuildingTypeRepository;
+use App\Repository\ConversationRepository;
 use App\Repository\ShipTypeRepository;
 use App\Repository\TechnologyRepository;
 use App\Service\Fleet\FleetDispatch;
@@ -64,6 +66,12 @@ final class EspionageTest extends KernelTestCase
         self::assertSame([['name' => 'Garde', 'empire' => 'Cible', 'ships' => ['Croiseur' => 4]]], $report->getSections()['fleets']);
         self::assertFalse($report->reveals('defenses'));
         self::assertFalse($report->reveals('research'));
+        // Rapport dans la messagerie de l'espion, avec le lien du rapport (§4.12.2)
+        $messages = $this->gameMessages($spy, MessageCategory::Espionage);
+        self::assertCount(1, $messages);
+        [$body, $link] = array_values($messages)[0];
+        self::assertStringContainsString('(Cible)', $body);
+        self::assertSame('/espionnage/' . $report->getId(), $link);
     }
 
     public function testBetterEspionageRevealsEverything(): void
@@ -142,6 +150,8 @@ final class EspionageTest extends KernelTestCase
         // Alerte en direct à la cible
         $topics = array_map(static fn($update): string => $update->getTopics()[0] . ' ' . $update->getData(), self::getContainer()->get(PublishedUpdates::class)->all());
         self::assertNotEmpty(array_filter($topics, static fn(string $line): bool => str_starts_with($line, '/empire/' . $owner->getId()) && str_contains($line, 'Sondes d’espionnage de')));
+        // Et un message du jeu, catégorie espionnage
+        self::assertNotEmpty(array_filter(array_keys($this->gameMessages($owner, MessageCategory::Espionage)), static fn(string $subject): bool => str_starts_with($subject, 'Sondes repérées')));
     }
 
     public function testDetectedProbesWithNobodyToFightThemCarryOn(): void
@@ -256,5 +266,22 @@ final class EspionageTest extends KernelTestCase
     private function entityManager(): EntityManagerInterface
     {
         return self::getContainer()->get(EntityManagerInterface::class);
+    }
+
+    /**
+     * Messages du jeu reçus par l'empire dans la catégorie : objet => [corps, lien].
+     *
+     * @return array<string, array{0: string, 1: ?string}>
+     */
+    private function gameMessages(Empire $empire, MessageCategory $category): array
+    {
+        $messages = [];
+        foreach (self::getContainer()->get(ConversationRepository::class)->findPlacesOf($empire, category: $category) as $place) {
+            $message = $place->getConversation()->getMessages()->first();
+            \assert(false !== $message);
+            $messages[(string) $place->getConversation()->getSubject()] = [$message->getBody(), $message->getLink()];
+        }
+
+        return $messages;
     }
 }

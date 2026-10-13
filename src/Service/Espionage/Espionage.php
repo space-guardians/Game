@@ -10,11 +10,13 @@ use App\Entity\EspionageReport;
 use App\Entity\Fleet;
 use App\Entity\Planet;
 use App\Entity\SpaceLocation;
+use App\Enum\Messaging\MessageCategory;
 use App\Repository\FleetRepository;
 use App\Service\Combat\Allegiances;
 use App\Service\Combat\BattleFight;
 use App\Service\Combat\Battles;
 use App\Service\Economy\PlanetResources;
+use App\Service\Messaging\GameReports;
 use Doctrine\ORM\EntityManagerInterface;
 use Random\Randomizer;
 
@@ -35,6 +37,7 @@ final readonly class Espionage
         private EspionageAlerts $alerts,
         private Allegiances $allegiances,
         private BattleFight $fight,
+        private GameReports $reports,
     ) {}
 
     /**
@@ -73,10 +76,32 @@ final readonly class Espionage
             }
         }
 
-        $this->entityManager->persist(new EspionageReport($spy, mb_substr($locationLabel, 0, 80), $target?->getName(), $at, $score, $sections, $chance, $detected));
+        $report = new EspionageReport($spy, mb_substr($locationLabel, 0, 80), $target?->getName(), $at, $score, $sections, $chance, $detected);
+        $this->entityManager->persist($report);
+        // Rapport automatique dans la messagerie de l'espion (§4.12.2)
+        $this->reports->report(
+            $spy,
+            MessageCategory::Espionage,
+            \sprintf('Espionnage : %s', $report->getLocationLabel()),
+            \sprintf(
+                'Rapport d’espionnage de %s%s : %d section(s) révélée(s).%s',
+                $report->getLocationLabel(),
+                null === $target ? '' : ' (' . $target->getName() . ')',
+                \count($sections),
+                $detected ? ' Les sondes ont été repérées.' : '',
+            ),
+            'app_espionage_report',
+            static fn(): array => ['id' => $report->getId()],
+        );
 
         if ($detected && null !== $target) {
             $this->alerts->detected($target, $spy, $locationLabel);
+            $this->reports->report(
+                $target,
+                MessageCategory::Espionage,
+                \sprintf('Sondes repérées : %s', $locationLabel),
+                \sprintf('Des sondes d’espionnage de %s ont été repérées en %s.', $spy->getName(), $locationLabel),
+            );
             $this->engage($probes, $location, $locationLabel, $planet, $fleets, $at);
         }
 
