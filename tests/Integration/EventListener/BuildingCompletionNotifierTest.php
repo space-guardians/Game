@@ -31,7 +31,7 @@ final class BuildingCompletionNotifierTest extends KernelTestCase
         $this->clock = self::mockTime('2026-10-06 10:00:00');
     }
 
-    public function testPushesNotificationAndRefreshToEmpire(): void
+    public function testPushesNotificationAndRefreshToThePlanetTopic(): void
     {
         $empire = EmpireFactory::createOne(['foundedAt' => $this->clock->now()]);
         $item = self::getContainer()->get(BuildingConstruction::class)->start($empire->getHomePlanet(), $this->type('metal_mine'));
@@ -44,7 +44,8 @@ final class BuildingCompletionNotifierTest extends KernelTestCase
         $updates = array_values(array_filter($all, static fn($update): bool => !str_contains($update->getData(), 'target="sg-unread-notifications"')));
         self::assertCount(1, $updates);
         self::assertCount(2, $all);
-        self::assertSame(['/empire/' . $empire->getId()], $updates[0]->getTopics());
+        // Ne concerne que la planète : son topic (§5.2)
+        self::assertSame(['/planet/' . $empire->getHomePlanet()->getId()], $updates[0]->getTopics());
         self::assertTrue($updates[0]->isPrivate());
         $stream = $updates[0]->getData();
         self::assertStringContainsString('<turbo-stream action="append" target="sg-notifications">', $stream);

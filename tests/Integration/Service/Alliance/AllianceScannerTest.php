@@ -85,7 +85,8 @@ final class AllianceScannerTest extends KernelTestCase
             self::getContainer()->get(PublishedUpdates::class)->all(),
             static fn($update): bool => str_contains($update->getData(), 'Scanner de Bastion'),
         ));
-        self::assertEqualsCanonicalizing(['/empire/' . $founder->getId(), '/empire/' . $mate->getId()], array_map(static fn($update): string => $update->getTopics()[0], $alerts));
+        // Une seule publication, sur le topic de l'alliance, auquel chaque membre est abonné (§5.2)
+        self::assertSame([['/alliance/' . $alliancePlanet->getAlliance()->getId()]], array_map(static fn($update): array => $update->getTopics(), $alerts));
         self::assertStringContainsString('flotte de Rôdeur (4 vaisseaux) en route vers', $alerts[0]->getData());
 
         // Encore loin : hors de portée ; à l'approche, suivie en vol avec sa destination
@@ -129,7 +130,7 @@ final class AllianceScannerTest extends KernelTestCase
         // Envoi validé : publiée avec la réponse, à chacun des deux membres
         $this->send($this->fleet(EmpireFactory::createOne(), $far, ['cruiser' => 1]), $founder->getHomePlanet());
         $dispatcher->dispatch(new ResponseEvent($kernel, new Request(), HttpKernelInterface::MAIN_REQUEST, new Response()), KernelEvents::RESPONSE);
-        self::assertSame(2, $published());
+        self::assertSame(1, $published());
     }
 
     public function testNoScannerNoDetection(): void

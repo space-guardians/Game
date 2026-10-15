@@ -6,6 +6,7 @@ namespace App\Twig;
 
 use App\Model\Chat\ChatTopics;
 use App\Model\Scheduling\GameTopics;
+use App\Repository\AllianceMemberRepository;
 use App\Service\Account\GameContext;
 use App\Service\Messaging\IgnoredPlayers;
 use Twig\Attribute\AsTwigFunction;
@@ -18,6 +19,7 @@ final readonly class PlayerTopicsExtension
 {
     public function __construct(
         private GameContext $context,
+        private AllianceMemberRepository $members,
         private IgnoredPlayers $ignored,
     ) {}
 
@@ -27,7 +29,20 @@ final readonly class PlayerTopicsExtension
     {
         $empire = $this->context->empire();
 
-        return null === $empire ? [] : [GameTopics::empire($empire)];
+        if (null === $empire) {
+            return [];
+        }
+        // Son empire, chacune de ses planètes et son alliance (§5.2)
+        $topics = [GameTopics::empire($empire)];
+        foreach ($this->context->planets() as $planet) {
+            $topics[] = GameTopics::planet($planet);
+        }
+        $alliance = $this->members->findOneByEmpire($empire)?->getAlliance();
+        if (null !== $alliance) {
+            $topics[] = GameTopics::alliance($alliance);
+        }
+
+        return $topics;
     }
 
     /** Empire du joueur connecté, pour distinguer ses propres messages dans le chat */

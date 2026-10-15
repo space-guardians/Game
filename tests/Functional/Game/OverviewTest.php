@@ -9,7 +9,9 @@ use App\Entity\Planet;
 use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
 use App\Factory\UserFactory;
+use App\Repository\AllianceMemberRepository;
 use App\Repository\EmpireRepository;
+use App\Service\Alliance\Alliances;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -80,6 +82,26 @@ final class OverviewTest extends WebTestCase
         self::assertBrowserHasCookie('mercure_access_token', '/.well-known/mercure');
         self::assertSelectorExists('#sg-notifications[data-turbo-permanent]');
         self::assertSelectorExists('meta[name="turbo-refresh-method"][content="morph"]');
+    }
+
+    public function testSubscribesToEachPlanetAndToTheAllianceTopic(): void
+    {
+        $empire = EmpireFactory::createOne(['name' => 'Ana']);
+        $colony = PlanetFactory::createOne();
+        $colony->assignTo($empire);
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+        self::getContainer()->get(Alliances::class)->found($empire, 'Ligue', 'LGS');
+        $alliance = self::getContainer()->get(AllianceMemberRepository::class)->findOneByEmpire($empire)?->getAlliance();
+        \assert(null !== $alliance);
+        $this->client->loginUser($empire->getUser());
+
+        $crawler = $this->client->request('GET', '/');
+
+        // Un topic par portée (§5.2) : empire, chacune de ses planètes, son alliance
+        $src = rawurldecode((string) $crawler->filter('turbo-mercure-stream-source[private]')->attr('src'));
+        foreach (['/empire/' . $empire->getId(), '/planet/' . $empire->getHomePlanet()->getId(), '/planet/' . $colony->getId(), '/alliance/' . $alliance->getId()] as $topic) {
+            self::assertStringContainsString($topic, $src);
+        }
     }
 
     public function testSwitchesActivePlanet(): void

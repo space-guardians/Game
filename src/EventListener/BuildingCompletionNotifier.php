@@ -41,7 +41,8 @@ final readonly class BuildingCompletionNotifier
 
         try {
             $this->hub->publish(new Update(
-                GameTopics::empire($owner),
+                // Ne concerne que la planète : son topic (§5.2)
+                GameTopics::planet($event->getPlanet()),
                 $this->twig->render('streams/building_completed.stream.html.twig', [
                     'building' => $type?->getName() ?? 'Construction',
                     'level' => $payload['level'] ?? null,
