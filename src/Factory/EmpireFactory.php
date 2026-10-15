@@ -28,7 +28,8 @@ final class EmpireFactory extends PersistentObjectFactory
             'name' => 'Ordre ' . self::faker()->unique()->numberBetween(1, 999_999),
             'orientation' => self::faker()->randomElement(StartingOrientation::cases()),
             'homePlanet' => PlanetFactory::new(),
-            'foundedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeThisYear()),
+            // Bien avant les horloges des tests : hors du bouclier débutant (§4.13), sauf date explicite
+            'foundedAt' => \DateTimeImmutable::createFromMutable(self::faker()->dateTimeBetween('-3 years', '-1 year')),
         ];
     }
 
