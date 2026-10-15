@@ -26,6 +26,37 @@
         {% endif %}
     </ul>
 
+    <h2 class="h5 mt-3">Planètes</h2>
+    <table class="table datagrid" id="planetes">
+        <thead><tr><th>Planète</th><th>Métal</th><th>Cristal</th><th>Deutérium</th></tr></thead>
+        <tbody>
+            {% for item in file.planets %}
+                <tr>
+                    <td>{{ item.planet }}</td>
+                    <td>{{ item.resources.metal|number_format(0, ',', ' ') }}</td>
+                    <td>{{ item.resources.crystal|number_format(0, ',', ' ') }}</td>
+                    <td>{{ item.resources.deuterium|number_format(0, ',', ' ') }}</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2 class="h5 mt-3">Progression</h2>
+    <section id="progression">
+        {% if progress_charts is empty %}
+            <p class="text-muted">Aucun instantané sur les {{ progress_days }} derniers jours : le prochain sera pris automatiquement.</p>
+        {% else %}
+            <div class="sg-admin-progress">
+                {% for title, chart in progress_charts %}
+                    <figure class="sg-admin-progress__chart">
+                        <figcaption class="h6">{{ title }}</figcaption>
+                        {{ render_chart(chart, {'aria-label': title}) }}
+                    </figure>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </section>
+
     <h2 class="h5 mt-3">Flotte courante ({{ file.shipCount }} vaisseaux)</h2>
     <table class="table datagrid" id="flottes">
         <thead><tr><th>Flotte</th><th>État</th><th>Composition</th></tr></thead>
@@ -38,6 +69,23 @@
                 </tr>
             {% else %}
                 <tr><td colspan="3">Aucune flotte.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2 class="h5 mt-3">Raids lancés</h2>
+    <table class="table datagrid" id="raids-lances">
+        <thead><tr><th>Arrivée</th><th>Cible</th><th>État</th><th>Issue</th></tr></thead>
+        <tbody>
+            {% for battle in file.raids %}
+                <tr>
+                    <td>{{ battle.resolvesAt|date('d/m/Y H:i') }}</td>
+                    <td>{{ battle.locationLabel }}</td>
+                    <td>{{ battle.status.value == 'scheduled' ? 'En route' : (battle.status.value == 'cancelled' ? 'Annulé' : 'Résolu') }}</td>
+                    <td>{{ battle.winner is null ? '—' : (battle.winner.value == 'attacker' ? 'Réussi' : 'Repoussé') }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="4">Aucun raid lancé.</td></tr>
             {% endfor %}
         </tbody>
     </table>

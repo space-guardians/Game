@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Admin;
 
 use App\Entity\Battle;
 use App\Entity\Fleet;
+use App\Entity\GlobalPosition;
 use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
 use App\Enum\Admin\AdminRole;
@@ -13,11 +14,14 @@ use App\Enum\Combat\CombatSide;
 use App\Factory\AdminUserFactory;
 use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
+use App\Factory\StarSystemFactory;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\NpcBehaviorProfileRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Pve\BossFleets;
 use App\Service\Pve\NpcCivilisations;
+use App\Service\Pve\NpcRaids;
+use App\Service\Ranking\EmpireProgress;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -73,6 +77,30 @@ final class NpcMonitorAdminTest extends WebTestCase
         self::assertSelectorTextContains('#raids-subis', 'Ana');
         self::assertSelectorTextContains('#raids-subis', 'Repoussé');
         self::assertSelectorTextContains('#raids-subis', '15/10/2026 16:00');
+    }
+
+    public function testOverviewProgressAndRaidsLaunchedOfAMinorCivilisation(): void
+    {
+        $player = EmpireFactory::createOne(['name' => 'Ana']);
+        $profile = self::getContainer()->get(NpcBehaviorProfileRepository::class)->findOneByCode('minor_raider');
+        \assert(null !== $profile);
+        $system = $player->getHomePlanet()->getSystem();
+        $npc = self::getContainer()->get(NpcCivilisations::class)->found($profile, 'Pillards', PlanetFactory::createOne(['system' => StarSystemFactory::new(['galaxy' => $system->getGalaxy(), 'position' => new GlobalPosition($system->getPosition()->x + 600, $system->getPosition()->y)])]));
+        self::assertNull(self::getContainer()->get(NpcRaids::class)->raidNow($npc, $player->getHomePlanet()));
+        self::getContainer()->get(EmpireProgress::class)->snapshot();
+        $this->client->loginUser(AdminUserFactory::createOne(['role' => AdminRole::GameDesigner]), 'admin');
+
+        // Vue d'ensemble : planètes, vaisseaux, ressources
+        $this->client->request('GET', '/admin/civilisations');
+        $row = \sprintf('#civilisation-%d', $npc->getId());
+        self::assertSelectorTextContains($row, 'Pillards');
+        self::assertSelectorTextContains($row, '20 000 / 20 000 / 20 000');
+
+        $this->client->request('GET', \sprintf('/admin/civilisations/%d', $npc->getId()));
+        self::assertSelectorTextContains('#planetes', '20 000');
+        self::assertSelectorExists('#progression canvas[data-controller="symfony--ux-chartjs--chart"]');
+        self::assertSelectorTextContains('#raids-lances', 'En route');
+        self::assertSelectorTextContains('#raids-subis', 'Aucun raid subi.');
     }
 
     public function testModeratorCannotSeeAFile(): void

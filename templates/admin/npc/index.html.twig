@@ -7,14 +7,18 @@
 {% block main %}
     <table class="table datagrid" id="civilisations">
         <thead>
-            <tr><th>Civilisation</th><th>Profil</th><th>Planète mère</th><th>Dernier raid</th><th>Renforcer</th><th>Attaquer</th></tr>
+            <tr><th>Civilisation</th><th>Profil</th><th>Planètes</th><th>Vaisseaux</th><th>Ressources</th><th>Dernier raid</th><th>Renforcer</th><th>Attaquer</th></tr>
         </thead>
         <tbody>
-            {% for npc in civilisations %}
+            {% for file in files %}
+                {% set npc = file.empire %}
+                {% set resources = file.resources %}
                 <tr id="civilisation-{{ npc.id }}">
                     <td><a href="{{ path('admin_npc_detail', {id: npc.id}) }}">{{ npc.name }}</a></td>
                     <td>{{ npc.npcProfile }} ({{ npc.npcProfile.category.label }})</td>
-                    <td>{{ npc.homePlanet }}</td>
+                    <td>{{ file.planets|length }}</td>
+                    <td>{{ file.shipCount }}</td>
+                    <td class="text-nowrap">{{ resources.metal|number_format(0, ',', ' ') }} / {{ resources.crystal|number_format(0, ',', ' ') }} / {{ resources.deuterium|number_format(0, ',', ' ') }}</td>
                     <td>{{ npc.npcLastRaidAt ? npc.npcLastRaidAt|date('d/m/Y H:i') : 'Jamais' }}</td>
                     <td>
                         <form method="post" action="{{ path('admin_npc_reinforce', {id: npc.id}) }}" class="d-flex gap-1">
@@ -39,7 +43,7 @@
                     </td>
                 </tr>
             {% else %}
-                <tr><td colspan="6">Aucune civilisation pour l’instant.</td></tr>
+                <tr><td colspan="8">Aucune civilisation pour l’instant.</td></tr>
             {% endfor %}
         </tbody>
     </table>

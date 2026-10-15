@@ -6,7 +6,6 @@ namespace App\Controller\Admin;
 
 use App\Entity\Empire;
 use App\Entity\Planet;
-use App\Enum\Account\EmpireKind;
 use App\Enum\Admin\AdminRole;
 use App\Enum\Admin\AuditAction;
 use App\Repository\EmpireRepository;
@@ -15,6 +14,7 @@ use App\Repository\NpcBehaviorProfileRepository;
 use App\Repository\PlanetRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Admin\AdminAudit;
+use App\Service\Admin\ProgressCharts;
 use App\Service\Fleet\DestinationResolver;
 use App\Service\Pve\NpcCivilisations;
 use App\Service\Pve\NpcMonitor;
@@ -53,13 +53,15 @@ final class NpcCivilisationController extends AbstractController
         private readonly Randomizer $randomizer,
         private readonly AdminAudit $audit,
         private readonly NpcMonitor $monitor,
+        private readonly ProgressCharts $progress,
     ) {}
 
     #[AdminRoute(path: '/', name: 'index', options: ['methods' => ['GET']])]
     public function index(): Response
     {
         return $this->render('admin/npc/index.html.twig', [
-            'civilisations' => $this->empires->findBy(['kind' => EmpireKind::Npc], ['name' => 'ASC']),
+            // Vue d'ensemble (§5.6.1 « IA ») : planètes, flottes, ressources de chaque civilisation
+            'files' => $this->monitor->all(),
             'profiles' => $this->profiles->findBy([], ['name' => 'ASC']),
             'ships' => $this->shipTypes->findShipsOrdered(),
             'token' => self::TOKEN,
@@ -70,7 +72,14 @@ final class NpcCivilisationController extends AbstractController
     #[AdminRoute(path: '/{id}', name: 'detail', options: ['methods' => ['GET'], 'requirements' => ['id' => '\d+']])]
     public function detail(int $id): Response
     {
-        return $this->render('admin/npc/detail.html.twig', ['file' => $this->monitor->of($this->npc($id))]);
+        $npc = $this->npc($id);
+
+        return $this->render('admin/npc/detail.html.twig', [
+            'file' => $this->monitor->of($npc),
+            // Progression dans le temps, comme pour les joueurs (instantanés, §5.6.1)
+            'progress_charts' => $this->progress->of($npc),
+            'progress_days' => ProgressCharts::DEFAULT_DAYS,
+        ]);
     }
 
     #[AdminRoute(path: '/fonder', name: 'found', options: ['methods' => ['POST']])]
