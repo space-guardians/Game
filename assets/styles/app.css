@@ -1797,3 +1797,34 @@ a:hover {
     margin-left: 4px;
     color: var(--sg-text-3);
 }
+
+/* Marché (§4.15) : formulaires de publication, saisie des ressources */
+.sg-market__forms {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+    gap: 16px;
+}
+
+.sg-market__form {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.sg-market__resources {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.sg-market__resources .sg-field {
+    flex: 1 1 90px;
+}
+
+.sg-market__inline {
+    display: flex;
+    gap: 8px;
+}

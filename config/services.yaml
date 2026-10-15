@@ -72,10 +72,6 @@ when@test:
         App\Service\Combat\CombatMotions:
             public: true
 
-        # Vente et échange de planètes : utilisé par l'écran Marché (#64), retiré du conteneur d'ici là
-        App\Service\Market\PlanetMarket:
-            public: true
-
         # Doublures de test : gestionnaires d'événements planifiés factices, publications Mercure enregistrées
         App\Tests\Fixtures\:
             resource: '../tests/Fixtures/'

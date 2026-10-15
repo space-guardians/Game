@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\Empire;
 use App\Entity\Planet;
 use App\Entity\PlanetListing;
 use App\Enum\Market\PlanetListingStatus;
@@ -32,6 +33,30 @@ final class PlanetListingRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    /**
+     * Planètes sur le marché où l'empire est vendeur, acheteur ou auteur d'une proposition, dans ces états.
+     *
+     * @param list<PlanetListingStatus> $statuses
+     *
+     * @return list<PlanetListing>
+     */
+    public function findInvolving(Empire $empire, array $statuses, int $limit = 50): array
+    {
+        /** @var list<PlanetListing> */
+        return $this->createQueryBuilder('l')
+            ->addSelect('p')
+            ->join('l.planet', 'p')
+            ->where('l.seller = :empire OR l.buyer = :empire')
+            ->andWhere('l.status IN (:statuses)')
+            ->setParameter('empire', $empire)
+            ->setParameter('statuses', $statuses)
+            ->orderBy('l.createdAt', 'DESC')
+            ->addOrderBy('l.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
     }
 
     /**
