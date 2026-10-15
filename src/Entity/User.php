@@ -46,6 +46,15 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $lastActiveAt = null;
 
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $bannedAt = null;
+
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $banEndsAt = null;
+
+    #[ORM\Column(length: 255, nullable: true)]
+    private ?string $banReason = null;
+
     public function __construct(
         string $email,
         /** Date d'inscription, qui vaut aussi acceptation des règles du jeu */
@@ -91,6 +100,39 @@ final class User implements UserInterface, PasswordAuthenticatedUserInterface
     public function setPassword(string $hashedPassword): void
     {
         $this->password = $hashedPassword;
+    }
+
+    /** Bannissement (§4.13) : en vigueur depuis `bannedAt`, jusqu'à `banEndsAt` (null : définitif) */
+    public function ban(\DateTimeImmutable $at, ?\DateTimeImmutable $until, string $reason): void
+    {
+        $this->bannedAt = $at;
+        $this->banEndsAt = $until;
+        $this->banReason = mb_substr($reason, 0, 255);
+    }
+
+    public function liftBan(): void
+    {
+        $this->bannedAt = $this->banEndsAt = $this->banReason = null;
+    }
+
+    public function isBannedAt(\DateTimeImmutable $at): bool
+    {
+        return null !== $this->bannedAt && (null === $this->banEndsAt || $at < $this->banEndsAt);
+    }
+
+    public function getBannedAt(): ?\DateTimeImmutable
+    {
+        return $this->bannedAt;
+    }
+
+    public function getBanEndsAt(): ?\DateTimeImmutable
+    {
+        return $this->banEndsAt;
+    }
+
+    public function getBanReason(): ?string
+    {
+        return $this->banReason;
     }
 
     public function getRegisteredAt(): \DateTimeImmutable

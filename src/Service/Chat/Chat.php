@@ -63,6 +63,11 @@ final readonly class Chat
         if (null !== $recipient && !$this->presence->isOnline($recipient)) {
             throw new ChatRecipientOffline($recipient);
         }
+        // Sourdine de la modération (§4.13)
+        $muted = $author->getChatMutedUntil();
+        if (null !== $muted && $author->isChatMutedAt($this->clock->now())) {
+            throw new ChatRefused(\sprintf('La modération vous a réduit au silence dans le chat jusqu’au %s.', $muted->format('d/m/Y à H:i')));
+        }
         $body = trim(preg_replace('/\s+/u', ' ', $body) ?? '');
         if ('' === $body) {
             throw new ChatRefused('Le message est vide.');

@@ -8,6 +8,48 @@
 {% block main %}
     {{ parent() }}
 
+    {% set user = entity.instance.user %}
+    {% set token = csrf_token('moderate-' ~ entity.instance.id) %}
+    <h2 class="h5 mt-4">Modération</h2>
+    <section id="moderation">
+        {% if user.bannedAt %}
+            <p class="text-danger">Banni {{ user.banEndsAt ? 'jusqu’au ' ~ user.banEndsAt|date('d/m/Y H:i') : 'définitivement' }} : {{ user.banReason }}</p>
+        {% endif %}
+        {% if entity.instance.chatMutedUntil %}
+            <p>Chat en sourdine jusqu’au {{ entity.instance.chatMutedUntil|date('d/m/Y H:i') }}.</p>
+        {% endif %}
+        <div class="row g-3">
+            <form class="col-md-4" method="post" action="{{ path('admin_player_moderate', {entityId: entity.instance.id, operation: 'avertir'}) }}">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <label class="form-label" for="avertissement">Avertissement (message du jeu)</label>
+                <textarea class="form-control" id="avertissement" name="message" rows="2" required></textarea>
+                <button class="btn btn-sm btn-secondary mt-1" type="submit">Avertir</button>
+            </form>
+            <form class="col-md-4" method="post" action="{{ path('admin_player_moderate', {entityId: entity.instance.id, operation: 'sourdine'}) }}">
+                <input type="hidden" name="_token" value="{{ token }}">
+                <label class="form-label" for="sourdine">Sourdine du chat (heures)</label>
+                <input class="form-control" type="number" id="sourdine" name="hours" min="1" max="720" value="24">
+                <button class="btn btn-sm btn-secondary mt-1" type="submit">Mettre en sourdine</button>
+            </form>
+            {% if user.bannedAt %}
+                <form class="col-md-4" method="post" action="{{ path('admin_player_moderate', {entityId: entity.instance.id, operation: 'lever'}) }}"
+                      data-controller="confirm" data-confirm-message-value="Lever le bannissement ?" data-action="confirm#ask">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <button class="btn btn-sm btn-secondary mt-4" type="submit">Lever le bannissement</button>
+                </form>
+            {% else %}
+                <form class="col-md-4" method="post" action="{{ path('admin_player_moderate', {entityId: entity.instance.id, operation: 'bannir'}) }}"
+                      data-controller="confirm" data-confirm-message-value="Bannir ce joueur ?" data-action="confirm#ask">
+                    <input type="hidden" name="_token" value="{{ token }}">
+                    <label class="form-label" for="motif">Bannissement : motif et durée en jours (vide : définitif)</label>
+                    <input class="form-control" type="text" id="motif" name="reason" required>
+                    <input class="form-control mt-1" type="number" name="days" min="1" max="365" aria-label="Durée en jours">
+                    <button class="btn btn-sm btn-danger mt-1" type="submit">Bannir</button>
+                </form>
+            {% endif %}
+        </div>
+    </section>
+
     <h2 class="h5 mt-4">Suivi de la progression</h2>
     <section id="progression">
         {% if progress_charts is empty %}

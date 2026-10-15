@@ -23,6 +23,7 @@ use App\Entity\FormationSlot;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
 use App\Entity\GameEvent;
+use App\Entity\GameSetting;
 use App\Entity\MarketListing;
 use App\Entity\Merchant;
 use App\Entity\MerchantHolding;
@@ -74,6 +75,7 @@ final readonly class EntityHistory
         AlliancePlanet::class => 'Planètes d’alliance',
         AllianceBuilding::class => 'Bâtiments d’alliance',
         TeleportLink::class => 'Liaisons des portes de téléportation',
+        GameSetting::class => 'Paramètres du jeu',
         NpcBehaviorProfile::class => 'Profils des civilisations NPC',
         GameEvent::class => 'Événements de jeu',
         Merchant::class => 'Marchands',
