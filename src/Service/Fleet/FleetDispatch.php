@@ -11,6 +11,7 @@ use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
 use App\Enum\Fleet\FleetAction;
+use App\Enum\Pve\NpcCategory;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
@@ -54,6 +55,10 @@ final readonly class FleetDispatch
      */
     public function dispatch(Fleet $fleet, array $steps, int $speedPercent, Resources $cargo, float $fuel = 0.0): FleetMovement
     {
+        // Une civilisation « boss » est strictement défensive (§4.14) : ses flottes ne quittent jamais sa planète
+        if (NpcCategory::Boss === $fleet->getEmpire()->getNpcProfile()?->getCategory()) {
+            throw new InvalidFleetMission('Une civilisation « boss » est strictement défensive : ses flottes ne quittent pas sa planète.');
+        }
         if (!\in_array($speedPercent, TravelRules::SPEED_PERCENTS, true)) {
             throw new InvalidFleetMission('Choisissez une vitesse entre 10 et 100 %.');
         }
