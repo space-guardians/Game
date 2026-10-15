@@ -8,6 +8,7 @@ use App\Entity\Empire;
 use App\Entity\Planet;
 use App\Service\Account\GameContext;
 use App\Service\Messaging\Messaging;
+use App\Service\Notification\Notifications;
 use Symfony\UX\TwigComponent\Attribute\AsTwigComponent;
 
 /**
@@ -23,6 +24,7 @@ final class SideNav
     public function __construct(
         private readonly GameContext $context,
         private readonly Messaging $messaging,
+        private readonly Notifications $notifications,
     ) {}
 
     /** Conversations non lues, mises à jour en direct par les Turbo Streams de la messagerie */
@@ -31,6 +33,14 @@ final class SideNav
         $empire = $this->context->empire();
 
         return null === $empire ? 0 : $this->messaging->unreadCount($empire);
+    }
+
+    /** Notifications non lues (§4.12.3), mises à jour en direct */
+    public function getUnreadNotifications(): int
+    {
+        $empire = $this->context->empire();
+
+        return null === $empire ? 0 : $this->notifications->unreadCount($empire);
     }
 
     public function getEmpire(): ?Empire

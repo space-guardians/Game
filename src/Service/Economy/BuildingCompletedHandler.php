@@ -6,6 +6,8 @@ namespace App\Service\Economy;
 
 use App\Entity\BuildingQueueItem;
 use App\Entity\ScheduledEvent;
+use App\Enum\Notification\NotificationType;
+use App\Service\Notification\Notifications;
 use App\Service\Scheduling\ScheduledEventHandler;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -20,6 +22,7 @@ final readonly class BuildingCompletedHandler implements ScheduledEventHandler
     public function __construct(
         private EntityManagerInterface $entityManager,
         private PlanetResources $resources,
+        private Notifications $notifications,
     ) {}
 
     public static function type(): string
@@ -39,5 +42,9 @@ final readonly class BuildingCompletedHandler implements ScheduledEventHandler
         $this->resources->settle($planet, $item->getEndsAt());
         $planet->setBuildingLevel($item->getType(), $item->getTargetLevel());
         $this->entityManager->remove($item);
+        $owner = $planet->getOwner();
+        if (null !== $owner) {
+            $this->notifications->notify($owner, NotificationType::BuildingCompleted, \sprintf('%s niveau %d achevé sur %s.', $item->getType()->getName(), $item->getTargetLevel(), $planet), 'app_buildings');
+        }
     }
 }

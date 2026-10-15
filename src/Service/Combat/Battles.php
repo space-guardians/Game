@@ -10,7 +10,9 @@ use App\Entity\FleetMovement;
 use App\Entity\Planet;
 use App\Entity\SpaceLocation;
 use App\Enum\Combat\CombatSide;
+use App\Enum\Notification\NotificationType;
 use App\Repository\BattleRepository;
+use App\Service\Notification\Notifications;
 use App\Service\Scheduling\EventScheduler;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -29,6 +31,7 @@ final readonly class Battles
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
         private Allegiances $allegiances,
+        private Notifications $notifications,
     ) {}
 
     /**
@@ -58,6 +61,10 @@ final readonly class Battles
             // Bataille sur une planète : sous le verrou de la planète, comme les arrivées qui y mènent
             $planet = null === $destination->planetId ? null : $this->entityManager->find(Planet::class, $destination->planetId);
             $this->scheduler->schedule(BattleResolutionHandler::TYPE, $arrival, $planet, ['battle' => $battle->getId()]);
+            $owner = $planet?->getOwner();
+            if (null !== $owner && !$this->allegiances->allied($owner, $fleet->getEmpire())) {
+                $this->notifications->notify($owner, NotificationType::IncomingAttack, \sprintf('Attaque entrante sur %s : %s arrive à %s.', $planet, $fleet->getEmpire()->getName(), $arrival->format('H:i')), 'app_fleet');
+            }
 
             return $battle;
         }

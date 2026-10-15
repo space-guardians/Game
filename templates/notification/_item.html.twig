@@ -1,0 +1,10 @@
+{# Une notification dans l'historique #}
+<li class="sg-conversation{{ notification.read ? '' : ' is-unread' }}" id="notification-{{ notification.id }}">
+    <twig:Chip label="{{ notification.type.label }}" tone="{{ notification.type.tone }}"/>
+    {% if notification.link %}
+        <a class="sg-conversation__title" href="{{ notification.link }}">{{ notification.text }}</a>
+    {% else %}
+        <span class="sg-conversation__title">{{ notification.text }}</span>
+    {% endif %}
+    <span class="sg-entity__meta sg-mono">{{ notification.createdAt|date('d/m H:i') }}</span>
+</li>

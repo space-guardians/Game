@@ -14,6 +14,7 @@ use App\Entity\SpaceLocation;
 use App\Enum\Combat\InterceptionOutcome;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Messaging\MessageCategory;
+use App\Enum\Notification\NotificationType;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
@@ -26,6 +27,7 @@ use App\Service\Espionage\Espionage;
 use App\Service\Exploration\Explorations;
 use App\Service\Market\Market;
 use App\Service\Messaging\GameReports;
+use App\Service\Notification\Notifications;
 use App\Service\Scheduling\ScheduledEventHandler;
 use App\Service\Universe\ColonyLimit;
 use Doctrine\ORM\EntityManagerInterface;
@@ -60,6 +62,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private TeleportGates $teleports,
         private GameReports $reports,
         private Market $market,
+        private Notifications $notifications,
     ) {}
 
     public static function type(): string
@@ -112,6 +115,12 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $fleet->arriveAt($destination, $planet);
 
         $hold = $this->act($fleet, $order, $planet, $arrival, $speedPercent);
+        if (!$fleet->isEmpty()) {
+            $failure = $order->getFailure();
+            $this->notifications->notify($fleet->getEmpire(), NotificationType::FleetArrived, null === $failure
+                ? \sprintf('Flotte « %s » arrivée : %s (%s).', $fleet->getName(), $order->getDestinationLabel(), $order->getAction()->label())
+                : \sprintf('Flotte « %s » arrivée à %s : %s', $fleet->getName(), $order->getDestinationLabel(), $failure), 'app_fleet');
+        }
 
         if ($fleet->isEmpty()) {
             // Plus aucun vaisseau (colonisateur seul consommé, flotte perdue en exploration, sondes abattues) : elle

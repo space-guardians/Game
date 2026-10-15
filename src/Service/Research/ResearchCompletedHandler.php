@@ -6,6 +6,8 @@ namespace App\Service\Research;
 
 use App\Entity\ResearchQueueItem;
 use App\Entity\ScheduledEvent;
+use App\Enum\Notification\NotificationType;
+use App\Service\Notification\Notifications;
 use App\Service\Scheduling\ScheduledEventHandler;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -19,6 +21,7 @@ final readonly class ResearchCompletedHandler implements ScheduledEventHandler
 
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private Notifications $notifications,
     ) {}
 
     public static function type(): string
@@ -36,5 +39,6 @@ final readonly class ResearchCompletedHandler implements ScheduledEventHandler
 
         $item->getEmpire()->setResearchLevel($item->getTechnology(), $item->getTargetLevel());
         $this->entityManager->remove($item);
+        $this->notifications->notify($item->getEmpire(), NotificationType::ResearchCompleted, \sprintf('Recherche achevée : %s niveau %d.', $item->getTechnology()->getName(), $item->getTargetLevel()), 'app_research');
     }
 }
