@@ -13,6 +13,7 @@ use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
 use App\Factory\StarSystemFactory;
 use App\Repository\NpcBehaviorProfileRepository;
+use App\Repository\ShipTypeRepository;
 use App\Service\Combat\IncomingAttacks;
 use App\Service\Pve\NpcCivilisations;
 use App\Service\Pve\NpcRaids;
@@ -66,6 +67,26 @@ final class NpcRaidsTest extends KernelTestCase
 
         self::assertSame(0, $this->raids()->launchDue());
         self::assertSame([], self::getContainer()->get(IncomingAttacks::class)->of($player));
+    }
+
+    public function testAManualOrderAttacksTheChosenPlanetEvenOutOfRange(): void
+    {
+        $player = EmpireFactory::createOne(['name' => 'Ana']);
+        $npc = $this->civilisation('minor_raider', $player->getHomePlanet(), 50_000.0);
+        $boss = $this->civilisation('boss_guardian', $player->getHomePlanet(), 500.0);
+
+        self::assertSame('Aucune planète de joueur à portée.', $this->raids()->raidNow($npc));
+        self::assertSame('Une civilisation « boss » est strictement défensive.', $this->raids()->raidNow($boss, $player->getHomePlanet()));
+        self::assertNull($this->raids()->raidNow($npc, $player->getHomePlanet()));
+        self::assertCount(1, self::getContainer()->get(IncomingAttacks::class)->of($player));
+        self::assertSame('Aucune flotte stationnée sur sa planète mère.', $this->raids()->raidNow($npc, $player->getHomePlanet()));
+
+        // Renforcée depuis le panneau : une nouvelle flotte prête chez elle
+        $cruiser = self::getContainer()->get(ShipTypeRepository::class)->findOneByCode('cruiser');
+        \assert(null !== $cruiser);
+        $fleet = self::getContainer()->get(NpcCivilisations::class)->reinforce($npc, $cruiser, 4);
+        self::assertSame(['cruiser' => 4], $fleet->shipCounts());
+        self::assertNull($this->raids()->raidNow($npc, $player->getHomePlanet()));
     }
 
     /** Civilisation fondée sur une planète libre de la galaxie du joueur, à cette distance de sa planète mère */

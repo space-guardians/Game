@@ -1,0 +1,66 @@
+{# Civilisations mineures (§4.14, §5.6.1) : liste, fondation, renfort de flotte, ordre d'attaque manuel #}
+{% extends '@EasyAdmin/page/content.html.twig' %}
+
+{% block page_title 'Civilisations NPC' %}
+{% block content_title 'Civilisations NPC' %}
+
+{% block main %}
+    <table class="table datagrid" id="civilisations">
+        <thead>
+            <tr><th>Civilisation</th><th>Profil</th><th>Planète mère</th><th>Dernier raid</th><th>Renforcer</th><th>Attaquer</th></tr>
+        </thead>
+        <tbody>
+            {% for npc in civilisations %}
+                <tr id="civilisation-{{ npc.id }}">
+                    <td>{{ npc.name }}</td>
+                    <td>{{ npc.npcProfile }} ({{ npc.npcProfile.category.label }})</td>
+                    <td>{{ npc.homePlanet }}</td>
+                    <td>{{ npc.npcLastRaidAt ? npc.npcLastRaidAt|date('d/m/Y H:i') : 'Jamais' }}</td>
+                    <td>
+                        <form method="post" action="{{ path('admin_npc_reinforce', {id: npc.id}) }}" class="d-flex gap-1">
+                            <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                            <select class="form-select form-select-sm" name="ship" aria-label="Type de vaisseau pour {{ npc.name }}">
+                                {% for ship in ships %}<option value="{{ ship.id }}">{{ ship.name }}</option>{% endfor %}
+                            </select>
+                            <input class="form-control form-control-sm" type="number" min="1" name="quantity" value="10" aria-label="Quantité pour {{ npc.name }}">
+                            <button class="btn btn-sm btn-secondary" type="submit">Renforcer</button>
+                        </form>
+                    </td>
+                    <td>
+                        {% if npc.npcProfile.category.value == 'minor' %}
+                            <form method="post" action="{{ path('admin_npc_raid', {id: npc.id}) }}" class="d-flex gap-1">
+                                <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                                <input class="form-control form-control-sm" type="text" name="coordinates" placeholder="g:s:p (vide : la plus proche)" aria-label="Cible de {{ npc.name }}">
+                                <button class="btn btn-sm btn-danger" type="submit">Attaquer</button>
+                            </form>
+                        {% else %}
+                            <span class="text-muted">Strictement défensive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6">Aucune civilisation pour l’instant.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2 class="h5 mt-4">Fonder une civilisation</h2>
+    <form method="post" action="{{ path('admin_npc_found') }}" id="fonder">
+        <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+        <div class="mb-3">
+            <label class="form-label" for="profile">Profil</label>
+            <select class="form-select" id="profile" name="profile">
+                {% for profile in profiles %}<option value="{{ profile.id }}">{{ profile.name }} ({{ profile.category.label }})</option>{% endfor %}
+            </select>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="name">Nom</label>
+            <input class="form-control" type="text" id="name" name="name" maxlength="20" required>
+        </div>
+        <div class="mb-3">
+            <label class="form-label" for="coordinates">Emplacement : galaxie:système:position d’une planète libre, ou une galaxie seule (tirage au sort)</label>
+            <input class="form-control" type="text" id="coordinates" name="coordinates" value="1" required>
+        </div>
+        <button class="btn btn-primary" type="submit">Fonder</button>
+    </form>
+{% endblock %}

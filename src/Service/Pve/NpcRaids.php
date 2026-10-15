@@ -61,7 +61,7 @@ final readonly class NpcRaids
             if (null !== $last && $last->modify(\sprintf('+%d hours', $profile->getRaidIntervalHours())) > $now) {
                 continue;
             }
-            if ($this->raid($npc, $profile->getRaidRange())) {
+            if (null === $this->raid($npc, $profile->getRaidRange())) {
                 $npc->npcRaided($now);
                 $this->entityManager->flush();
                 ++$launched;
@@ -71,13 +71,39 @@ final readonly class NpcRaids
         return $launched;
     }
 
-    private function raid(Empire $npc, float $range): bool
+    /**
+     * Ordre d'attaque donné depuis le panneau (§4.14 « Administration ») : vers la planète visée, ou la planète de
+     * joueur la plus proche dans la portée du profil. Renvoie la raison d'un échec, ou null.
+     */
+    public function raidNow(Empire $npc, ?Planet $target = null): ?string
+    {
+        $profile = $npc->getNpcProfile();
+        if (!$npc->isNpc() || null === $profile) {
+            return 'Seule une civilisation non-joueuse lance un raid.';
+        }
+        if (NpcCategory::Boss === $profile->getCategory()) {
+            return 'Une civilisation « boss » est strictement défensive.';
+        }
+        $failure = $this->raid($npc, $profile->getRaidRange(), $target);
+        if (null === $failure) {
+            $npc->npcRaided($this->clock->now());
+            $this->entityManager->flush();
+        }
+
+        return $failure;
+    }
+
+    /** Renvoie la raison d'un échec, ou null si la flotte est partie */
+    private function raid(Empire $npc, float $range, ?Planet $target = null): ?string
     {
         $home = $npc->getHomePlanet();
-        $target = $this->nearestPlayerPlanet($home, $range);
+        $target ??= $this->nearestPlayerPlanet($home, $range);
         $fleet = $this->stationedFleet($npc);
-        if (null === $target || null === $fleet) {
-            return false;
+        if (null === $target) {
+            return 'Aucune planète de joueur à portée.';
+        }
+        if (null === $fleet) {
+            return 'Aucune flotte stationnée sur sa planète mère.';
         }
         try {
             $this->dispatch->dispatch($fleet, [
@@ -87,10 +113,10 @@ final readonly class NpcRaids
         } catch (InvalidFleetMission $refusal) {
             $this->logger->info('Raid de la civilisation « {npc} » impossible : {reason}', ['npc' => $npc->getName(), 'reason' => $refusal->getMessage()]);
 
-            return false;
+            return $refusal->getMessage();
         }
 
-        return true;
+        return null;
     }
 
     /** Planète d'un joueur la plus proche de la planète mère de la civilisation, dans sa galaxie et sa portée */
