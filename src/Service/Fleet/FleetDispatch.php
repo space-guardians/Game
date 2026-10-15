@@ -19,6 +19,7 @@ use App\Repository\MerchantRepository;
 use App\Service\Alliance\TeleportGates;
 use App\Service\Combat\Allegiances;
 use App\Service\Economy\PlanetResources;
+use App\Service\FairPlay\Protections;
 use App\Service\Scheduling\ScheduledEventResolver;
 use App\Service\Universe\ColonyLimit;
 use Doctrine\ORM\EntityManagerInterface;
@@ -45,6 +46,7 @@ final readonly class FleetDispatch
         private Allegiances $allegiances,
         private TeleportGates $teleports,
         private MerchantRepository $merchants,
+        private Protections $protections,
     ) {}
 
     /**
@@ -55,6 +57,10 @@ final readonly class FleetDispatch
      */
     public function dispatch(Fleet $fleet, array $steps, int $speedPercent, Resources $cargo, float $fuel = 0.0): FleetMovement
     {
+        // Mode vacances (§4.13) : les flottes restent à quai
+        if ($fleet->getEmpire()->isOnVacation()) {
+            throw new InvalidFleetMission('En mode vacances, vos flottes restent à quai.');
+        }
         // Une civilisation « boss » est strictement défensive (§4.14) : ses flottes ne quittent jamais sa planète
         if (NpcCategory::Boss === $fleet->getEmpire()->getNpcProfile()?->getCategory()) {
             throw new InvalidFleetMission('Une civilisation « boss » est strictement défensive : ses flottes ne quittent pas sa planète.');
@@ -101,6 +107,15 @@ final readonly class FleetDispatch
             if (null !== $target && $this->allegiances->planetAllied($target, $fleet->getEmpire())) {
                 $holder = $target->getOwner()?->getName() ?? $target->getAlliance()?->getName() ?? (string) $target;
                 throw new InvalidFleetMission(\sprintf('Ordre %d : %s est un allié (même empire, alliance ou pacte) : pas d’attaque possible.', $rank + 1, $holder));
+            }
+            // Bouclier débutant et mode vacances (§4.13) : ni attaque ni espionnage sur une planète protégée
+            $hostile = \in_array($step->action, [FleetAction::JoinBattle, FleetAction::Spy], true) && null !== $step->destination->planetId
+                ? $this->entityManager->find(Planet::class, $step->destination->planetId)
+                : null;
+            $owner = $hostile?->getOwner();
+            $protection = null === $owner || $owner === $fleet->getEmpire() ? null : $this->protections->refusal($owner);
+            if (null !== $protection) {
+                throw new InvalidFleetMission(\sprintf('Ordre %d : %s', $rank + 1, $protection));
             }
         }
         // Espionnage : uniquement des sondes, et seule une sonde espionne (§4.6)
