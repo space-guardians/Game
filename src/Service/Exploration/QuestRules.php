@@ -127,7 +127,7 @@ final readonly class QuestRules
      * les vaisseaux perdus — une réduction proportionnelle à la capacité restante, enfin les gains dans la limite du
      * cargo libre (métal, puis cristal, puis deutérium).
      */
-    public function cargoAfter(Resources $cargo, int $capacity, QuestOutcome $outcome): Resources
+    public function cargoAfter(Resources $cargo, int $capacity, QuestOutcome $outcome, float $lootMultiplier = 1.0): Resources
     {
         $metal = max(0.0, $cargo->metal + min(0, $outcome->getMetal()));
         $crystal = max(0.0, $cargo->crystal + min(0, $outcome->getCrystal()));
@@ -141,8 +141,8 @@ final readonly class QuestRules
         }
 
         $free = max(0.0, $capacity - ($metal + $crystal + $deuterium));
-        $gain = static function (int $delta) use (&$free): float {
-            $gained = min((float) max(0, $delta), $free);
+        $gain = static function (int $delta) use (&$free, $lootMultiplier): float {
+            $gained = min(floor(max(0, $delta) * $lootMultiplier), $free);
             $free -= $gained;
 
             return $gained;

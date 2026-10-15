@@ -10,6 +10,7 @@ use App\Model\Economy\EconomySettings;
 use App\Model\Economy\PlanetOutput;
 use App\Model\Economy\Resources;
 use App\Repository\BuildingTypeRepository;
+use App\Service\Event\GameEvents;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -25,6 +26,7 @@ final class PlanetEconomy implements ResetInterface
         private readonly EconomySettings $settings,
         private readonly BuildingTypeRepository $buildingTypes,
         private readonly ProductionCalculator $calculator,
+        private readonly GameEvents $events,
     ) {}
 
     public function output(Planet $planet): PlanetOutput
@@ -35,9 +37,14 @@ final class PlanetEconomy implements ResetInterface
         );
 
         // Sans propriétaire, ou gelée par une mise en vente (§4.15) : aucune production
-        return null === $planet->getOwner() || $planet->isFrozen()
-            ? $this->calculator->idle($buildings)
-            : $this->calculator->compute($buildings, $planet->getTemperature(), $planet->getPosition()->orbit, $this->settings);
+        if (null === $planet->getOwner() || $planet->isFrozen()) {
+            return $this->calculator->idle($buildings);
+        }
+        $output = $this->calculator->compute($buildings, $planet->getTemperature(), $planet->getPosition()->orbit, $this->settings);
+        // Événement de jeu en cours (§4.16) : bonus de production
+        $bonus = $this->events->production($planet);
+
+        return 1.0 === $bonus ? $output : new PlanetOutput($output->hourlyProduction->times($bonus), $output->capacity, $output->energyProduced, $output->energyConsumed, $output->productionFactor);
     }
 
     public function startingResources(): Resources

@@ -16,6 +16,7 @@ use App\Model\Economy\CancellationResult;
 use App\Model\Economy\EconomySettings;
 use App\Repository\BuildingQueueItemRepository;
 use App\Repository\BuildingTypeRepository;
+use App\Service\Event\GameEvents;
 use App\Service\Research\PrerequisiteChecker;
 use App\Service\Scheduling\EventScheduler;
 use App\Service\Scheduling\ScheduledEventResolver;
@@ -41,6 +42,7 @@ final readonly class BuildingConstruction
         private LockFactory $lockFactory,
         private CancellationRefund $refund,
         private PrerequisiteChecker $prerequisites,
+        private GameEvents $events,
     ) {}
 
     /**
@@ -136,12 +138,15 @@ final readonly class BuildingConstruction
     /** Durée de construction du niveau visé, selon les usines de la planète */
     public function duration(Planet $planet, BuildingType $type, int $targetLevel): int
     {
-        return $this->rules->constructionSeconds(
+        $seconds = $this->rules->constructionSeconds(
             $this->rules->cost($type, $targetLevel),
             $this->factoryLevel($planet, BuildingEffect::RobotFactory),
             $this->factoryLevel($planet, BuildingEffect::NaniteFactory),
             $this->settings->universeSpeed,
         );
+
+        // Événement de jeu en cours (§4.16) : construction accélérée
+        return max(1, (int) ceil($seconds / $this->events->construction($planet)));
     }
 
     private function factoryLevel(Planet $planet, BuildingEffect $effect): int
