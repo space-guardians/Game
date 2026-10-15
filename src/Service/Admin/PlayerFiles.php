@@ -10,6 +10,7 @@ use App\Entity\PlanetBuilding;
 use App\Enum\Admin\AuditOrigin;
 use App\Model\Admin\PlayerFile;
 use App\Model\Admin\PlayerPlanet;
+use App\Repository\ActivityLogRepository;
 use App\Repository\BuildingQueueItemRepository;
 use App\Repository\PlanetRepository;
 use App\Repository\ScheduledEventRepository;
@@ -29,6 +30,7 @@ final readonly class PlayerFiles
         private BuildingQueueItemRepository $buildingQueue,
         private ScheduledEventRepository $events,
         private EntityHistory $history,
+        private ActivityLogRepository $activityLogs,
     ) {}
 
     public function of(Empire $empire): PlayerFile
@@ -41,6 +43,8 @@ final readonly class PlayerFiles
             planets: array_map(fn(Planet $planet): PlayerPlanet => $this->planet($empire, $planet), $planets),
             actions: null === $userId ? [] : $this->history->byAuthor($userId, AuditOrigin::Player->value, self::ACTIVITY_LIMIT),
             events: $this->events->findLatestForPlanets($planets, self::ACTIVITY_LIMIT),
+            activity: $this->activityLogs->findLatestFor($empire->getUser(), self::ACTIVITY_LIMIT),
+            sharedAddress: $this->activityLogs->findUsersSharingAddressWith($empire->getUser()),
         );
     }
 

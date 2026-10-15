@@ -8,13 +8,17 @@ use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
 use App\Entity\Empire;
 use App\Entity\Message;
+use App\Enum\FairPlay\ActivityAction;
 use App\Enum\Notification\NotificationType;
 use App\Exception\Messaging\InvalidMessage;
 use App\Repository\ConversationRepository;
 use App\Repository\EmpireRepository;
+use App\Service\FairPlay\ActivityLogger;
 use App\Service\Notification\Notifications;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
+use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 
 /**
  * Messagerie entre joueurs (§4.12.2, §5.7) : conversations à deux (réutilisées si elles existent déjà) ou de groupe,
@@ -34,6 +38,9 @@ final readonly class Messaging
         private ClockInterface $clock,
         private IgnoredPlayers $ignored,
         private Notifications $notifications,
+        private ActivityLogger $activity,
+        #[Autowire(service: 'limiter.message_send')]
+        private RateLimiterFactoryInterface $messageLimiter,
     ) {}
 
     /**
@@ -161,6 +168,11 @@ final readonly class Messaging
 
     private function post(Conversation $conversation, Empire $author, string $body, \DateTimeImmutable $at): Message
     {
+        // Rythme des messages (§4.13)
+        if (!$this->messageLimiter->create('empire-' . $author->getId())->consume()->isAccepted()) {
+            throw new InvalidMessage('Trop de messages en peu de temps : patientez quelques minutes.');
+        }
+        $this->activity->record($author->getUser(), ActivityAction::MessageSent);
         // Les participants qui ignorent l'auteur ne reçoivent pas son message (§4.12.4) : ni notification, ni retour
         // dans la boîte, et la conversation reste lue s'ils l'avaient lue jusqu'au bout
         $places = $conversation->activeParticipants();

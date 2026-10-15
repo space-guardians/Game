@@ -1,7 +1,32 @@
 framework:
+    cache:
+        pools:
+            # Compteurs des actions sensibles (§4.13), à part : en test, ils sont en mémoire (voir plus bas)
+            cache.action_limiter:
+                adapter: cache.app
     rate_limiter:
         # Chat en ligne (§4.12.1, §5.7) : messages par joueur, fenêtre glissante
         chat_message:
             policy: sliding_window
             limit: 8
             interval: '20 seconds'
+        # Actions sensibles (§4.13) : envois de flotte et messages par joueur, fenêtre glissante (provisoire)
+        fleet_dispatch:
+            policy: sliding_window
+            cache_pool: cache.action_limiter
+            limit: 30
+            interval: '10 minutes'
+        message_send:
+            policy: sliding_window
+            cache_pool: cache.action_limiter
+            limit: 20
+            interval: '10 minutes'
+
+when@test:
+    framework:
+        cache:
+            pools:
+                # En mémoire, remis à zéro entre deux requêtes : aucun compteur ne survit d'une exécution des tests à
+                # l'autre (les identifiants repartent de zéro avec la base de test)
+                cache.action_limiter:
+                    adapter: cache.adapter.array
