@@ -73,12 +73,13 @@ final readonly class BossFleets
         }
         $types = [];
         $unitPoints = [];
-        foreach (array_keys(BossFleetRules::BASE) as $code) {
+        $base = $profile->getFleetComposition() ?: BossFleetRules::BASE;
+        foreach (array_keys($base) as $code) {
             $type = $this->shipTypes->findOneByCode($code) ?? throw new \LogicException(\sprintf('Type de vaisseau « %s » introuvable.', $code));
             $types[$code] = $type;
             $unitPoints[$code] = $this->ranking->unitsCost($type->getCost(), 1) / RankingRules::RESOURCES_PER_POINT;
         }
-        $composition = $this->rules->composition(BossFleetRules::BASE, $unitPoints, $this->rules->target($this->topMilitary(), $profile->getFleetStrengthPercent()));
+        $composition = $this->rules->composition($base, $unitPoints, $this->rules->target($this->topMilitary(), $profile->getFleetStrengthPercent()));
         $current = $fleet->shipCounts();
         foreach ($composition as $code => $quantity) {
             $delta = $quantity - ($current[$code] ?? 0);

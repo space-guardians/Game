@@ -65,6 +65,11 @@ final class NpcBehaviorProfileCrudController extends AbstractCrudController
         yield NumberField::new('raidRange', 'Portée des raids')->hideOnIndex();
         yield IntegerField::new('fleetRecalcHours', 'Recalcul de la flotte (h, boss)')->hideOnIndex();
         yield IntegerField::new('fleetStrengthPercent', 'Force de la flotte (% du top 10, boss)')->hideOnIndex();
-        yield IntegerField::new('lootPercent', 'Butin (% des ressources)');
+        yield IntegerField::new('lootPercent', 'Butin (% des ressources pillées)');
+        yield TextField::new('fleetCompositionText', 'Flotte (code:quantité, …) — de départ, ou de base d’un boss')->hideOnIndex();
+        yield TextField::new('defenseCompositionText', 'Défenses à la fondation (code:quantité, …)')->hideOnIndex();
+        yield IntegerField::new('victoryMetal', 'Récompense de victoire : métal')->hideOnIndex();
+        yield IntegerField::new('victoryCrystal', 'Récompense de victoire : cristal')->hideOnIndex();
+        yield IntegerField::new('victoryDeuterium', 'Récompense de victoire : deutérium')->hideOnIndex();
     }
 }

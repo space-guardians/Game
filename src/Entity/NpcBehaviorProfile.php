@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\Pve\NpcCategory;
+use App\Model\Economy\Resources;
 use App\Repository\NpcBehaviorProfileRepository;
 use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
 use Doctrine\ORM\Mapping as ORM;
@@ -67,9 +68,36 @@ class NpcBehaviorProfile implements \Stringable
     #[Assert\Range(min: 0, max: 100)]
     private int $lootPercent = 50;
 
+    /** @var array<string, int> flotte de départ, ou de base d'un boss (codes de types de vaisseaux) */
+    #[ORM\Column(type: 'json', options: ['default' => '{}'])]
+    private array $fleetComposition = [];
+
+    /** @var array<string, int> défenses au sol à la fondation */
+    #[ORM\Column(type: 'json', options: ['default' => '{}'])]
+    private array $defenseComposition = [];
+
+    /** Récompense de victoire versée à l'empire qui l'a vaincue sur sa planète (§4.14, en plus du pillage) */
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private int $victoryMetal = 0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private int $victoryCrystal = 0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private int $victoryDeuterium = 0;
+
+    /** Saisie de composition illisible, signalée à la validation */
+    private ?string $invalidComposition = null;
+
     #[Assert\Callback]
     public function validate(ExecutionContextInterface $context): void
     {
+        if (null !== $this->invalidComposition) {
+            $context->buildViolation(\sprintf('Composition illisible : « %s ». Écrivez « code:quantité », séparés par des virgules.', $this->invalidComposition))->atPath('fleetCompositionText')->addViolation();
+        }
         if (NpcCategory::Boss === $this->category && $this->raidsEnabled) {
             $context->buildViolation('Une civilisation « boss » est strictement défensive : pas de raids.')->atPath('raidsEnabled')->addViolation();
         }
@@ -168,6 +196,95 @@ class NpcBehaviorProfile implements \Stringable
     public function setLootPercent(int $percent): void
     {
         $this->lootPercent = $percent;
+    }
+
+    /** @return array<string, int> */
+    public function getFleetComposition(): array
+    {
+        return $this->fleetComposition;
+    }
+
+    /** @return array<string, int> */
+    public function getDefenseComposition(): array
+    {
+        return $this->defenseComposition;
+    }
+
+    public function getFleetCompositionText(): string
+    {
+        return self::compositionToText($this->fleetComposition);
+    }
+
+    public function setFleetCompositionText(?string $text): void
+    {
+        $this->fleetComposition = $this->parseComposition((string) $text);
+    }
+
+    public function getDefenseCompositionText(): string
+    {
+        return self::compositionToText($this->defenseComposition);
+    }
+
+    public function setDefenseCompositionText(?string $text): void
+    {
+        $this->defenseComposition = $this->parseComposition((string) $text);
+    }
+
+    public function getVictoryReward(): Resources
+    {
+        return new Resources($this->victoryMetal, $this->victoryCrystal, $this->victoryDeuterium);
+    }
+
+    public function getVictoryMetal(): int
+    {
+        return $this->victoryMetal;
+    }
+
+    public function setVictoryMetal(int $amount): void
+    {
+        $this->victoryMetal = $amount;
+    }
+
+    public function getVictoryCrystal(): int
+    {
+        return $this->victoryCrystal;
+    }
+
+    public function setVictoryCrystal(int $amount): void
+    {
+        $this->victoryCrystal = $amount;
+    }
+
+    public function getVictoryDeuterium(): int
+    {
+        return $this->victoryDeuterium;
+    }
+
+    public function setVictoryDeuterium(int $amount): void
+    {
+        $this->victoryDeuterium = $amount;
+    }
+
+    /** @param array<string, int> $composition */
+    private static function compositionToText(array $composition): string
+    {
+        return implode(', ', array_map(static fn(string $code, int $quantity): string => $code . ':' . $quantity, array_keys($composition), $composition));
+    }
+
+    /** @return array<string, int> « light_fighter:15, cruiser:3 » */
+    private function parseComposition(string $text): array
+    {
+        $composition = [];
+        foreach (array_filter(array_map('trim', explode(',', $text)), static fn(string $part): bool => '' !== $part) as $part) {
+            if (1 !== preg_match('/^([a-z0-9_]+)\s*:\s*(\d+)$/', $part, $match) || (int) $match[2] < 1) {
+                $this->invalidComposition = $part;
+
+                continue;
+            }
+            $composition[$match[1]] = (int) $match[2];
+        }
+
+        return $composition;
     }
 
     public function __toString(): string

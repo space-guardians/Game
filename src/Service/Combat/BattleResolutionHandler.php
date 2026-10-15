@@ -17,6 +17,7 @@ use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
 use App\Service\Alliance\AlliancePlanets;
 use App\Service\Fleet\FleetMovements;
+use App\Service\Pve\NpcRewards;
 use App\Service\Scheduling\EventScheduler;
 use App\Service\Scheduling\ScheduledEventHandler;
 use Doctrine\ORM\EntityManagerInterface;
@@ -46,6 +47,7 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
         private Allegiances $allegiances,
         private Pillage $pillage,
         private AlliancePlanets $alliancePlanets,
+        private NpcRewards $npcRewards,
     ) {}
 
     public static function type(): string
@@ -118,6 +120,7 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
         $this->pillage->plunder($battle, $initiator, array_values(array_filter($attackers, static fn(Fleet $fleet): bool => !$fleet->isEmpty())), $at);
         if (null !== $defended && CombatSide::Attacker === $battle->getWinner()) {
             $this->alliancePlanets->conquered($defended, $at);
+            $this->npcRewards->victory($defended, $initiator, $at);
         }
         $this->entityManager->flush();
 

@@ -27,7 +27,7 @@ final readonly class NpcCivilisations
     /** Stock de départ de chaque ressource (provisoire) */
     public const float STARTING_STOCK = 20_000.0;
 
-    /** Composition de départ par catégorie : défenses au sol, puis flotte (codes de types, provisoire) */
+    /** Composition par défaut si le profil n'en fixe pas : défenses au sol, puis flotte (codes de types, provisoire) */
     public const array DEFENSES = [
         'minor' => ['rocket_launcher' => 20],
         'boss' => ['rocket_launcher' => 200],
@@ -85,12 +85,12 @@ final readonly class NpcCivilisations
         $npc = Empire::npc($name, $planet, $profile, $now);
         $planet->storeResources(new Resources(self::STARTING_STOCK, self::STARTING_STOCK, self::STARTING_STOCK), $now);
         $category = NpcCategory::Boss === $profile->getCategory() ? 'boss' : 'minor';
-        foreach (self::DEFENSES[$category] as $code => $quantity) {
+        foreach ($profile->getDefenseComposition() ?: self::DEFENSES[$category] as $code => $quantity) {
             $type = $this->shipTypes->findOneByCode($code) ?? throw new \LogicException(\sprintf('Type de défense « %s » introuvable.', $code));
             $planet->addShips($type, $quantity);
         }
         $fleet = new Fleet($npc, \sprintf('Flotte de %s', $name), $planet, $now);
-        foreach (self::FLEET[$category] as $code => $quantity) {
+        foreach ($profile->getFleetComposition() ?: self::FLEET[$category] as $code => $quantity) {
             $type = $this->shipTypes->findOneByCode($code) ?? throw new \LogicException(\sprintf('Type de vaisseau « %s » introuvable.', $code));
             $fleet->addShips($type, $quantity);
         }

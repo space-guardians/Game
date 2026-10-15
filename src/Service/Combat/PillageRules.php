@@ -16,13 +16,13 @@ final readonly class PillageRules
 {
     public const float PLUNDER_RATIO = 0.5;
 
-    /** Butin emporté sur un stock, pour une capacité libre totale */
-    public function loot(Resources $stock, float $capacity): Resources
+    /** Butin emporté sur un stock, pour une capacité libre totale (part : la moitié, ou celle du profil d'une civilisation) */
+    public function loot(Resources $stock, float $capacity, float $ratio = self::PLUNDER_RATIO): Resources
     {
         $wanted = new Resources(
-            max(0.0, $stock->metal) * self::PLUNDER_RATIO,
-            max(0.0, $stock->crystal) * self::PLUNDER_RATIO,
-            max(0.0, $stock->deuterium) * self::PLUNDER_RATIO,
+            max(0.0, $stock->metal) * $ratio,
+            max(0.0, $stock->crystal) * $ratio,
+            max(0.0, $stock->deuterium) * $ratio,
         );
         $total = $wanted->metal + $wanted->crystal + $wanted->deuterium;
         if ($total <= 0 || $capacity <= 0) {
