@@ -51,6 +51,10 @@ final class Empire
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $npcLastRaidAt = null;
 
+    /** Dernier recalcul de la flotte d'une civilisation « boss » (§4.14) */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $npcFleetRecalculatedAt = null;
+
     /** @var Collection<int, Research> niveaux de recherche, valables pour toutes les planètes (§4.4) */
     #[ORM\OneToMany(targetEntity: Research::class, mappedBy: 'empire', cascade: ['persist'])]
     private Collection $researches;
@@ -122,6 +126,16 @@ final class Empire
     public function getNpcLastRaidAt(): ?\DateTimeImmutable
     {
         return $this->npcLastRaidAt;
+    }
+
+    public function getNpcFleetRecalculatedAt(): ?\DateTimeImmutable
+    {
+        return $this->npcFleetRecalculatedAt;
+    }
+
+    public function npcFleetRecalculated(\DateTimeImmutable $at): void
+    {
+        $this->npcFleetRecalculatedAt = $at;
     }
 
     public function npcRaided(\DateTimeImmutable $at): void

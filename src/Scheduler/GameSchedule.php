@@ -6,6 +6,7 @@ namespace App\Scheduler;
 
 use App\Message\ConsolidateResources;
 use App\Message\LaunchNpcRaids;
+use App\Message\RecalculateBossFleets;
 use App\Message\RefreshRankings;
 use App\Message\ResolveDueEvents;
 use App\Message\TakeEmpireSnapshots;
@@ -33,6 +34,9 @@ final readonly class GameSchedule implements ScheduleProviderInterface
     /** Raids des civilisations non-joueuses mineures dont l'intervalle est écoulé (§4.14) */
     public const string NPC_RAIDS_FREQUENCY = '1 hour';
 
+    /** Recalcul des flottes des civilisations « boss » dont l'intervalle est écoulé (§4.14) */
+    public const string BOSS_FLEETS_FREQUENCY = '1 hour';
+
     /** Instantanés des empires pour le suivi de leur progression (§5.6.1, provisoire) */
     public const string SNAPSHOTS_FREQUENCY = '6 hours';
 
@@ -50,6 +54,7 @@ final readonly class GameSchedule implements ScheduleProviderInterface
             ->add(RecurringMessage::every(self::RESOURCES_CONSOLIDATION_FREQUENCY, new ConsolidateResources()))
             ->add(RecurringMessage::every(self::RANKINGS_FREQUENCY, new RefreshRankings()))
             ->add(RecurringMessage::every(self::NPC_RAIDS_FREQUENCY, new LaunchNpcRaids()))
+            ->add(RecurringMessage::every(self::BOSS_FLEETS_FREQUENCY, new RecalculateBossFleets()))
             ->add(RecurringMessage::every(self::SNAPSHOTS_FREQUENCY, new TakeEmpireSnapshots()));
     }
 }
