@@ -61,6 +61,25 @@ final class NpcProfileAdminTest extends WebTestCase
         self::assertSame(200, self::getContainer()->get(NpcBehaviorProfileRepository::class)->find($boss->getId())?->getFleetStrengthPercent());
     }
 
+    public function testCompositionsAndRewardsAreTunedInThePanel(): void
+    {
+        $minor = self::getContainer()->get(NpcBehaviorProfileRepository::class)->findOneByCode('minor_raider');
+        \assert(null !== $minor);
+        $this->client->loginUser(AdminUserFactory::createOne(['role' => AdminRole::GameDesigner]), 'admin');
+
+        $crawler = $this->client->request('GET', \sprintf('/admin/profils-npc/%d/edit', $minor->getId()));
+        self::assertSame('light_fighter:15, cruiser:3, small_cargo:5', $crawler->filter('#NpcBehaviorProfile_fleetCompositionText')->attr('value'));
+        $this->client->submitForm('Sauvegarder les modifications', ['NpcBehaviorProfile[fleetCompositionText]' => 'cruiser:8, croiseurs']);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('body', 'Composition illisible : « croiseurs ».');
+
+        $this->client->submitForm('Sauvegarder les modifications', ['NpcBehaviorProfile[fleetCompositionText]' => 'cruiser:8', 'NpcBehaviorProfile[victoryMetal]' => '9000']);
+        self::assertResponseRedirects();
+        $saved = self::getContainer()->get(NpcBehaviorProfileRepository::class)->find($minor->getId());
+        self::assertSame(['cruiser' => 8], $saved?->getFleetComposition());
+        self::assertSame(9000, $saved->getVictoryMetal());
+    }
+
     public function testNpcEmpiresAreNotListedAmongPlayers(): void
     {
         EmpireFactory::createOne(['name' => 'Ordre d’Orion']);

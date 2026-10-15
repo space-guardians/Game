@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Admin;
 
 use App\Entity\AdminAuditLog;
 use App\Entity\Empire;
+use App\Entity\OrbitalPosition;
 use App\Enum\Admin\AdminRole;
 use App\Enum\Admin\AuditAction;
 use App\Factory\AdminUserFactory;
@@ -51,7 +52,9 @@ final class NpcCivilisationAdminTest extends WebTestCase
     public function testGameDesignerFoundsReinforcesAndOrdersAnAttack(): void
     {
         $player = EmpireFactory::createOne(['name' => 'Ana']);
-        $free = PlanetFactory::createOne(['system' => $player->getHomePlanet()->getSystem()]);
+        // Orbite distincte de celle de la planète mère : une seule planète par orbite d'un système
+        $orbit = $player->getHomePlanet()->getPosition()->orbit % OrbitalPosition::MAX_ORBIT + 1;
+        $free = PlanetFactory::createOne(['system' => $player->getHomePlanet()->getSystem(), 'position' => new OrbitalPosition($orbit, $orbit * 10.0, 0.0)]);
         $this->client->loginUser(AdminUserFactory::createOne(['role' => AdminRole::GameDesigner]), 'admin');
 
         $crawler = $this->client->request('GET', '/admin/civilisations');

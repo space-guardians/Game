@@ -50,7 +50,10 @@ final readonly class Pillage
         }
         // Stock consolidé à l'heure du combat, puis butin
         $stock = $this->resources->settle($planet, $at)->amounts;
-        $shares = $this->rules->share($this->rules->loot($stock, array_sum($capacities)), $capacities);
+        // Civilisation non-joueuse : part de son profil (§4.14)
+        $profile = $planet->getOwner()?->getNpcProfile();
+        $ratio = null === $profile ? PillageRules::PLUNDER_RATIO : $profile->getLootPercent() / 100;
+        $shares = $this->rules->share($this->rules->loot($stock, array_sum($capacities), $ratio), $capacities);
 
         $taken = new Resources();
         foreach ($attackers as $fleet) {
