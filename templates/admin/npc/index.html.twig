@@ -12,7 +12,7 @@
         <tbody>
             {% for npc in civilisations %}
                 <tr id="civilisation-{{ npc.id }}">
-                    <td>{{ npc.name }}</td>
+                    <td><a href="{{ path('admin_npc_detail', {id: npc.id}) }}">{{ npc.name }}</a></td>
                     <td>{{ npc.npcProfile }} ({{ npc.npcProfile.category.label }})</td>
                     <td>{{ npc.homePlanet }}</td>
                     <td>{{ npc.npcLastRaidAt ? npc.npcLastRaidAt|date('d/m/Y H:i') : 'Jamais' }}</td>
