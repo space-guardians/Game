@@ -19,6 +19,7 @@ use App\Repository\PlanetRepository;
 use App\Repository\ResearchQueueItemRepository;
 use App\Service\Economy\CancellationRefund;
 use App\Service\Economy\PlanetResources;
+use App\Service\Event\GameEvents;
 use App\Service\Scheduling\EventScheduler;
 use App\Service\Scheduling\ScheduledEventResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -44,6 +45,7 @@ final readonly class ResearchQueue
         private EntityManagerInterface $entityManager,
         private LockFactory $lockFactory,
         private CancellationRefund $refund,
+        private GameEvents $events,
     ) {}
 
     public static function empireLockKey(int $empireId): string
@@ -156,7 +158,10 @@ final readonly class ResearchQueue
     /** Durée de recherche du niveau visé, selon les laboratoires de tout l'empire */
     public function duration(Empire $empire, Technology $technology, int $targetLevel): int
     {
-        return $this->rules->durationSeconds($this->rules->cost($technology, $targetLevel), $this->laboratoryLevels($empire), $this->settings->universeSpeed);
+        $seconds = $this->rules->durationSeconds($this->rules->cost($technology, $targetLevel), $this->laboratoryLevels($empire), $this->settings->universeSpeed);
+
+        // Événement de jeu en cours (§4.16) sur la planète active, qui lance la recherche : recherche accélérée
+        return max(1, (int) ceil($seconds / $this->events->research($empire->getActivePlanet())));
     }
 
     /** Somme des niveaux de tous les laboratoires de l'empire, toutes planètes confondues (§4.4) */
