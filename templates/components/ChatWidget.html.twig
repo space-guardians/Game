@@ -8,6 +8,7 @@
     data-chat-presence-url-value="{{ path('app_chat_presence') }}"
     data-chat-private-url-value="{{ path('app_chat_private') }}"
     data-chat-groups-url-value="{{ path('app_chat_groups') }}"
+    data-chat-report-url-value="{{ path('app_chat_report') }}"
     data-chat-token-value="{{ csrf_token('chat') }}"
     data-chat-me-value="{{ chat_author_id() }}"
     data-chat-ignored-value="{{ chat_ignored_ids()|json_encode }}">

@@ -7,12 +7,14 @@ namespace App\Controller;
 use App\Entity\Empire;
 use App\Exception\Chat\ChatRecipientOffline;
 use App\Exception\Chat\ChatRefused;
+use App\Exception\Moderation\ReportRefused;
 use App\Repository\AllianceMemberRepository;
 use App\Repository\EmpireRepository;
 use App\Service\Account\GameContext;
 use App\Service\Chat\Chat;
 use App\Service\Chat\ChatGroups;
 use App\Service\Chat\ChatPresence;
+use App\Service\Moderation\MessageReports;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -37,6 +39,7 @@ final class ChatController extends AbstractController
         private readonly EmpireRepository $empires,
         private readonly ChatGroups $groups,
         private readonly AllianceMemberRepository $members,
+        private readonly MessageReports $reports,
     ) {}
 
     #[Route('/chat/messages', name: 'app_chat_send', methods: ['POST'])]
@@ -58,6 +61,26 @@ final class ChatController extends AbstractController
         }
 
         return $this->json($message, Response::HTTP_CREATED);
+    }
+
+    /** Signale un message du chat à la modération (§4.13), avec un extrait du fil récent */
+    #[Route('/chat/signalements', name: 'app_chat_report', methods: ['POST'])]
+    public function report(Request $request): JsonResponse
+    {
+        $empire = $this->empire();
+        if (!$this->isCsrfTokenValid('chat', (string) $request->headers->get(self::CSRF_HEADER))) {
+            return $this->json(['error' => 'La page a expiré : rechargez-la.'], Response::HTTP_FORBIDDEN);
+        }
+        $payload = json_decode($request->getContent(), true);
+        $payload = \is_array($payload) ? $payload : [];
+
+        try {
+            $this->reports->reportChat($empire, (string) ($payload['channel'] ?? ''), (string) ($payload['id'] ?? ''), (string) ($payload['reason'] ?? ''));
+        } catch (ReportRefused $refusal) {
+            return $this->json(['error' => $refusal->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return $this->json(['message' => 'Signalement transmis à la modération.'], Response::HTTP_CREATED);
     }
 
     /** Ouvre un onglet de discussion privée avec un joueur connecté */

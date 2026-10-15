@@ -151,6 +151,7 @@ final class DashboardController extends AbstractDashboardController
 
         yield MenuItem::section('Communication')->setPermission(AdminRole::Moderator->value);
         yield MenuItem::linkToRoute('Annonces', null, 'admin_announcement_index')->setPermission(AdminRole::Moderator->value);
+        yield MenuItem::linkTo(MessageReportCrudController::class, 'Signalements')->setPermission(AdminRole::Moderator->value);
 
         yield MenuItem::section('Univers')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(GalaxyCrudController::class, 'Galaxies')->setPermission(AdminRole::GameDesigner->value);
