@@ -127,6 +127,15 @@ final class QuestRulesTest extends TestCase
         self::assertEquals(new Resources(10_000, 0, 0), $this->rules->cargoAfter(new Resources(9000, 0, 0), 10_000, $this->outcome(metal: 4000, crystal: 3000)));
     }
 
+    public function testAnEventMultipliesGainsButNotLosses(): void
+    {
+        // Butin d'exploration +50 % (§4.16) : gains × 1,5, pertes inchangées, toujours dans la limite des soutes
+        $after = $this->rules->cargoAfter(new Resources(1500, 0, 500), 10_000, $this->outcome(metal: 4000, crystal: 1000, deuterium: -800), 1.5);
+
+        self::assertEquals(new Resources(7500, 1500, 0), $after);
+        self::assertEquals(new Resources(10_000, 0, 0), $this->rules->cargoAfter(new Resources(6000, 0, 0), 10_000, $this->outcome(metal: 4000), 1.5));
+    }
+
     public function testCargoShrinksWithLostHolds(): void
     {
         // 1 000 à bord pour une capacité tombée à 500 : réduite proportionnellement

@@ -22,6 +22,7 @@ use App\Entity\Formation;
 use App\Entity\FormationSlot;
 use App\Entity\Galaxy;
 use App\Entity\GalaxyShapeTemplate;
+use App\Entity\GameEvent;
 use App\Entity\MarketListing;
 use App\Entity\Merchant;
 use App\Entity\MerchantHolding;
@@ -77,7 +78,7 @@ final class EntityHistoryTest extends KernelTestCase
     {
         $classes = array_map(static fn(AuditedEntity $entity): string => $entity->class, $this->history->entities());
 
-        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Empire::class, Galaxy::class, GalaxyShapeTemplate::class, BuildingType::class, PlanetBuilding::class, BuildingQueueItem::class, Technology::class, Research::class, ResearchQueueItem::class, Prerequisite::class, ShipClass::class, ShipType::class, PlanetShip::class, ShipyardOrder::class, Fleet::class, FleetShip::class, FleetMovement::class, FleetOrder::class, Formation::class, FormationSlot::class, QuestTemplate::class, QuestOutcome::class, ClassMatchup::class, Alliance::class, AllianceMember::class, AlliancePact::class, AlliancePlanet::class, AllianceBuilding::class, TeleportLink::class, Merchant::class, MerchantHolding::class, MarketListing::class, PlanetListing::class, NpcBehaviorProfile::class], $classes);
+        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Empire::class, Galaxy::class, GalaxyShapeTemplate::class, BuildingType::class, PlanetBuilding::class, BuildingQueueItem::class, Technology::class, Research::class, ResearchQueueItem::class, Prerequisite::class, ShipClass::class, ShipType::class, PlanetShip::class, ShipyardOrder::class, Fleet::class, FleetShip::class, FleetMovement::class, FleetOrder::class, Formation::class, FormationSlot::class, QuestTemplate::class, QuestOutcome::class, ClassMatchup::class, Alliance::class, AllianceMember::class, AlliancePact::class, AlliancePlanet::class, AllianceBuilding::class, TeleportLink::class, Merchant::class, MerchantHolding::class, MarketListing::class, PlanetListing::class, GameEvent::class, NpcBehaviorProfile::class], $classes);
         self::assertNotContains(Planet::class, $classes);
         self::assertNotContains(StarSystem::class, $classes);
     }

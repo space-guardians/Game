@@ -1,0 +1,14 @@
+{# Événements de jeu en cours sur la planète active (§4.16), fin en compte à rebours (contrôleur « countdown ») #}
+{% set now = this.now %}
+<div{{ attributes.defaults({id: 'sg-game-events'}) }}>
+    {% for event in this.events %}
+        <twig:AlertBanner variant="info" id="evenement-{{ event.id }}"
+            data-controller="countdown"
+            data-countdown-start-value="{{ event.startsAt.timestamp * 1000 }}"
+            data-countdown-end-value="{{ event.endsAt.timestamp * 1000 }}"
+            data-countdown-server-now-value="{{ now.format('Uv') }}">
+            <strong>{{ event.name }}</strong> — {{ event.effectsLabel }} ; fin dans
+            <span class="sg-mono" data-countdown-target="remaining">{{ max(0, event.endsAt.timestamp - now.timestamp)|duration }}</span>.
+        </twig:AlertBanner>
+    {% endfor %}
+</div>
