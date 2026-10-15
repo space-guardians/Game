@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Planet;
+use App\Exception\FairPlay\ProtectionRefused;
 use App\Repository\BuildingTypeRepository;
 use App\Service\Account\GameContext;
+use App\Service\FairPlay\Protections;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -23,6 +25,7 @@ final class OverviewController extends AbstractController
         private readonly GameContext $context,
         private readonly EntityManagerInterface $entityManager,
         private readonly BuildingTypeRepository $buildingTypes,
+        private readonly Protections $protections,
     ) {}
 
     #[Route('/', name: 'app_home', methods: ['GET'])]
@@ -39,7 +42,37 @@ final class OverviewController extends AbstractController
             'planet' => $empire->getActivePlanet(),
             'resources' => $this->context->activeResources(),
             'building_types' => $this->buildingTypes->findAllOrdered(),
+            'newbie_until' => $this->protections->isNewbie($empire) ? $this->protections->newbieShieldEnds($empire) : null,
+            'vacation_ends_earliest' => $this->protections->vacationEndsEarliest($empire),
         ]);
+    }
+
+    /** Mode vacances (§4.13) : activation et fin */
+    #[Route('/vacances/{operation}', name: 'app_vacation', methods: ['POST'], requirements: ['operation' => 'activer|terminer'])]
+    public function vacation(string $operation, Request $request): Response
+    {
+        $empire = $this->context->empire();
+        if (null === $empire) {
+            return $this->redirectToRoute('app_home');
+        }
+        if (!$this->isCsrfTokenValid('vacation', $request->request->getString('_token'))) {
+            $this->addFlash('error', 'La page a expiré : recommencez.');
+
+            return $this->redirectToRoute('app_home');
+        }
+        try {
+            if ('activer' === $operation) {
+                $this->protections->startVacation($empire);
+                $this->addFlash('success', 'Mode vacances activé : vos planètes sont protégées, leur production est réduite et vos flottes restent à quai.');
+            } else {
+                $this->protections->endVacation($empire);
+                $this->addFlash('success', 'Mode vacances terminé : bon retour parmi les Gardiens.');
+            }
+        } catch (ProtectionRefused $refusal) {
+            $this->addFlash('error', $refusal->getMessage());
+        }
+
+        return $this->redirectToRoute('app_home');
     }
 
     #[Route('/planete-active', name: 'app_active_planet', methods: ['POST'])]

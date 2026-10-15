@@ -104,6 +104,26 @@ final class OverviewTest extends WebTestCase
         }
     }
 
+    public function testNewbieShieldIsShownAndVacationIsToggled(): void
+    {
+        $clock = self::mockTime('2026-10-15 18:00:00');
+        $empire = EmpireFactory::createOne(['foundedAt' => $clock->now()->modify('-1 day')]);
+        $this->client->loginUser($empire->getUser());
+
+        $this->client->request('GET', '/');
+        self::assertSelectorTextContains('#protections', 'Bouclier débutant');
+        self::assertSelectorTextContains('#protections', 'jusqu’au 21/10/2026 18:00');
+
+        $this->client->submitForm('Activer le mode vacances');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Mode vacances activé');
+        self::assertSelectorTextContains('#protections', 'fin possible à partir du 17/10/2026 18:00');
+
+        $this->client->submitForm('Terminer le mode vacances');
+        $this->client->followRedirect();
+        self::assertSelectorTextContains('.sg-alert', 'Le mode vacances dure au moins 48 heures');
+    }
+
     public function testSwitchesActivePlanet(): void
     {
         $empire = EmpireFactory::createOne();

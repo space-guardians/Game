@@ -11,6 +11,7 @@ use App\Model\Economy\PlanetOutput;
 use App\Model\Economy\Resources;
 use App\Repository\BuildingTypeRepository;
 use App\Service\Event\GameEvents;
+use App\Service\FairPlay\ProtectionRules;
 use Symfony\Contracts\Service\ResetInterface;
 
 /**
@@ -41,8 +42,8 @@ final class PlanetEconomy implements ResetInterface
             return $this->calculator->idle($buildings);
         }
         $output = $this->calculator->compute($buildings, $planet->getTemperature(), $planet->getPosition()->orbit, $this->settings);
-        // Événement de jeu en cours (§4.16) : bonus de production
-        $bonus = $this->events->production($planet);
+        // Événement de jeu en cours (§4.16) : bonus de production ; mode vacances (§4.13) : production réduite
+        $bonus = $this->events->production($planet) * ($planet->getOwner()->isOnVacation() ? ProtectionRules::VACATION_PRODUCTION : 1.0);
 
         return 1.0 === $bonus ? $output : new PlanetOutput($output->hourlyProduction->times($bonus), $output->capacity, $output->energyProduced, $output->energyConsumed, $output->productionFactor);
     }
