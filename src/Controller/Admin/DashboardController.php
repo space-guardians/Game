@@ -169,6 +169,7 @@ final class DashboardController extends AbstractDashboardController
         yield MenuItem::linkTo(ShipClassCrudController::class, 'Classes de vaisseaux')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkToRoute('Matrice des classes', null, 'admin_class_matchup_index')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(QuestTemplateCrudController::class, 'Quêtes d’exploration')->setPermission(AdminRole::GameDesigner->value);
+        yield MenuItem::linkToRoute('Civilisations NPC', null, 'admin_npc_index')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(NpcBehaviorProfileCrudController::class, 'Profils des civilisations NPC')->setPermission(AdminRole::GameDesigner->value);
         yield MenuItem::linkTo(GameEventCrudController::class, 'Événements de jeu')->setPermission(AdminRole::GameDesigner->value);
 

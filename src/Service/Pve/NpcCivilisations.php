@@ -8,6 +8,9 @@ use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\NpcBehaviorProfile;
 use App\Entity\Planet;
+use App\Entity\ShipType;
+use App\Enum\Fleet\FleetStatus;
+use App\Enum\Fleet\ShipCategory;
 use App\Enum\Pve\NpcCategory;
 use App\Model\Economy\Resources;
 use App\Repository\ShipTypeRepository;
@@ -40,6 +43,37 @@ final readonly class NpcCivilisations
         private EntityManagerInterface $entityManager,
         private ClockInterface $clock,
     ) {}
+
+    /**
+     * Renforce la flotte stationnée sur la planète mère de la civilisation, ou en crée une (§4.14 « Administration »).
+     *
+     * @throws \DomainException
+     */
+    public function reinforce(Empire $npc, ShipType $type, int $quantity): Fleet
+    {
+        if (!$npc->isNpc()) {
+            throw new \DomainException('Seule une civilisation non-joueuse se renforce depuis le panneau.');
+        }
+        if ($quantity < 1 || ShipCategory::Defense === $type->getCategory()) {
+            throw new \DomainException('Choisissez un type de vaisseau et une quantité positive.');
+        }
+        $fleet = null;
+        foreach ($this->entityManager->getRepository(Fleet::class)->findBy(['empire' => $npc], ['id' => 'ASC']) as $candidate) {
+            if (FleetStatus::Stationed === $candidate->getStatus() && $candidate->isAtHome()) {
+                $fleet = $candidate;
+                break;
+            }
+        }
+        if (null === $fleet) {
+            $fleet = new Fleet($npc, \sprintf('Flotte de %s', $npc->getName()), $npc->getHomePlanet(), $this->clock->now());
+            $this->entityManager->persist($fleet);
+        }
+        $fleet->addShips($type, $quantity);
+        $fleet->refuel(max(0.0, $fleet->tankCapacity() - $fleet->getFuel()));
+        $this->entityManager->flush();
+
+        return $fleet;
+    }
 
     /** @throws \DomainException planète déjà occupée */
     public function found(NpcBehaviorProfile $profile, string $name, Planet $planet): Empire

@@ -19,6 +19,8 @@ enum AuditAction: string implements TranslatableInterface
     case Retry = 'retry';
     case Discard = 'discard';
     case Announce = 'announce';
+    case NpcFound = 'npc_found';
+    case NpcOrder = 'npc_order';
 
     public function label(): string
     {
@@ -29,6 +31,8 @@ enum AuditAction: string implements TranslatableInterface
             self::Retry => 'Relance',
             self::Discard => 'Suppression d’un message',
             self::Announce => 'Annonce',
+            self::NpcFound => 'Fondation d’une civilisation NPC',
+            self::NpcOrder => 'Ordre à une civilisation NPC',
         };
     }
 
