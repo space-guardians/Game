@@ -17,6 +17,7 @@ use App\Repository\ShipTypeRepository;
 use App\Service\Admin\AdminAudit;
 use App\Service\Fleet\DestinationResolver;
 use App\Service\Pve\NpcCivilisations;
+use App\Service\Pve\NpcMonitor;
 use App\Service\Pve\NpcRaids;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
@@ -28,8 +29,8 @@ use Symfony\Component\Security\Http\Attribute\IsGranted;
 
 /**
  * Civilisations mineures (§4.14 « Administration », §5.6.1 « IA », rôle GameDesigner) : liste, création sur une
- * planète libre (désignée ou tirée au sort dans une galaxie), renfort de flotte, ordre d'attaque manuel. Routes :
- * admin_npc_index, _found, _reinforce, _raid.
+ * planète libre (désignée ou tirée au sort dans une galaxie), renfort de flotte, ordre d'attaque manuel, fiche de
+ * suivi. Routes : admin_npc_index, _detail, _found, _reinforce, _raid.
  */
 #[IsGranted(AdminRole::GameDesigner->value)]
 #[AdminRoute(path: '/civilisations', name: 'npc')]
@@ -51,6 +52,7 @@ final class NpcCivilisationController extends AbstractController
         private readonly EntityManagerInterface $entityManager,
         private readonly Randomizer $randomizer,
         private readonly AdminAudit $audit,
+        private readonly NpcMonitor $monitor,
     ) {}
 
     #[AdminRoute(path: '/', name: 'index', options: ['methods' => ['GET']])]
@@ -62,6 +64,13 @@ final class NpcCivilisationController extends AbstractController
             'ships' => $this->shipTypes->findShipsOrdered(),
             'token' => self::TOKEN,
         ]);
+    }
+
+    /** Fiche de suivi (§4.14 : les boss sont surtout monitorés) */
+    #[AdminRoute(path: '/{id}', name: 'detail', options: ['methods' => ['GET'], 'requirements' => ['id' => '\d+']])]
+    public function detail(int $id): Response
+    {
+        return $this->render('admin/npc/detail.html.twig', ['file' => $this->monitor->of($this->npc($id))]);
     }
 
     #[AdminRoute(path: '/fonder', name: 'found', options: ['methods' => ['POST']])]
