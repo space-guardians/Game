@@ -117,6 +117,25 @@
 
     <p class="text-muted">Recherches, flottes et alliance s’ajouteront à la fiche avec leurs phases.</p>
 
+    <h2 class="h5 mt-4">Connexions et actions sensibles</h2>
+    {% if player.sharedAddress is not empty %}
+        <p class="text-danger" id="comptes-partages">Autres comptes vus depuis les mêmes adresses : {% for user in player.sharedAddress %}{{ user.email }}{{ not loop.last ? ', ' }}{% endfor %}.</p>
+    {% endif %}
+    <table class="table datagrid" id="activite">
+        <thead><tr><th>Date</th><th>Action</th><th>Adresse (empreinte)</th></tr></thead>
+        <tbody>
+            {% for log in player.activity %}
+                <tr>
+                    <td>{{ log.createdAt|date('d/m/Y H:i') }}</td>
+                    <td>{{ log.action.label }}</td>
+                    <td class="font-monospace">{{ log.ipHash ? log.ipHash|slice(0, 12) : '—' }}</td>
+                </tr>
+            {% else %}
+                <tr><td colspan="3">Aucune activité notée.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
     <h2 class="h5 mt-4">Journal d’activité</h2>
     <h3 class="h6">Actions du joueur</h3>
     <table class="table datagrid" id="actions-joueur">

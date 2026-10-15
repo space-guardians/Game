@@ -7,11 +7,14 @@ namespace App\Tests\Functional\Account;
 use App\Entity\Empire;
 use App\Entity\User;
 use App\Enum\Account\StartingOrientation;
+use App\Enum\FairPlay\ActivityAction;
 use App\Factory\EmpireFactory;
 use App\Factory\UserFactory;
 use App\Model\Universe\SpiralGalaxyShape;
+use App\Repository\ActivityLogRepository;
 use App\Repository\EmpireRepository;
 use App\Repository\UserRepository;
+use App\Service\FairPlay\ActivityLogger;
 use App\Service\Universe\GalaxyCreator;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -36,6 +39,29 @@ final class RegistrationTest extends WebTestCase
     private function generateGalaxy(): void
     {
         self::getContainer()->get(GalaxyCreator::class)->create(1, 'Voie des Gardiens', 7, new SpiralGalaxyShape(), 40);
+    }
+
+    public function testAccountsPerAddressAreLimited(): void
+    {
+        $this->generateGalaxy();
+        foreach (range(1, ActivityLogger::MAX_ACCOUNTS_PER_ADDRESS) as $i) {
+            $this->client->restart();
+            $this->client->setServerParameter('HTTP_ORIGIN', 'http://localhost');
+            $this->register(\sprintf('gardien%d@exemple.fr', $i), UserFactory::DEFAULT_PASSWORD, empireName: 'Ordre ' . $i);
+            self::assertResponseRedirects('/');
+        }
+        // Inscription et connexion notées au journal d'activité
+        $user = self::getContainer()->get(UserRepository::class)->findOneByEmail('gardien1@exemple.fr');
+        self::assertInstanceOf(User::class, $user);
+        self::assertEqualsCanonicalizing([ActivityAction::Registration, ActivityAction::Login], array_map(static fn($log): ActivityAction => $log->getAction(), self::getContainer()->get(ActivityLogRepository::class)->findBy(['user' => $user])));
+
+        $this->client->restart();
+        $this->client->setServerParameter('HTTP_ORIGIN', 'http://localhost');
+        $this->register('un.de.trop@exemple.fr', UserFactory::DEFAULT_PASSWORD, empireName: 'Ordre de trop');
+
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('body', 'Trop de comptes ont déjà été créés depuis cette connexion');
+        self::assertNull(self::getContainer()->get(UserRepository::class)->findOneByEmail('un.de.trop@exemple.fr'));
     }
 
     public function testRegistersLogsInAndSendsWelcomeEmail(): void
