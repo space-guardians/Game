@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Admin;
 
+use App\Entity\ActivityLog;
 use App\Entity\Empire;
 use App\Entity\EmpireSnapshot;
 use App\Enum\Admin\AdminRole;
+use App\Enum\FairPlay\ActivityAction;
 use App\Factory\AdminUserFactory;
 use App\Factory\EmpireFactory;
 use App\Factory\UserFactory;
 use App\Model\Ranking\ScoreBreakdown;
+use App\Service\FairPlay\ActivityLogger;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
@@ -138,6 +141,26 @@ final class PlayerAdminTest extends WebTestCase
         self::assertSame(['Ordre d’Orion', 'Moyenne des empires', 'Moyenne du top 10'], array_column($score['data']['datasets'], 'label'));
         self::assertSame([40, 60], $score['data']['datasets'][0]['data']);
         self::assertEquals([70, 90], $score['data']['datasets'][1]['data']);
+    }
+
+    public function testPlayerFileShowsActivityAndAccountsSharingAnAddress(): void
+    {
+        $orion = EmpireFactory::createOne(['name' => 'Ordre d’Orion', 'user' => UserFactory::new(['email' => 'orion@exemple.fr'])]);
+        $vega = EmpireFactory::createOne(['name' => 'Ligue de Véga', 'user' => UserFactory::new(['email' => 'vega@exemple.fr'])]);
+        $hash = self::getContainer()->get(ActivityLogger::class)->hash('203.0.113.7');
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        foreach ([[$orion, ActivityAction::Registration], [$orion, ActivityAction::Login], [$vega, ActivityAction::Login]] as [$empire, $action]) {
+            $entityManager->persist(new ActivityLog($empire->getUser(), $action, $hash, new \DateTimeImmutable('2026-10-06 09:00')));
+        }
+        $entityManager->flush();
+        $this->loginAdmin(AdminRole::Moderator);
+
+        $this->client->request('GET', \sprintf('/admin/joueurs/%d', $orion->getId()));
+
+        self::assertSelectorTextContains('#activite', 'Inscription');
+        self::assertSelectorTextContains('#activite', 'Connexion');
+        self::assertSelectorTextContains('#activite', substr($hash, 0, 12));
+        self::assertSelectorTextContains('#comptes-partages', 'vega@exemple.fr');
     }
 
     private function loginAdmin(AdminRole $role): void

@@ -43,7 +43,8 @@ final class NpcCivilisationsTest extends KernelTestCase
         self::assertSame(20, $planet->shipCount($launcher));
         $fleets = self::getContainer()->get(FleetRepository::class)->findBy(['empire' => $npc]);
         self::assertCount(1, $fleets);
-        self::assertSame(['light_fighter' => 15, 'cruiser' => 3, 'small_cargo' => 5], $fleets[0]->shipCounts());
+        // assertEquals : l'ordre des types dépend du chargement en base
+        self::assertEquals(['light_fighter' => 15, 'cruiser' => 3, 'small_cargo' => 5], $fleets[0]->shipCounts());
         self::assertSame($fleets[0]->tankCapacity(), (int) $fleets[0]->getFuel());
 
         // Jamais sur une planète occupée

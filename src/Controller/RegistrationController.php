@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
+use App\Enum\FairPlay\ActivityAction;
 use App\Exception\Account\EmailAlreadyRegistered;
 use App\Exception\Account\EmpireNameTaken;
 use App\Exception\Universe\NoFreePlanet;
 use App\Form\RegistrationFormType;
 use App\Model\Account\Registration;
 use App\Service\Account\PlayerRegistration;
+use App\Service\FairPlay\ActivityLogger;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Bundle\SecurityBundle\Security;
@@ -21,7 +24,7 @@ use Symfony\Component\Routing\Attribute\Route;
 final class RegistrationController extends AbstractController
 {
     #[Route('/inscription', name: 'app_register')]
-    public function register(Request $request, PlayerRegistration $registration, Security $security, LoggerInterface $logger): Response
+    public function register(Request $request, PlayerRegistration $registration, Security $security, LoggerInterface $logger, ActivityLogger $activity, EntityManagerInterface $entityManager): Response
     {
         if (null !== $this->getUser()) {
             return $this->redirectToRoute('app_home');
@@ -31,9 +34,16 @@ final class RegistrationController extends AbstractController
         $form = $this->createForm(RegistrationFormType::class, $data);
         $form->handleRequest($request);
 
-        if ($form->isSubmitted() && $form->isValid()) {
+        // Comptes multiples (§4.13) : un nombre limité d'inscriptions par adresse
+        $refusal = $form->isSubmitted() ? $activity->registrationRefusal() : null;
+        if (null !== $refusal) {
+            $form->addError(new FormError($refusal));
+        }
+        if (null === $refusal && $form->isSubmitted() && $form->isValid()) {
             try {
                 $user = $registration->register($data);
+                $activity->record($user, ActivityAction::Registration);
+                $entityManager->flush();
                 $security->login($user, 'form_login', 'main');
                 $this->addFlash('success', 'Bienvenue, Gardien. Un e-mail de confirmation vous a été envoyé.');
 
