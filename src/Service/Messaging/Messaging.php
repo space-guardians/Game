@@ -8,9 +8,11 @@ use App\Entity\Conversation;
 use App\Entity\ConversationParticipant;
 use App\Entity\Empire;
 use App\Entity\Message;
+use App\Enum\Notification\NotificationType;
 use App\Exception\Messaging\InvalidMessage;
 use App\Repository\ConversationRepository;
 use App\Repository\EmpireRepository;
+use App\Service\Notification\Notifications;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 
@@ -31,6 +33,7 @@ final readonly class Messaging
         private MessagingNotifier $notifier,
         private ClockInterface $clock,
         private IgnoredPlayers $ignored,
+        private Notifications $notifications,
     ) {}
 
     /**
@@ -178,6 +181,12 @@ final readonly class Messaging
         }
         // L'auteur l'a lue jusqu'à son message
         $conversation->participantOf($author)?->markRead($at);
+        $this->entityManager->flush();
+        foreach ($recipients as $place) {
+            if ($place->getEmpire() !== $author) {
+                $this->notifications->notify($place->getEmpire(), NotificationType::MessageReceived, \sprintf('Nouveau message de %s : %s', $author->getName(), $conversation->titleFor($place->getEmpire())), 'app_messaging_show', ['id' => $conversation->getId()]);
+            }
+        }
         $this->entityManager->flush();
         $this->notifier->deliveredTo($message, $recipients);
 

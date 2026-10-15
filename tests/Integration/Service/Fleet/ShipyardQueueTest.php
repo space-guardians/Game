@@ -97,8 +97,11 @@ final class ShipyardQueueTest extends KernelTestCase
         \assert($planet instanceof Planet);
         self::assertSame(2, $planet->shipCount($this->ship('light_fighter')));
         self::assertSame([], self::getContainer()->get(ShipyardOrderRepository::class)->findForPlanet($planet));
-        $updates = self::getContainer()->get(PublishedUpdates::class)->all();
+        $all = self::getContainer()->get(PublishedUpdates::class)->all();
+        // Alerte affichée et rafraîchissement ; à part, la notification enregistrée (badge, historique, §4.12.3)
+        $updates = array_values(array_filter($all, static fn($update): bool => !str_contains($update->getData(), 'target="sg-unread-notifications"')));
         self::assertCount(1, $updates);
+        self::assertCount(2, $all);
         self::assertStringContainsString('Chantier spatial : 2 × Chasseur léger livrés sur la planète mère', $updates[0]->getData());
     }
 

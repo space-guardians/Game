@@ -6,6 +6,8 @@ namespace App\Service\Fleet;
 
 use App\Entity\ScheduledEvent;
 use App\Entity\ShipyardOrder;
+use App\Enum\Notification\NotificationType;
+use App\Service\Notification\Notifications;
 use App\Service\Scheduling\ScheduledEventHandler;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -19,6 +21,7 @@ final readonly class ShipyardOrderCompletedHandler implements ScheduledEventHand
 
     public function __construct(
         private EntityManagerInterface $entityManager,
+        private Notifications $notifications,
     ) {}
 
     public static function type(): string
@@ -35,5 +38,9 @@ final readonly class ShipyardOrderCompletedHandler implements ScheduledEventHand
 
         $order->getPlanet()->addShips($order->getType(), $order->getQuantity());
         $this->entityManager->remove($order);
+        $owner = $order->getPlanet()->getOwner();
+        if (null !== $owner) {
+            $this->notifications->notify($owner, NotificationType::ShipyardCompleted, \sprintf('Chantier spatial : %d × %s livré(s) sur %s.', $order->getQuantity(), $order->getType()->getName(), $order->getPlanet()), 'app_shipyard');
+        }
     }
 }
