@@ -8,7 +8,7 @@ use App\Entity\AdminUser;
 use App\Entity\MessageReport;
 use App\Enum\Admin\AdminRole;
 use App\Enum\Moderation\ReportStatus;
-use App\Service\Moderation\MessageReports;
+use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -21,13 +21,15 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Psr\Clock\ClockInterface;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Signalements du chat et de la messagerie (§4.13, §5.6.1 « Communication & modération », rôle Moderator) : à traiter
  * d'abord ; la fiche montre le message et son contexte, mène à la fiche du joueur signalé pour sanctionner (#78), et se
- * clôt en « traité » ou « classé sans suite ».
+ * clôt en « traité » ou « classé sans suite ». Sans dépendance au chat : EasyAdmin instancie ses contrôleurs au chargement
+ * des routes, hors de portée de Redis en CI.
  *
  * @extends AbstractCrudController<MessageReport>
  */
@@ -37,7 +39,8 @@ final class MessageReportCrudController extends AbstractCrudController
     use SameOriginTrait;
 
     public function __construct(
-        private readonly MessageReports $reports,
+        private readonly EntityManagerInterface $entityManager,
+        private readonly ClockInterface $clock,
     ) {}
 
     public static function getEntityFqcn(): string
@@ -110,7 +113,8 @@ final class MessageReportCrudController extends AbstractCrudController
         \assert($report instanceof MessageReport);
         $moderator = $this->getUser();
         if (ReportStatus::Open === $report->getStatus()) {
-            $this->reports->handle($report, $status, $moderator instanceof AdminUser ? $moderator->getUserIdentifier() : 'inconnu');
+            $report->handle($status, $moderator instanceof AdminUser ? $moderator->getUserIdentifier() : 'inconnu', $this->clock->now());
+            $this->entityManager->flush();
             $this->addFlash('success', \sprintf('Signalement : %s.', mb_strtolower($status->label())));
         }
 
