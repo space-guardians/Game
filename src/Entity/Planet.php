@@ -49,6 +49,13 @@ final class Planet
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $resourcesUpdatedAt = null;
 
+    /**
+     * Gel d'une planète mise en vente ou engagée dans un échange (§4.15) : ni production ni pillage tant qu'elle n'a
+     * pas changé de mains ou n'est pas retirée du marché
+     */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $frozenAt = null;
+
     /** @var Collection<int, PlanetBuilding> */
     #[ORM\OneToMany(targetEntity: PlanetBuilding::class, mappedBy: 'planet', cascade: ['persist'])]
     private Collection $buildings;
@@ -217,6 +224,41 @@ final class Planet
             throw new \LogicException(\sprintf('La planète %s appartient déjà à l\'empire « %s ».', $this, $this->owner->getName()));
         }
         $this->owner = $empire;
+    }
+
+    /**
+     * Cession à un autre empire (vente ou échange, §4.15) ; consolider les ressources avant.
+     *
+     * @throws \LogicException planète sans empire propriétaire, ou déjà à cet empire
+     */
+    public function transferTo(Empire $empire): void
+    {
+        if (null === $this->owner || $this->owner === $empire) {
+            throw new \LogicException(\sprintf('La planète %s ne peut pas être cédée à « %s ».', $this, $empire->getName()));
+        }
+        $this->owner = $empire;
+    }
+
+    public function isFrozen(): bool
+    {
+        return null !== $this->frozenAt;
+    }
+
+    public function getFrozenAt(): ?\DateTimeImmutable
+    {
+        return $this->frozenAt;
+    }
+
+    /** Gèle la planète (§4.15) ; consolider les ressources avant, la production s'arrête à cet instant */
+    public function freeze(\DateTimeImmutable $at): void
+    {
+        $this->frozenAt ??= $at;
+    }
+
+    /** Dégèle la planète ; consolider les ressources avant, pendant qu'elle est encore gelée (rien produit entre-temps) */
+    public function unfreeze(): void
+    {
+        $this->frozenAt = null;
     }
 
     /** Adresse entre crochets, comme partout dans l'interface (charte §3) */

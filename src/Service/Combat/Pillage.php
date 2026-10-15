@@ -36,8 +36,8 @@ final readonly class Pillage
     {
         $planetId = $battle->getLocation()->planetId;
         $planet = null === $planetId ? null : $this->entityManager->find(Planet::class, $planetId);
-        // Planète d'un empire ou d'une alliance non alliés à l'assaillant
-        if (CombatSide::Attacker !== $battle->getWinner() || null === $planet || !$planet->isClaimed() || $this->allegiances->planetAllied($planet, $initiator)) {
+        // Planète d'un empire ou d'une alliance non alliés à l'assaillant, et pas gelée par une mise en vente (§4.15)
+        if (CombatSide::Attacker !== $battle->getWinner() || null === $planet || !$planet->isClaimed() || $planet->isFrozen() || $this->allegiances->planetAllied($planet, $initiator)) {
             return new Resources();
         }
 

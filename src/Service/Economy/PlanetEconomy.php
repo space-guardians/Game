@@ -34,7 +34,8 @@ final class PlanetEconomy implements ResetInterface
             $this->types ??= $this->buildingTypes->findAllOrdered(),
         );
 
-        return null === $planet->getOwner()
+        // Sans propriétaire, ou gelée par une mise en vente (§4.15) : aucune production
+        return null === $planet->getOwner() || $planet->isFrozen()
             ? $this->calculator->idle($buildings)
             : $this->calculator->compute($buildings, $planet->getTemperature(), $planet->getPosition()->orbit, $this->settings);
     }

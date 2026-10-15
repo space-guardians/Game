@@ -26,6 +26,7 @@ use App\Entity\MarketListing;
 use App\Entity\Merchant;
 use App\Entity\MerchantHolding;
 use App\Entity\PlanetBuilding;
+use App\Entity\PlanetListing;
 use App\Entity\PlanetShip;
 use App\Entity\Prerequisite;
 use App\Entity\QuestOutcome;
@@ -74,6 +75,7 @@ final readonly class EntityHistory
         Merchant::class => 'Marchands',
         MerchantHolding::class => 'Ressources gardées par les marchands',
         MarketListing::class => 'Annonces du marché',
+        PlanetListing::class => 'Planètes sur le marché',
         BuildingQueueItem::class => 'Constructions en cours',
         BuildingType::class => 'Types de bâtiments',
         ClassMatchup::class => 'Matrice des classes',
