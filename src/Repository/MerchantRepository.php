@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Galaxy;
+use App\Entity\GlobalPosition;
 use App\Entity\Merchant;
 use App\Entity\SpaceLocation;
 use App\Entity\StarSystem;
@@ -48,6 +49,19 @@ final class MerchantRepository extends ServiceEntityRepository
         $merchant = $this->findOneBy(['system' => $location->systemId]);
 
         return null !== $merchant && abs($merchant->getLocalX() - $location->localX) < 0.01 && abs($merchant->getLocalY() - $location->localY) < 0.01 ? $merchant : null;
+    }
+
+    /**
+     * Marchands les plus proches d'un point de la galaxie.
+     *
+     * @return list<Merchant>
+     */
+    public function findNearest(Galaxy $galaxy, GlobalPosition $from, int $limit = 10): array
+    {
+        $merchants = $this->findInGalaxy($galaxy);
+        usort($merchants, static fn(Merchant $a, Merchant $b): int => $a->getSystem()->getPosition()->distanceTo($from) <=> $b->getSystem()->getPosition()->distanceTo($from));
+
+        return \array_slice($merchants, 0, $limit);
     }
 
     /** Marchand d'un système, s'il y en a un */

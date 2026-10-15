@@ -43,6 +43,30 @@ final class MarketListingRepository extends ServiceEntityRepository
             ->getResult();
     }
 
+    /**
+     * Annonces de ressources où l'empire est vendeur ou acheteur, dans ces états, les plus récentes d'abord.
+     *
+     * @param list<MarketListingStatus> $statuses
+     *
+     * @return list<MarketListing>
+     */
+    public function findInvolving(Empire $empire, array $statuses, int $limit = 50): array
+    {
+        /** @var list<MarketListing> */
+        return $this->createQueryBuilder('l')
+            ->addSelect('m')
+            ->join('l.merchant', 'm')
+            ->where('l.seller = :empire OR l.buyer = :empire')
+            ->andWhere('l.status IN (:statuses)')
+            ->setParameter('empire', $empire)
+            ->setParameter('statuses', $statuses)
+            ->orderBy('l.createdAt', 'DESC')
+            ->addOrderBy('l.id', 'DESC')
+            ->setMaxResults($limit)
+            ->getQuery()
+            ->getResult();
+    }
+
     public function countOpenBy(Empire $seller): int
     {
         return (int) $this->createQueryBuilder('l')

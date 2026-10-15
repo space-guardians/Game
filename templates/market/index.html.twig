@@ -1,0 +1,238 @@
+{# Écran « Marché » (§4.15, §5.4) : annonces de ressources et de planètes, publication, transactions en cours, historique #}
+{% extends 'layout/app.html.twig' %}
+
+{% macro amounts(resources) %}
+    {%- set parts = [] -%}
+    {%- for key, label in {metal: 'métal', crystal: 'cristal', deuterium: 'deutérium'} -%}
+        {%- if attribute(resources, key) > 0 -%}{%- set parts = parts|merge([attribute(resources, key)|round(0, 'floor')|format_number ~ ' ' ~ label]) -%}{%- endif -%}
+    {%- endfor -%}
+    {{- parts is empty ? '—' : parts|join(', ') -}}
+{% endmacro %}
+
+{% macro resource_inputs(prefix, legend) %}
+    <fieldset class="sg-market__resources">
+        <legend class="sg-field__label">{{ legend }}</legend>
+        {% for key, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+            <label class="sg-field">
+                <span class="sg-field__label">{{ label }}</span>
+                <input class="sg-input sg-mono" type="number" min="0" step="1" name="{{ prefix }}[{{ key }}]" value="0">
+            </label>
+        {% endfor %}
+    </fieldset>
+{% endmacro %}
+
+{% macro merchant_select(merchants, id) %}
+    <label class="sg-field">
+        <span class="sg-field__label">Marchand (les plus proches de votre planète active)</span>
+        <select class="sg-input" name="merchant" id="{{ id }}">
+            {% for merchant in merchants %}
+                <option value="{{ merchant.id }}">{{ merchant.name }} — système {{ merchant.system.galaxy.number }}:{{ merchant.system.number }}</option>
+            {% endfor %}
+        </select>
+    </label>
+{% endmacro %}
+
+{% import _self as market %}
+
+{% block title %}Marché — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}Marché{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="listings-title">
+        <h2 id="listings-title" class="sg-section-title">Annonces de ressources</h2>
+        <p class="sg-field__help">Une transaction n’est validée qu’une fois que les deux parties ont livré leur dû au marchand, par une mission « Livraison au marchand » ; chacun retire ensuite ce qui lui revient (« Retrait chez le marchand »).</p>
+        {% if listings is empty %}
+            <p class="sg-empty">Aucune annonce ouverte.</p>
+        {% else %}
+            <table class="sg-table" id="annonces">
+                <thead><tr><th scope="col">Vendeur</th><th scope="col">Marchand</th><th scope="col">Propose</th><th scope="col">Demande</th><th scope="col">Action</th></tr></thead>
+                <tbody>
+                    {% for listing in listings %}
+                        <tr id="annonce-{{ listing.id }}">
+                            <td>{{ listing.seller.name }}</td>
+                            <td>{{ listing.merchant.name }} <span class="sg-mono">({{ listing.merchant.system.galaxy.number }}:{{ listing.merchant.system.number }})</span></td>
+                            <td class="sg-mono">{{ market.amounts(listing.offered) }}</td>
+                            <td class="sg-mono">{{ market.amounts(listing.asked) }}</td>
+                            <td>
+                                {% if listing.seller is same as(empire) %}
+                                    <twig:Chip label="Votre annonce" tone="neutral"/>
+                                {% else %}
+                                    <form method="post" action="{{ path('app_market_accept', {id: listing.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                                        <twig:Btn type="submit" label="Accepter" variant="primary" size="sm"/>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="planets-title">
+        <h2 id="planets-title" class="sg-section-title">Planètes sur le marché</h2>
+        <p class="sg-field__help">Une planète sur le marché est gelée : elle ne produit plus et ne peut pas être pillée. Un achat demande un emplacement de colonisation libre et se paie depuis votre planète active.</p>
+        {% if planet_listings is empty %}
+            <p class="sg-empty">Aucune planète sur le marché.</p>
+        {% else %}
+            <table class="sg-table" id="planetes">
+                <thead><tr><th scope="col">Planète</th><th scope="col">Vendeur</th><th scope="col">Conditions</th><th scope="col">Action</th></tr></thead>
+                <tbody>
+                    {% for listing in planet_listings %}
+                        <tr id="planete-{{ listing.id }}">
+                            <td>{{ listing.planet }}</td>
+                            <td>{{ listing.seller.name }}</td>
+                            <td>{{ listing.swap ? 'Échange contre une planète' : market.amounts(listing.price) ~ ', payés chez ' ~ listing.merchant.name }}</td>
+                            <td>
+                                {% if listing.seller is same as(empire) %}
+                                    <twig:Chip label="Votre planète" tone="neutral"/>
+                                {% elseif listing.swap %}
+                                    {% if colonies is not empty %}
+                                        <form method="post" action="{{ path('app_market_planet', {id: listing.id, operation: 'proposer'}) }}" class="sg-market__inline">
+                                            <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                                            <select class="sg-input" name="planet" aria-label="Planète proposée en échange de {{ listing.planet }}">
+                                                {% for colony in colonies %}<option value="{{ colony.id }}">{{ colony }}</option>{% endfor %}
+                                            </select>
+                                            <twig:Btn type="submit" label="Proposer" variant="ghost" size="sm"/>
+                                        </form>
+                                    {% endif %}
+                                {% else %}
+                                    <form method="post" action="{{ path('app_market_planet', {id: listing.id, operation: 'acheter'}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                                        <twig:Btn type="submit" label="Acheter" variant="primary" size="sm"/>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="publish-title">
+        <h2 id="publish-title" class="sg-section-title">Publier une annonce</h2>
+        <div class="sg-market__forms">
+            <form method="post" action="{{ path('app_market_post') }}" class="sg-market__form" id="publier-ressources">
+                <h3 class="sg-field__label">Ressources contre ressources</h3>
+                <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                {{ market.merchant_select(merchants, 'marchand-ressources') }}
+                {{ market.resource_inputs('offered', 'Vous proposez') }}
+                {{ market.resource_inputs('asked', 'Vous demandez') }}
+                <twig:Btn type="submit" label="Publier" variant="primary" size="sm"/>
+            </form>
+            <form method="post" action="{{ path('app_market_planet_list') }}" class="sg-market__form" id="publier-planete">
+                <h3 class="sg-field__label">Une de vos colonies</h3>
+                {% if colonies is empty %}
+                    <p class="sg-empty">Vous n’avez pas de colonie à céder (la planète mère ne se vend pas).</p>
+                {% else %}
+                    <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                    <label class="sg-field">
+                        <span class="sg-field__label">Colonie</span>
+                        <select class="sg-input" name="planet">
+                            {% for colony in colonies %}<option value="{{ colony.id }}">{{ colony }}</option>{% endfor %}
+                        </select>
+                    </label>
+                    <fieldset class="sg-market__resources">
+                        <legend class="sg-field__label">Mode</legend>
+                        <label><input type="radio" name="kind" value="sale" checked> Vente</label>
+                        <label><input type="radio" name="kind" value="swap"> Échange contre une planète</label>
+                    </fieldset>
+                    {{ market.merchant_select(merchants, 'marchand-planete') }}
+                    {{ market.resource_inputs('price', 'Prix (vente seulement)') }}
+                    <twig:Btn type="submit" label="Mettre sur le marché" variant="primary" size="sm"/>
+                {% endif %}
+            </form>
+        </div>
+    </section>
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="mine-title">
+        <h2 id="mine-title" class="sg-section-title">Mes transactions en cours</h2>
+        {% if mine is empty and my_planets is empty %}
+            <p class="sg-empty">Aucune transaction en cours.</p>
+        {% endif %}
+        <ul class="sg-conversations" id="mes-transactions">
+            {% for listing in mine %}
+                {% set seller = listing.seller is same as(empire) %}
+                <li class="sg-conversation">
+                    <span class="sg-conversation__title">
+                        {{ seller ? 'Vente' : 'Achat' }} chez {{ listing.merchant.name }} :
+                        <span class="sg-mono">{{ market.amounts(listing.offered) }}</span> contre <span class="sg-mono">{{ market.amounts(listing.asked) }}</span>
+                    </span>
+                    <twig:Chip label="{{ listing.status.label }}" tone="{{ listing.status.value == 'accepted' ? 'gold' : 'cyan' }}"/>
+                    <span class="sg-entity__meta">
+                        {% if listing.deliveredBy(empire) %}Votre part est livrée.{% else %}À livrer : <span class="sg-mono">{{ market.amounts(listing.dueFrom(empire)) }}</span>.{% endif %}
+                        {% if listing.buyer %}{{ seller ? listing.buyer.name : listing.seller.name }} : {{ listing.deliveredBy(seller ? listing.buyer : listing.seller) ? 'livré' : 'pas encore livré' }}.{% endif %}
+                    </span>
+                    {% if seller and listing.status.value == 'open' %}
+                        <form method="post" action="{{ path('app_market_cancel', {id: listing.id}) }}">
+                            <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                            <twig:Btn type="submit" label="Retirer" variant="ghost" size="sm"/>
+                        </form>
+                    {% endif %}
+                </li>
+            {% endfor %}
+            {% for listing in my_planets %}
+                {% set seller = listing.seller is same as(empire) %}
+                <li class="sg-conversation">
+                    <span class="sg-conversation__title">{{ listing.planet }} — {{ listing.swap ? 'échange' : 'vente pour ' ~ market.amounts(listing.price) }}</span>
+                    <twig:Chip label="{{ listing.status.label }}" tone="{{ listing.status.value == 'offered' ? 'gold' : 'cyan' }}"/>
+                    {% if listing.offeredPlanet %}
+                        <span class="sg-entity__meta">{{ seller ? listing.buyer.name ~ ' propose ' : 'Vous proposez ' }}{{ listing.offeredPlanet }}.</span>
+                    {% endif %}
+                    <div class="sg-messaging__actions">
+                        {% for operation, label in seller ? (listing.offeredPlanet ? {accepter: 'Accepter l’échange', refuser: 'Refuser'} : {retirer: 'Retirer du marché'}) : {refuser: 'Retirer ma proposition'} %}
+                            <form method="post" action="{{ path('app_market_planet', {id: listing.id, operation: operation}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                                <twig:Btn type="submit" label="{{ label }}" variant="{{ loop.first and seller and listing.offeredPlanet ? 'primary' : 'ghost' }}" size="sm"/>
+                            </form>
+                        {% endfor %}
+                    </div>
+                </li>
+            {% endfor %}
+        </ul>
+        <h3 class="sg-field__label">Chez les marchands, pour vous</h3>
+        {% if holdings is empty %}
+            <p class="sg-empty">Aucun marchand ne garde de ressources pour vous.</p>
+        {% else %}
+            <ul class="sg-conversations" id="ressources-gardees">
+                {% for holding in holdings %}
+                    <li class="sg-conversation">
+                        <span class="sg-conversation__title">{{ holding.merchant.name }} <span class="sg-mono">({{ holding.merchant.system.galaxy.number }}:{{ holding.merchant.system.number }})</span></span>
+                        <span class="sg-mono">{{ market.amounts(holding.resources) }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+            <p class="sg-field__help">Envoyez une flotte en « Retrait chez le marchand » vers le système du marchand pour les récupérer.</p>
+        {% endif %}
+    </section>
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="history-title">
+        <h2 id="history-title" class="sg-section-title">Historique</h2>
+        {% if history is empty and planet_history is empty %}
+            <p class="sg-empty">Aucune transaction terminée.</p>
+        {% else %}
+            <ul class="sg-conversations" id="historique">
+                {% for listing in history %}
+                    <li class="sg-conversation">
+                        <span class="sg-conversation__title">
+                            {{ listing.seller is same as(empire) ? 'Vente' : 'Achat' }} chez {{ listing.merchant.name }} :
+                            <span class="sg-mono">{{ market.amounts(listing.offered) }}</span> contre <span class="sg-mono">{{ market.amounts(listing.asked) }}</span>
+                        </span>
+                        <twig:Chip label="{{ listing.status.label }}" tone="neutral"/>
+                        <span class="sg-entity__meta sg-mono">{{ listing.closedAt ? listing.closedAt|date('d/m H:i') }}</span>
+                    </li>
+                {% endfor %}
+                {% for listing in planet_history %}
+                    <li class="sg-conversation">
+                        <span class="sg-conversation__title">{{ listing.planet }} — {{ listing.swap ? 'échange' : 'vente' }}{% if listing.buyer %} avec {{ listing.seller is same as(empire) ? listing.buyer.name : listing.seller.name }}{% endif %}</span>
+                        <twig:Chip label="{{ listing.status.label }}" tone="neutral"/>
+                        <span class="sg-entity__meta sg-mono">{{ listing.closedAt ? listing.closedAt|date('d/m H:i') }}</span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+{% endblock %}
