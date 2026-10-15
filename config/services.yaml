@@ -41,7 +41,9 @@ services:
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
 
+    # Vitesse d'univers réglée dans le panneau (GameSetting), la configuration en repli
     App\Model\Economy\EconomySettings:
+        factory: ['@App\Service\Economy\EconomySettingsFactory', 'create']
         arguments:
             $baseHourlyProduction: '%app.economy.base_hourly_production%'
             $orbitBonuses: '%app.economy.orbit_bonuses%'

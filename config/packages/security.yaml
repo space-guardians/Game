@@ -50,6 +50,8 @@ security:
         main:
             lazy: true
             provider: players
+            # Joueurs bannis (§4.13) : connexion refusée
+            user_checker: App\Security\BannedUserChecker
             form_login:
                 login_path: app_login
                 check_path: app_login
