@@ -41,7 +41,8 @@ final readonly class ShipyardDeliveryNotifier
 
         try {
             $this->hub->publish(new Update(
-                GameTopics::empire($owner),
+                // Ne concerne que la planète : son topic (§5.2)
+                GameTopics::planet($event->getPlanet()),
                 $this->twig->render('streams/shipyard_completed.stream.html.twig', [
                     'ship' => $type?->getName() ?? 'vaisseaux',
                     'quantity' => \is_int($payload['quantity'] ?? null) ? $payload['quantity'] : 0,

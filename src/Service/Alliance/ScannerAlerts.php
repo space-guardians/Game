@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Service\Alliance;
 
+use App\Entity\Alliance;
 use App\Entity\AlliancePlanet;
-use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Model\Scheduling\GameTopics;
 use Doctrine\ORM\EntityManagerInterface;
@@ -21,7 +21,7 @@ use Twig\Environment;
  */
 final class ScannerAlerts implements ResetInterface
 {
-    /** @var list<array{members: list<Empire>, planet: string, empire: string, ships: int, destination: string, arrivesAt: \DateTimeImmutable}> */
+    /** @var list<array{alliance: Alliance, planet: string, empire: string, ships: int, destination: string, arrivesAt: \DateTimeImmutable}> */
     private array $pending = [];
 
     public function __construct(
@@ -34,7 +34,7 @@ final class ScannerAlerts implements ResetInterface
     public function detected(AlliancePlanet $alliancePlanet, Fleet $fleet, string $destination, \DateTimeImmutable $arrivesAt): void
     {
         $this->pending[] = [
-            'members' => array_values(array_map(static fn($member): Empire => $member->getEmpire(), $alliancePlanet->getAlliance()->getMembers()->toArray())),
+            'alliance' => $alliancePlanet->getAlliance(),
             'planet' => $alliancePlanet->getName(),
             'empire' => $fleet->getEmpire()->getName(),
             'ships' => $fleet->shipCount(),
@@ -57,13 +57,11 @@ final class ScannerAlerts implements ResetInterface
             return;
         }
         foreach ($alerts as $alert) {
-            $content = $this->twig->render('streams/scanner_alert.stream.html.twig', $alert);
-            foreach ($alert['members'] as $member) {
-                try {
-                    $this->hub->publish(new Update(GameTopics::empire($member), $content, private: true));
-                } catch (\Throwable $exception) {
-                    $this->logger->warning('Alerte du scanner d’alliance impossible à publier.', ['exception' => $exception]);
-                }
+            // Une seule publication, sur le topic de l'alliance, que chaque membre reçoit (§5.2)
+            try {
+                $this->hub->publish(new Update(GameTopics::alliance($alert['alliance']), $this->twig->render('streams/scanner_alert.stream.html.twig', $alert), private: true));
+            } catch (\Throwable $exception) {
+                $this->logger->warning('Alerte du scanner d’alliance impossible à publier.', ['exception' => $exception]);
             }
         }
     }
