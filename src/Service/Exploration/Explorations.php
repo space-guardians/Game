@@ -16,6 +16,7 @@ use App\Exception\Exploration\InvalidQuestChoice;
 use App\Model\Exploration\ExplorationContext;
 use App\Repository\ExplorationEventInstanceRepository;
 use App\Repository\QuestTemplateRepository;
+use App\Service\Event\GameEvents;
 use App\Service\Fleet\FleetMovements;
 use App\Service\Messaging\GameReports;
 use App\Service\Scheduling\EventScheduler;
@@ -49,6 +50,7 @@ final readonly class Explorations
         private LockFactory $lockFactory,
         private ClockInterface $clock,
         private GameReports $reports,
+        private GameEvents $gameEvents,
     ) {}
 
     /**
@@ -251,7 +253,8 @@ final readonly class Explorations
         }
 
         $before = $fleet->getCargo();
-        $after = $this->rules->cargoAfter($before, $fleet->cargo(), $outcome);
+        // Événement de jeu en cours (§4.16) sur la planète mère de l'empire : butin d'exploration augmenté
+        $after = $this->rules->cargoAfter($before, $fleet->cargo(), $outcome, $this->gameEvents->explorationLoot($fleet->getEmpire()->getHomePlanet()));
         $fleet->unload();
         $fleet->load($after);
         $changes = [];

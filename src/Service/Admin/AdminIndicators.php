@@ -25,6 +25,8 @@ final readonly class AdminIndicators
 {
     /** Libellés des types d'événements planifiés (ScheduledEventHandler::type()) */
     public const array EVENT_LABELS = [
+        'game_event.start' => 'Débuts d’événements de jeu',
+        'game_event.end' => 'Fins d’événements de jeu',
         BuildingCompletedHandler::TYPE => 'Constructions en cours',
         ResearchCompletedHandler::TYPE => 'Recherches en cours',
         ShipyardOrderCompletedHandler::TYPE => 'Commandes du chantier spatial',
