@@ -8,6 +8,7 @@ use App\Entity\Battle;
 use App\Entity\Empire;
 use App\Entity\Fleet;
 use App\Entity\ShipType;
+use App\Enum\FairPlay\ActivityAction;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Fleet\FormationColumn;
 use App\Enum\Fleet\FormationRow;
@@ -26,12 +27,15 @@ use App\Service\Account\GameContext;
 use App\Service\Combat\Allegiances;
 use App\Service\Combat\BattleBoard;
 use App\Service\Combat\Battles;
+use App\Service\FairPlay\ActionLimits;
+use App\Service\FairPlay\ActivityLogger;
 use App\Service\Fleet\DestinationResolver;
 use App\Service\Fleet\FleetAssembly;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Fleet\Formations;
 use App\Service\Fleet\TravelRules;
 use App\Service\Universe\ColonyLimit;
+use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
@@ -59,6 +63,9 @@ final class FleetController extends AbstractController
         private readonly BattleRepository $battles,
         private readonly BattleBoard $battleBoard,
         private readonly Allegiances $allegiances,
+        private readonly ActivityLogger $activity,
+        private readonly ActionLimits $limits,
+        private readonly EntityManagerInterface $entityManager,
     ) {}
 
     /** Ordres proposés dans le formulaire d'envoi ; le dernier suggère le retour au point de départ (§4.6) */
@@ -177,6 +184,8 @@ final class FleetController extends AbstractController
                 return $this->redirectToRoute('app_fleet_dispatch', ['id' => $fleet->getId()]);
             }
             try {
+                // Rythme des envois (§4.13)
+                $this->limits->fleetDispatch($fleet->getEmpire());
                 $movement = $this->dispatch->dispatch(
                     $fleet,
                     $this->steps($request->request->all('steps'), $fleet, $request->request->getInt('speed', 100)),
@@ -184,6 +193,8 @@ final class FleetController extends AbstractController
                     $this->cargo($request->request->all('cargo')),
                     max(0.0, (float) $request->request->get('fuel', 0)),
                 );
+                $this->activity->record($fleet->getEmpire()->getUser(), ActivityAction::FleetDispatch);
+                $this->entityManager->flush();
                 $this->addFlash('success', \sprintf('Flotte « %s » en route vers %s, arrivée à %s.', $fleet->getName(), $movement->getOrder()->getDestinationLabel(), $movement->getArrivesAt()->format('H:i:s')));
                 if ($movement->isStranding()) {
                     $this->addFlash('error', \sprintf('Carburant insuffisant : la flotte tombera en panne en chemin, à %s.', $movement->getArrivesAt()->format('H:i:s')));
