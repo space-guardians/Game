@@ -55,6 +55,10 @@ final class Empire
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $npcFleetRecalculatedAt = null;
 
+    /** Début du mode vacances (§4.13) ; null hors vacances */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $vacationSince = null;
+
     /** Mise en sourdine du chat par la modération (§4.13), jusqu'à cette date */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $chatMutedUntil = null;
@@ -110,6 +114,28 @@ final class Empire
     public function getUser(): User
     {
         return $this->user ?? throw new \LogicException(\sprintf('La civilisation « %s » n’a pas de compte joueur.', $this->name));
+    }
+
+    public function getVacationSince(): ?\DateTimeImmutable
+    {
+        return $this->vacationSince;
+    }
+
+    public function isOnVacation(): bool
+    {
+        return null !== $this->vacationSince;
+    }
+
+    /** Consolider les ressources de ses planètes avant : la production change */
+    public function startVacation(\DateTimeImmutable $at): void
+    {
+        $this->vacationSince ??= $at;
+    }
+
+    /** Consolider les ressources de ses planètes avant, pendant qu'il est encore en vacances */
+    public function endVacation(): void
+    {
+        $this->vacationSince = null;
     }
 
     public function getChatMutedUntil(): ?\DateTimeImmutable

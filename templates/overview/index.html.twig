@@ -38,6 +38,21 @@
                 <dt>Fondé le</dt>
                 <dd>{{ empire.foundedAt|format_date('long') }}</dd>
             </dl>
+            <div id="protections">
+                {% if newbie_until %}
+                    <p class="sg-field__help"><twig:Chip label="Bouclier débutant" tone="green" dot/> Vos planètes ne peuvent être ni attaquées ni espionnées jusqu’au {{ newbie_until|date('d/m/Y H:i') }}, tant que votre score reste modeste.</p>
+                {% endif %}
+                <form method="post" action="{{ path('app_vacation', {operation: empire.onVacation ? 'terminer' : 'activer'}) }}">
+                    <input type="hidden" name="_token" value="{{ csrf_token('vacation') }}">
+                    {% if empire.onVacation %}
+                        <p class="sg-field__help"><twig:Chip label="Mode vacances" tone="cyan" dot/> Depuis le {{ empire.vacationSince|date('d/m/Y H:i') }} ; fin possible à partir du {{ vacation_ends_earliest|date('d/m/Y H:i') }}.</p>
+                        <twig:Btn type="submit" label="Terminer le mode vacances" variant="ghost" size="sm"/>
+                    {% else %}
+                        <p class="sg-field__help">Mode vacances : planètes protégées, production réduite au quart, flottes à quai, au moins 48 heures.</p>
+                        <twig:Btn type="submit" label="Activer le mode vacances" variant="ghost" size="sm"/>
+                    {% endif %}
+                </form>
+            </div>
         </section>
 
         <section class="sg-panel sg-cut-14 sg-overview__wide" aria-labelledby="resources-title">
