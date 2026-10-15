@@ -2,6 +2,12 @@
 <turbo-stream action="update" target="sg-unread-notifications">
     <template>{{ unread > 0 ? unread : '' }}</template>
 </turbo-stream>
+{% if attacks is defined %}
+    {# Attaque entrante détectée (§4.12) : bandeau d'alerte et compte à rebours remis à jour #}
+    <turbo-stream action="update" target="sg-incoming-attacks">
+        <template>{{ include('alerts/_incoming_attacks.html.twig', {attacks: attacks, now: now}) }}</template>
+    </turbo-stream>
+{% endif %}
 <turbo-stream action="prepend" target="notifications-list">
     <template>{{ include('notification/_item.html.twig', {notification: notification}) }}</template>
 </turbo-stream>

@@ -1,0 +1,13 @@
+{# Une alerte par attaque entrante, avec compte à rebours live calé sur l'heure du serveur (contrôleur « countdown ») #}
+{% for attack in attacks %}
+    <twig:AlertBanner variant="attack" id="attaque-{{ attack.battleId }}"
+        data-controller="countdown"
+        data-countdown-start-value="{{ attack.detectedAt.timestamp * 1000 }}"
+        data-countdown-end-value="{{ attack.arrivesAt.timestamp * 1000 }}"
+        data-countdown-server-now-value="{{ now.format('Uv') }}">
+        Vous êtes attaqué : {{ attack.attacker.name }} vise {{ attack.planet }}, arrivée dans
+        <span class="sg-mono" data-countdown-target="remaining">{{ max(0, attack.arrivesAt.timestamp - now.timestamp)|duration }}</span>
+        (à <span class="sg-mono">{{ attack.arrivesAt|date('H:i:s') }}</span>).
+        <a href="{{ path('app_fleet') }}">Préparer la défense</a>
+    </twig:AlertBanner>
+{% endfor %}

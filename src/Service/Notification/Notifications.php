@@ -9,6 +9,7 @@ use App\Entity\Notification;
 use App\Enum\Notification\NotificationType;
 use App\Model\Scheduling\GameTopics;
 use App\Repository\NotificationRepository;
+use App\Service\Combat\IncomingAttacks;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
@@ -37,6 +38,7 @@ final class Notifications implements ResetInterface
         private readonly Environment $twig,
         private readonly ClockInterface $clock,
         private readonly LoggerInterface $logger,
+        private readonly IncomingAttacks $incomingAttacks,
     ) {}
 
     /**
@@ -78,7 +80,7 @@ final class Notifications implements ResetInterface
                     $this->twig->render('streams/notification.stream.html.twig', [
                         'notification' => $notification,
                         'unread' => $this->notifications->countUnread($empire),
-                    ]),
+                    ] + (NotificationType::IncomingAttack === $notification->getType() ? ['attacks' => $this->incomingAttacks->of($empire), 'now' => $this->clock->now()] : [])),
                     private: true,
                 ));
             } catch (\Throwable $exception) {
