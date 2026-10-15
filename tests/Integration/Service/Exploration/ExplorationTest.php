@@ -95,7 +95,8 @@ final class ExplorationTest extends KernelTestCase
         self::assertStringContainsString('Des conteneurs intacts.', (string) $event->getReport());
         self::assertStringContainsString('Vaisseaux perdus : 1 × Chasseur léger.', (string) $event->getReport());
         // 1 chasseur sur 10 perdu ; cargaison : +3 000 de métal (cargo libre suffisant), pas de deutérium à perdre
-        self::assertSame(['small_cargo' => 1, 'light_fighter' => 9], $fleet->shipCounts());
+        // assertEquals : l'ordre des types dépend du chargement en base
+        self::assertEquals(['small_cargo' => 1, 'light_fighter' => 9], $fleet->shipCounts());
         self::assertSame(3000.0, $fleet->getCargo()->metal);
         // L'exploration est faite ; la flotte enchaîne aussitôt l'ordre suivant
         self::assertSame(FleetOrderStatus::Done, $fleet->getOrders()[0]?->getStatus());
