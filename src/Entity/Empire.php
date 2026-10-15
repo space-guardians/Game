@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Enum\Account\EmpireKind;
 use App\Enum\Account\StartingOrientation;
 use App\Repository\EmpireRepository;
 use DH\Auditor\Provider\Doctrine\Auditing\Attribute\Auditable;
@@ -38,14 +39,23 @@ final class Empire
     #[ORM\JoinColumn(nullable: false)]
     private Planet $activePlanet;
 
+    /** Joueur, ou civilisation non-joueuse gérée par le moteur de jeu (§4.14) : sans compte, avec un profil */
+    #[ORM\Column(length: 10, enumType: EmpireKind::class, options: ['default' => 'player'])]
+    private EmpireKind $kind = EmpireKind::Player;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'RESTRICT')]
+    private ?NpcBehaviorProfile $npcProfile = null;
+
     /** @var Collection<int, Research> niveaux de recherche, valables pour toutes les planètes (§4.4) */
     #[ORM\OneToMany(targetEntity: Research::class, mappedBy: 'empire', cascade: ['persist'])]
     private Collection $researches;
 
     public function __construct(
+        /** Compte du joueur ; null pour une civilisation non-joueuse */
         #[ORM\OneToOne]
-        #[ORM\JoinColumn(nullable: false, unique: true, onDelete: 'CASCADE')]
-        private readonly User $user,
+        #[ORM\JoinColumn(nullable: true, unique: true, onDelete: 'CASCADE')]
+        private readonly ?User $user,
         #[ORM\Column(length: self::NAME_MAX_LENGTH)]
         private string $name,
         #[ORM\Column(length: 20, enumType: StartingOrientation::class)]
@@ -63,6 +73,16 @@ final class Empire
         $this->researches = new ArrayCollection();
     }
 
+    /** Civilisation non-joueuse (§4.14) : sans compte, pilotée par le moteur de jeu selon son profil */
+    public static function npc(string $name, Planet $homePlanet, NpcBehaviorProfile $profile, \DateTimeImmutable $foundedAt): self
+    {
+        $empire = new self(null, $name, StartingOrientation::Aggressive, $homePlanet, $foundedAt);
+        $empire->kind = EmpireKind::Npc;
+        $empire->npcProfile = $profile;
+
+        return $empire;
+    }
+
     /** Espaces superflus retirés ; la casse est conservée mais ne distingue pas deux empires */
     public static function normalizeName(string $name): string
     {
@@ -74,9 +94,25 @@ final class Empire
         return $this->id;
     }
 
+    /** @throws \LogicException pour une civilisation non-joueuse, qui n'a pas de compte */
     public function getUser(): User
     {
-        return $this->user;
+        return $this->user ?? throw new \LogicException(\sprintf('La civilisation « %s » n’a pas de compte joueur.', $this->name));
+    }
+
+    public function getKind(): EmpireKind
+    {
+        return $this->kind;
+    }
+
+    public function isNpc(): bool
+    {
+        return EmpireKind::Npc === $this->kind;
+    }
+
+    public function getNpcProfile(): ?NpcBehaviorProfile
+    {
+        return $this->npcProfile;
     }
 
     public function getName(): string

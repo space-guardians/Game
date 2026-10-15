@@ -5,17 +5,23 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\Empire;
+use App\Enum\Account\EmpireKind;
 use App\Enum\Admin\AdminRole;
 use App\Service\Admin\EntityHistory;
 use App\Service\Admin\PlayerFiles;
 use App\Service\Admin\ProgressCharts;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Config\KeyValueStore;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
@@ -54,6 +60,14 @@ final class PlayerCrudController extends AbstractCrudController
             ->setSearchFields(['name', 'user.email'])
             ->setPaginatorPageSize(50)
             ->overrideTemplate('crud/detail', 'admin/player/detail.html.twig');
+    }
+
+    /** Joueurs seulement : les civilisations non-joueuses (§4.14) ont leur propre suivi */
+    public function createIndexQueryBuilder(SearchDto $searchDto, EntityDto $entityDto, FieldCollection $fields, FilterCollection $filters): QueryBuilder
+    {
+        return parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters)
+            ->andWhere('entity.kind = :player')
+            ->setParameter('player', EmpireKind::Player);
     }
 
     public function configureActions(Actions $actions): Actions

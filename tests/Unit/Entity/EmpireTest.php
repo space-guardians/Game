@@ -7,11 +7,13 @@ namespace App\Tests\Unit\Entity;
 use App\Entity\Empire;
 use App\Entity\Galaxy;
 use App\Entity\GlobalPosition;
+use App\Entity\NpcBehaviorProfile;
 use App\Entity\OrbitalPosition;
 use App\Entity\Planet;
 use App\Entity\StarSystem;
 use App\Entity\Technology;
 use App\Entity\User;
+use App\Enum\Account\EmpireKind;
 use App\Enum\Account\StartingOrientation;
 use PHPUnit\Framework\TestCase;
 
@@ -73,6 +75,23 @@ final class EmpireTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         $this->empire($this->planet(), 'Orion')->setResearchLevel(new Technology('energy', 'Énergie'), -1);
+    }
+
+    public function testANpcCivilisationHasAProfileButNoAccount(): void
+    {
+        $profile = new NpcBehaviorProfile();
+        $profile->setName('Pillards des confins');
+        $planet = $this->planet();
+
+        $npc = Empire::npc('Pillards', $planet, $profile, new \DateTimeImmutable());
+
+        self::assertTrue($npc->isNpc());
+        self::assertSame(EmpireKind::Npc, $npc->getKind());
+        self::assertSame($profile, $npc->getNpcProfile());
+        self::assertSame($npc, $planet->getOwner());
+        self::assertFalse($this->empire($this->planet(), 'Orion')->isNpc());
+        $this->expectExceptionObject(new \LogicException('La civilisation « Pillards » n’a pas de compte joueur.'));
+        $npc->getUser();
     }
 
     private function empire(Planet $planet, string $name): Empire
