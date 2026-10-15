@@ -1,0 +1,4 @@
+{# Attaques entrantes (§4.12) : bandeau remplacé en direct par le flux de notification d'une attaque détectée #}
+<div{{ attributes.defaults({id: 'sg-incoming-attacks'}) }}>
+    {{ include('alerts/_incoming_attacks.html.twig', {attacks: this.attacks, now: this.now}) }}
+</div>
