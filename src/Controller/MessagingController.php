@@ -10,11 +10,13 @@ use App\Entity\Empire;
 use App\Entity\Message;
 use App\Enum\Messaging\MessageCategory;
 use App\Exception\Messaging\InvalidMessage;
+use App\Exception\Moderation\ReportRefused;
 use App\Repository\ConversationRepository;
 use App\Repository\PlayerIgnoreRepository;
 use App\Service\Account\GameContext;
 use App\Service\Messaging\IgnoredPlayers;
 use App\Service\Messaging\Messaging;
+use App\Service\Moderation\MessageReports;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,6 +36,7 @@ final class MessagingController extends AbstractController
         private readonly Messaging $messaging,
         private readonly IgnoredPlayers $ignored,
         private readonly PlayerIgnoreRepository $ignores,
+        private readonly MessageReports $reports,
     ) {}
 
     public const string PLAYERS_FOLDER = 'joueurs';
@@ -132,6 +135,26 @@ final class MessagingController extends AbstractController
         }
 
         return $this->redirectToRoute('app_messaging_ignored');
+    }
+
+    /** Signale un message reçu à la modération (§4.13) */
+    #[Route('/messagerie/messages/{id}/signaler', name: 'app_messaging_report', methods: ['POST'], requirements: ['id' => '\d+'])]
+    public function report(Message $message, Request $request): Response
+    {
+        $empire = $this->empire();
+        $conversation = $message->getConversation();
+        if (!$this->isCsrfTokenValid('report-message-' . $message->getId(), $request->request->getString('_token'))) {
+            $this->addFlash('error', 'La page a expiré : recommencez.');
+        } else {
+            try {
+                $this->reports->reportMessage($empire, $message, $request->request->getString('reason'));
+                $this->addFlash('success', 'Signalement transmis à la modération.');
+            } catch (ReportRefused $refusal) {
+                $this->addFlash('error', $refusal->getMessage());
+            }
+        }
+
+        return $this->redirectToRoute('app_messaging_show', ['id' => $conversation->getId()]);
     }
 
     #[Route('/messagerie/{id}/participants', name: 'app_messaging_add', methods: ['POST'], requirements: ['id' => '\d+'])]

@@ -1828,3 +1828,15 @@ a:hover {
     display: flex;
     gap: 8px;
 }
+
+/* Signalement d'un message du chat (§4.13) */
+.sg-chat__report {
+    margin-left: 4px;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--sg-text-3);
+    font-size: 11px;
+    text-decoration: underline;
+    cursor: pointer;
+}

@@ -56,7 +56,7 @@
         <h2 id="messages-title" class="sg-section-title">Messages</h2>
         <ol class="sg-messages" id="conversation-{{ conversation.id }}-messages">
             {% for message in messages %}
-                {{ include('messaging/_message.html.twig', {message: message, viewer: empire}) }}
+                {{ include('messaging/_message.html.twig', {message: message, viewer: empire, reportable: true}) }}
             {% endfor %}
         </ol>
         <span id="dernier"></span>

@@ -78,6 +78,7 @@ export default class extends Controller {
         presenceUrl: String,
         privateUrl: String,
         groupsUrl: String,
+        reportUrl: String,
         token: String,
         me: Number,
         ignored: Array,
@@ -630,8 +631,36 @@ export default class extends Controller {
         const body = document.createElement('span');
         body.textContent = ` ${message.body}`;
         item.append(time, ' ', status, author, body);
+        // Signalement à la modération (§4.13) : les messages des autres seulement
+        if (message.authorId !== this.meValue) {
+            const report = document.createElement('button');
+            report.type = 'button';
+            report.className = 'sg-chat__report';
+            report.textContent = 'Signaler';
+            report.setAttribute('aria-label', `Signaler le message de ${message.author}`);
+            report.addEventListener('click', () => this.report(message));
+            item.append(' ', report);
+        }
 
         return item;
+    }
+
+    async report(message) {
+        const reason = window.prompt(`Motif du signalement du message de ${message.author} :`);
+        if (!reason?.trim()) {
+            return;
+        }
+        const response = await fetch(this.reportUrlValue, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Accept: 'application/json',
+                'X-CSRF-Token': this.tokenValue,
+            },
+            body: JSON.stringify({ channel: message.channel, id: message.id, reason }),
+        });
+        const data = await response.json().catch(() => ({}));
+        this.errorTarget.textContent = response.ok ? data.message : (data.error ?? 'Signalement impossible.');
     }
 
     markRead(channel) {

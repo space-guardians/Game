@@ -27,6 +27,7 @@ use App\Entity\GameSetting;
 use App\Entity\MarketListing;
 use App\Entity\Merchant;
 use App\Entity\MerchantHolding;
+use App\Entity\MessageReport;
 use App\Entity\NpcBehaviorProfile;
 use App\Entity\PlanetBuilding;
 use App\Entity\PlanetListing;
@@ -75,6 +76,7 @@ final readonly class EntityHistory
         AlliancePlanet::class => 'Planètes d’alliance',
         AllianceBuilding::class => 'Bâtiments d’alliance',
         TeleportLink::class => 'Liaisons des portes de téléportation',
+        MessageReport::class => 'Signalements de messages',
         GameSetting::class => 'Paramètres du jeu',
         NpcBehaviorProfile::class => 'Profils des civilisations NPC',
         GameEvent::class => 'Événements de jeu',
