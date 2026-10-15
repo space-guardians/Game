@@ -55,6 +55,10 @@ final class Empire
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $npcFleetRecalculatedAt = null;
 
+    /** Mise en sourdine du chat par la modération (§4.13), jusqu'à cette date */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $chatMutedUntil = null;
+
     /** @var Collection<int, Research> niveaux de recherche, valables pour toutes les planètes (§4.4) */
     #[ORM\OneToMany(targetEntity: Research::class, mappedBy: 'empire', cascade: ['persist'])]
     private Collection $researches;
@@ -106,6 +110,21 @@ final class Empire
     public function getUser(): User
     {
         return $this->user ?? throw new \LogicException(\sprintf('La civilisation « %s » n’a pas de compte joueur.', $this->name));
+    }
+
+    public function getChatMutedUntil(): ?\DateTimeImmutable
+    {
+        return $this->chatMutedUntil;
+    }
+
+    public function isChatMutedAt(\DateTimeImmutable $at): bool
+    {
+        return null !== $this->chatMutedUntil && $at < $this->chatMutedUntil;
+    }
+
+    public function muteChat(?\DateTimeImmutable $until): void
+    {
+        $this->chatMutedUntil = $until;
     }
 
     public function getKind(): EmpireKind

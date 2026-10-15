@@ -7,7 +7,9 @@ namespace App\Controller\Admin;
 use App\Entity\Empire;
 use App\Enum\Account\EmpireKind;
 use App\Enum\Admin\AdminRole;
+use App\Repository\EmpireRepository;
 use App\Service\Admin\EntityHistory;
+use App\Service\Admin\Moderation;
 use App\Service\Admin\PlayerFiles;
 use App\Service\Admin\ProgressCharts;
 use Doctrine\ORM\QueryBuilder;
@@ -27,6 +29,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
 
 /**
  * Joueurs (§5.6.1) : liste et recherche (empire, adresse e-mail), fiche empire avec planètes, ressources,
@@ -39,9 +44,12 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 final class PlayerCrudController extends AbstractCrudController
 {
     use HistoryActionTrait;
+    use SameOriginTrait;
 
     public function __construct(
         private readonly PlayerFiles $files,
+        private readonly Moderation $moderation,
+        private readonly EmpireRepository $empires,
         private readonly ProgressCharts $progress,
     ) {}
 
@@ -112,5 +120,37 @@ final class PlayerCrudController extends AbstractCrudController
         }
 
         return $responseParameters;
+    }
+
+    /** Sanctions de la modération (§4.13) : avertir, mettre le chat en sourdine, bannir, lever un bannissement */
+    #[AdminRoute(path: '/{entityId}/moderer/{operation}', name: 'moderate', options: ['methods' => ['POST'], 'requirements' => ['operation' => 'avertir|sourdine|bannir|lever']])]
+    public function moderate(int $entityId, string $operation, Request $request, AdminUrlGenerator $urlGenerator): Response
+    {
+        // EasyAdmin n'applique pas setPermission() aux actions personnalisées : vérification explicite
+        $this->denyAccessUnlessGranted(AdminRole::Moderator->value);
+        $this->denyUnlessSameOrigin($request);
+        $empire = $this->empires->find($entityId) ?? throw $this->createNotFoundException();
+        if (!$this->isCsrfTokenValid('moderate-' . $entityId, $request->request->getString('_token'))) {
+            $this->addFlash('danger', 'La page a expiré : recommencez.');
+        } else {
+            try {
+                match ($operation) {
+                    'avertir' => $this->moderation->warn($empire, $request->request->getString('message')),
+                    'sourdine' => $this->moderation->muteChat($empire, $request->request->getInt('hours')),
+                    'bannir' => $this->moderation->ban($empire, '' === $request->request->getString('days') ? null : $request->request->getInt('days'), $request->request->getString('reason')),
+                    default => $this->moderation->liftBan($empire),
+                };
+                $this->addFlash('success', match ($operation) {
+                    'avertir' => 'Avertissement envoyé.',
+                    'sourdine' => 'Chat mis en sourdine.',
+                    'bannir' => 'Joueur banni.',
+                    default => 'Bannissement levé.',
+                });
+            } catch (\DomainException $exception) {
+                $this->addFlash('danger', $exception->getMessage());
+            }
+        }
+
+        return $this->redirect($urlGenerator->setController(self::class)->setAction(Action::DETAIL)->setEntityId($entityId)->generateUrl());
     }
 }
