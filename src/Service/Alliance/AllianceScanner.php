@@ -55,7 +55,7 @@ final readonly class AllianceScanner
         $galaxyId = (int) $alliancePlanet->getPlanet()->getSystem()->getGalaxy()->getId();
         $contacts = [];
 
-        foreach ($this->fleets->findStoppedInGalaxy($galaxyId) as $fleet) {
+        foreach ($this->fleets->findStoppedNear($galaxyId, $center, $range) as $fleet) {
             $distance = $fleet->getLocation()->toPosition()->global()->distanceTo($center);
             if ($distance <= $range && $this->foreign($fleet, $alliancePlanet)) {
                 $contacts[] = new ScanContact($fleet->getEmpire()->getName(), $fleet->getName(), $fleet->shipCount(), (int) round($distance), false);

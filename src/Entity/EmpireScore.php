@@ -15,6 +15,11 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: EmpireScoreRepository::class)]
 #[ORM\Index(name: 'empire_score_total_idx', fields: ['total'])]
+// Une par catégorie : page du classement (tri) et rang du joueur (comptage des mieux classés), à chaque affichage
+#[ORM\Index(name: 'empire_score_economy_idx', fields: ['economy'])]
+#[ORM\Index(name: 'empire_score_research_idx', fields: ['research'])]
+#[ORM\Index(name: 'empire_score_military_idx', fields: ['military'])]
+#[ORM\Index(name: 'empire_score_exploration_idx', fields: ['exploration'])]
 class EmpireScore
 {
     #[ORM\Id]
