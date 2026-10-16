@@ -39,6 +39,7 @@ Tout passe par le `Makefile` (`make help`) :
 | `make cs-fix` / `make twig-cs-fix` / `make biome-fix` | Corrige le style PHP / Twig / JS-CSS |
 | `make stan` | PHPStan niveau 6 |
 | `make test`, `make test-unit`, `make coverage` | Tests PHPUnit |
+| `make test-e2e` | Tests de bout en bout dans Chromium (Panther), base recréée à chaque exécution |
 | `make fixtures` | Applique les migrations (`make db`) puis charge les données de développement (galaxie générée, graine 1) |
 | `docker compose exec php bin/console app:galaxy:generate` | Génère une galaxie ; `--seed` la rend reproductible, `--template="<nom>"` utilise un gabarit de forme du panneau (`--help` pour les options). Même service (`GalaxyCreator`) que la génération depuis le panneau (`/admin/generations`, exécutée par le `worker`) |
 | `docker compose exec php bin/console app:admin:create <email> [--role=…]` | Crée un compte d'administration (mot de passe demandé en saisie masquée) |
@@ -116,6 +117,7 @@ Historique des données (`/admin/historique`, rôle `Admin`, §5.6.3) : `damienh
 ## Tests
 
 - `tests/Unit` : logique pure, sans kernel. `tests/Integration` : `KernelTestCase` + base de données. `tests/Functional` : `WebTestCase`.
+- `tests/E2e` : parcours critiques dans un vrai navigateur (construction, colonisation, combat), `E2eTestCase` (Panther, Chromium de l'image `dev`, Chrome du runner en CI) ; configuration à part (`phpunit.e2e.xml`, hors de `make test`) et environnement `panther` (`config/packages/panther.yaml` : base `_panther` recréée par `make test-e2e`, sans transaction annulée, MockHub, pas de worker). Le serveur web intégré de PHP sert sur `localhost` à l'heure réelle ; pour faire avancer le jeu, `resolveUntil()` résout les événements planifiés du test à leur échéance en avançant l'horloge du processus PHPUnit, puis le test recharge la page. Connexion par le formulaire (`logIn()`), navigation Turbo asynchrone : attendre un élément propre à la page visée (`waitFor`) ; les textes en capitales par CSS sont rendus tels quels. Captures des échecs dans `var/e2e-screenshots` (artefact de CI).
 - Chaque test d'intégration/fonctionnel tourne dans une transaction annulée à la fin (DAMA DoctrineTestBundle).
 - Données de test : factories **Foundry** (`src/Factory`), jamais les fixtures. Fixtures de dev (`src/DataFixtures`) = stories Foundry (`src/Story`).
 - Mercure en test : `MockHub`. Horloge : `MockClock`.

@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Tests de bout en bout (Panther) : un vrai navigateur sur un vrai serveur web, environnement « panther » -->
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         cacheDirectory="var/cache/phpunit-e2e"
+         colors="true"
+         beStrictAboutOutputDuringTests="true"
+         failOnNotice="true"
+         failOnWarning="true"
+>
+    <php>
+        <ini name="display_errors" value="1"/>
+        <ini name="error_reporting" value="-1"/>
+        <server name="APP_ENV" value="panther" force="true"/>
+        <server name="SHELL_VERBOSITY" value="-1"/>
+        <!-- Environnement du serveur web lancé par Panther -->
+        <server name="PANTHER_APP_ENV" value="panther"/>
+        <server name="PANTHER_ERROR_SCREENSHOT_DIR" value="./var/e2e-screenshots"/>
+    </php>
+
+    <testsuites>
+        <testsuite name="e2e">
+            <directory>tests/E2e</directory>
+        </testsuite>
+    </testsuites>
+
+    <extensions>
+        <!-- Un seul serveur web pour toute la suite -->
+        <bootstrap class="Symfony\Component\Panther\ServerExtension"/>
+        <bootstrap class="Zenstruck\Foundry\PHPUnit\FoundryExtension"/>
+    </extensions>
+</phpunit>

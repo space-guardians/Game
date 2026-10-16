@@ -1,0 +1,52 @@
+# Environnement des tests de bout en bout (Panther, phpunit.e2e.xml, make test-e2e) : le navigateur parle à un vrai
+# serveur web, dans un autre processus que PHPUnit ; ni transaction annulée (DAMA) ni session simulée, une base à part.
+when@panther:
+    framework:
+        # Conteneur de test pour le processus PHPUnit (factories, services) ; sans effet sur les requêtes du navigateur
+        test: true
+        messenger:
+            transports:
+                # Pas de worker : un test résout lui-même les événements planifiés qu'il attend
+                async: 'in-memory://'
+        validation:
+            not_compromised_password: false
+
+    doctrine:
+        dbal:
+            # Base distincte de celle des autres tests : les données des parcours y restent
+            dbname_suffix: '_panther'
+
+    security:
+        password_hashers:
+            # Coût minimal, comme en test
+            Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface:
+                algorithm: auto
+                cost: 4
+                time_cost: 3
+                memory_cost: 10
+
+    twig:
+        strict_variables: true
+
+    parameters:
+        app.chat.buffer_prefix: 'panther:chat:buffer:'
+        app.chat.presence_key: 'panther:chat:presence'
+        app.chat.groups_prefix: 'panther:chat:'
+
+    services:
+        _defaults:
+            autowire: true
+            autoconfigure: true
+
+        App\Tests\Fixtures\Mercure\PublishedUpdates: ~
+
+        # Pas de hub Mercure : le navigateur ne reçoit pas de mise à jour en direct, les parcours rechargent la page
+        Symfony\Component\Mercure\HubInterface:
+            class: Symfony\Component\Mercure\MockHub
+            arguments:
+                # Même domaine que le serveur de Panther (localhost)
+                $url: 'http://localhost/.well-known/mercure'
+                $jwtProvider: !service
+                    class: Symfony\Component\Mercure\Jwt\StaticTokenProvider
+                    arguments: ['jeton-de-test']
+                $publisher: '@App\Tests\Fixtures\Mercure\PublishedUpdates'
