@@ -32,7 +32,7 @@ final class CombatReportRepository extends ServiceEntityRepository
         /** @var list<CombatReport> */
         return $this->createQueryBuilder('r')
             ->join('r.battle', 'b')
-            ->andWhere(\sprintf('EXISTS (SELECT p.id FROM %s p WHERE p.battle = b AND p.empire IN (:empires))', BattleParticipant::class))
+            ->andWhere(\sprintf('EXISTS (SELECT p.id FROM %s p WHERE p.battle = b AND p.empire IN (:empires)) OR r.defendedBy IN (:empires)', BattleParticipant::class))
             ->setParameter('empires', $empires)
             ->orderBy('r.foughtAt', 'DESC')
             ->addOrderBy('r.id', 'DESC')

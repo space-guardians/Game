@@ -14,7 +14,8 @@ use Doctrine\ORM\Mapping as ORM;
  * Rapport de combat (§4.7) : déroulé détaillé d'une bataille résolue — angle d'attaque subi par chaque camp, chaque
  * groupe de vaisseaux (flotte, type, case de formation, effectif, pertes, dégâts infligés et reçus), chaque round.
  * Les données sont figées à la résolution (noms recopiés). Il est envoyé à tous les empires engagés dans la bataille
- * (participants) ; l'envoi à leurs alliances viendra avec elles (#56). Non audité : document de jeu figé.
+ * (participants, et propriétaire de la planète défendue) ; l'envoi à leurs alliances viendra avec elles (#56). Non
+ * audité : document de jeu figé.
  */
 #[ORM\Entity(repositoryClass: CombatReportRepository::class)]
 final class CombatReport
@@ -70,6 +71,24 @@ final class CombatReport
         $this->plunder = $plunder->metal + $plunder->crystal + $plunder->deuterium > 0
             ? ['metal' => round($plunder->metal), 'crystal' => round($plunder->crystal), 'deuterium' => round($plunder->deuterium)]
             : [];
+    }
+
+    /**
+     * Propriétaire de la planète défendue au moment du combat : il lit le rapport, côté défenseur, même si seules ses
+     * défenses ont combattu (aucune de ses flottes parmi les participants)
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
+    private ?Empire $defendedBy = null;
+
+    public function getDefendedBy(): ?Empire
+    {
+        return $this->defendedBy;
+    }
+
+    public function recordDefender(Empire $owner): void
+    {
+        $this->defendedBy = $owner;
     }
 
     /** @return array{metal?: float, crystal?: float} */
@@ -139,7 +158,7 @@ final class CombatReport
         return null;
     }
 
-    /** Camp d'un empire dans la bataille ; null s'il n'y était pas */
+    /** Camp d'un empire dans la bataille (flotte engagée ou planète défendue) ; null s'il n'y était pas */
     public function sideOf(Empire $empire): ?CombatSide
     {
         foreach ($this->battle->getParticipants() as $participant) {
@@ -148,7 +167,7 @@ final class CombatReport
             }
         }
 
-        return null;
+        return $empire === $this->defendedBy ? CombatSide::Defender : null;
     }
 
     /**

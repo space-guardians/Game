@@ -94,6 +94,10 @@ final class CombatReports implements ResetInterface
             $rounds,
             null === $debris ? [] : ['metal' => round($debris->metal), 'crystal' => round($debris->crystal)],
         );
+        $owner = $defended?->getOwner();
+        if (null !== $owner) {
+            $report->recordDefender($owner);
+        }
         $this->entityManager->persist($report);
         $this->pending[] = $report;
         $this->reportToEngaged($battle, $report, $result->winner, $defended);

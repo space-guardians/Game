@@ -13,7 +13,7 @@ use App\Service\Combat\BattleResolutionHandler;
 
 /**
  * Parcours « combat » (§4.7, §4.12) : un joueur attaque la planète d'un autre, qui voit l'alerte d'attaque entrante
- * puis reçoit le rapport dans sa messagerie ; l'assaillant lit le rapport détaillé.
+ * puis reçoit le rapport dans sa messagerie ; chacun lit le rapport détaillé.
  */
 final class CombatTest extends E2eTestCase
 {
@@ -59,6 +59,12 @@ final class CombatTest extends E2eTestCase
         $this->browser->waitFor('#conversations-inbox');
         self::assertSelectorTextContains('#conversations-inbox', \sprintf('Défaite : %s', $target->getAddress()));
         self::assertSelectorNotExists('#sg-incoming-attacks [id^="attaque-"]');
+        // Seules ses défenses ont combattu : le rapport détaillé est le sien (#209)
+        $crawler = $this->browser->request('GET', '/combats');
+        self::assertStringContainsStringIgnoringCase('Défaite', $crawler->filter('#rapports')->text());
+        $this->browser->click($crawler->selectLink('Lire le rapport')->link());
+        $crawler = $this->browser->waitFor('#rounds');
+        self::assertStringContainsString('vous combattiez côté défenseur', $crawler->filter('#issue')->text());
 
         // L'assaillant lit le rapport détaillé
         $this->browser->getCookieJar()->clear();

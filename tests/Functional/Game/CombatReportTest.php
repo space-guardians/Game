@@ -59,6 +59,37 @@ final class CombatReportTest extends WebTestCase
         self::assertSelectorTextContains('#issue', 'Défaite');
     }
 
+    public function testOwnerDefendedOnlyByItsDefensesReadsTheReport(): void
+    {
+        $attacker = EmpireFactory::createOne();
+        $owner = EmpireFactory::createOne();
+        $planet = $owner->getHomePlanet();
+        $at = new \DateTimeImmutable('2026-10-11 12:00:00');
+        $battle = new Battle(SpaceLocation::of(SpacePosition::planet($planet)), (string) $planet->getAddress(), $at, $at);
+        $battle->join($this->fleet($attacker, 'cruiser'), CombatSide::Attacker, $at);
+        $battle->resolve(CombatSide::Attacker, 1, [], $at);
+        $report = new CombatReport($battle, $at, (string) $planet->getAddress(), CombatSide::Attacker, ['attacker' => 'front', 'defender' => 'front'], [
+            ['side' => 'attacker', 'fleet' => 'Raid', 'empire' => $attacker->getName(), 'type' => 'Croiseur', 'class' => 'cruiser', 'row' => 'front', 'column' => 'center', 'count' => 2, 'lost' => 0, 'dealt' => 160.0, 'received' => 0.0],
+            ['side' => 'defender', 'fleet' => 'Défenses planétaires', 'empire' => $owner->getName(), 'type' => 'Lanceur de missiles', 'class' => null, 'row' => 'front', 'column' => 'center', 'count' => 2, 'lost' => 2, 'dealt' => 0.0, 'received' => 160.0],
+        ], [
+            ['number' => 1, 'shots' => ['attacker' => 2, 'defender' => 2], 'hits' => ['attacker' => 2, 'defender' => 0], 'absorbed' => ['attacker' => 0.0, 'defender' => 0.0], 'damage' => ['attacker' => 160.0, 'defender' => 0.0], 'losses' => 2],
+        ]);
+        $report->recordDefender($owner);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->persist($battle);
+        $entityManager->persist($report);
+        $entityManager->flush();
+
+        // Aucune de ses flottes n'a combattu : le rapport reste le sien, côté défenseur (#209)
+        $this->client->loginUser($owner->getUser());
+        $this->client->request('GET', '/combats');
+        self::assertSelectorTextContains('#rapports', 'Défaite');
+        $this->client->clickLink('Lire le rapport');
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('#issue', 'Défaite');
+        self::assertSelectorTextContains('#issue', 'vous combattiez côté défenseur');
+    }
+
     public function testOutsidersCannotReadTheReport(): void
     {
         [, , $report] = $this->report();
