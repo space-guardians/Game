@@ -11,20 +11,21 @@ use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Entity\SpaceLocation;
 use App\Enum\Fleet\FleetAction;
+use App\Enum\Fleet\FleetStatus;
 use App\Enum\Pve\NpcCategory;
 use App\Exception\Fleet\InvalidFleetMission;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
+use App\Repository\FleetRepository;
 use App\Repository\MerchantRepository;
 use App\Service\Alliance\TeleportGates;
 use App\Service\Combat\Allegiances;
 use App\Service\Economy\PlanetResources;
 use App\Service\FairPlay\Protections;
-use App\Service\Scheduling\ScheduledEventResolver;
 use App\Service\Universe\ColonyLimit;
+use App\Service\Universe\PlanetLocks;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
-use Symfony\Component\Lock\LockFactory;
 
 /**
  * Envoi d'une flotte en mission (§4.6) : un carnet d'ordres « se déplacer puis agir », exécutés l'un après l'autre,
@@ -40,13 +41,14 @@ final readonly class FleetDispatch
         private FleetMovements $movements,
         private PlanetResources $resources,
         private EntityManagerInterface $entityManager,
-        private LockFactory $lockFactory,
+        private PlanetLocks $planetLocks,
         private ClockInterface $clock,
         private ColonyLimit $colonyLimit,
         private Allegiances $allegiances,
         private TeleportGates $teleports,
         private MerchantRepository $merchants,
         private Protections $protections,
+        private FleetRepository $fleets,
     ) {}
 
     /**
@@ -142,11 +144,11 @@ final readonly class FleetDispatch
 
         $planet = $fleet->getPlanet();
         $loading = $cargo->metal + $cargo->crystal + $cargo->deuterium > 0 || $fuel > 0;
-        $lock = $this->lockFactory->createLock(null === $planet ? 'fleet-' . $fleet->getId() : ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquireForFleet($fleet);
 
         try {
-            if (!$fleet->isStationed()) {
+            // État relu en base sous le verrou : le worker a pu la faire partir ou la détruire depuis son chargement
+            if (!$fleet->isStationed() || (null !== $fleet->getId() && FleetStatus::Stationed !== $this->fleets->statusOf($fleet))) {
                 throw new InvalidFleetMission(\sprintf('La flotte « %s » n’est pas stationnée : elle exécute déjà une mission.', $fleet->getName()));
             }
             if ($loading && (null === $planet || !$fleet->isAtHome())) {

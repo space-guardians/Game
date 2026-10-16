@@ -17,9 +17,8 @@ use App\Repository\ShipyardOrderRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Research\PrerequisiteChecker;
 use App\Service\Scheduling\EventScheduler;
-use App\Service\Scheduling\ScheduledEventResolver;
+use App\Service\Universe\PlanetLocks;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Lock\LockFactory;
 
 /**
  * Commandes au chantier spatial (§4.5) : N vaisseaux d'un type, prérequis remplis, payés à la commande (après
@@ -42,7 +41,7 @@ final readonly class ShipyardQueue
         private EconomySettings $settings,
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
-        private LockFactory $lockFactory,
+        private PlanetLocks $planetLocks,
     ) {}
 
     /**
@@ -57,8 +56,7 @@ final readonly class ShipyardQueue
         if ($quantity < 1 || $quantity > self::MAX_QUANTITY) {
             throw new \InvalidArgumentException(\sprintf('Une commande porte sur 1 à %d vaisseaux.', self::MAX_QUANTITY));
         }
-        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquire($planet);
 
         try {
             $missing = $this->prerequisites->missing($type, $planet, $orderedBy);

@@ -21,7 +21,7 @@ use App\Service\Economy\CancellationRefund;
 use App\Service\Economy\PlanetResources;
 use App\Service\Event\GameEvents;
 use App\Service\Scheduling\EventScheduler;
-use App\Service\Scheduling\ScheduledEventResolver;
+use App\Service\Universe\PlanetLocks;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Lock\LockFactory;
 
@@ -44,6 +44,7 @@ final readonly class ResearchQueue
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
         private LockFactory $lockFactory,
+        private PlanetLocks $planetLocks,
         private CancellationRefund $refund,
         private GameEvents $events,
     ) {}
@@ -63,8 +64,7 @@ final readonly class ResearchQueue
         $empire = $planet->getOwner() ?? throw new \DomainException(\sprintf('La planète %s n\'appartient à aucun empire.', $planet));
         $empireLock = $this->lockFactory->createLock(self::empireLockKey((int) $empire->getId()), ttl: 30.0);
         $empireLock->acquire(true);
-        $planetLock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $planetLock->acquire(true);
+        $planetLock = $this->planetLocks->acquire($planet);
 
         try {
             $current = $this->queue->findActiveFor($empire);
@@ -122,8 +122,7 @@ final readonly class ResearchQueue
         try {
             $item = $this->queue->findActiveFor($empire) ?? throw NoCancellableResearch::none();
             $planet = $item->getPlanet();
-            $planetLock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-            $planetLock->acquire(true);
+            $planetLock = $this->planetLocks->acquire($planet);
 
             try {
                 $snapshot = $this->resources->settle($planet);

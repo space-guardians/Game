@@ -33,6 +33,14 @@ final class FleetRepository extends ServiceEntityRepository
         return $this->count(['empire' => $empire]);
     }
 
+    /** État enregistré en base, sans l'entité déjà chargée ; null si la flotte n'existe plus (détruite) */
+    public function statusOf(Fleet $fleet): ?FleetStatus
+    {
+        /** @var array{status: FleetStatus}|null $row */
+        $row = $this->createQueryBuilder('f')->select('f.status')->where('f.id = :id')->setParameter('id', $fleet->getId())->getQuery()->getOneOrNullResult();
+
+        return $row['status'] ?? null;
+    }
 
     /**
      * Flottes en panne des empires donnés (alliés à ravitailler).

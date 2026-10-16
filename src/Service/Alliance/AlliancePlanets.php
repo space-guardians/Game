@@ -26,11 +26,10 @@ use App\Repository\PlanetRepository;
 use App\Repository\StarSystemRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Fleet\ShipyardQueue;
-use App\Service\Scheduling\ScheduledEventResolver;
 use App\Service\Universe\PlanetGenerator;
+use App\Service\Universe\PlanetLocks;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
-use Symfony\Component\Lock\LockFactory;
 
 /**
  * Planètes d'alliance (§4.10) : construction d'une planète artificielle sur une orbite libre (payée par le fondateur
@@ -61,7 +60,7 @@ final readonly class AlliancePlanets
         private PlanetResources $resources,
         private ShipyardQueue $shipyard,
         private EntityManagerInterface $entityManager,
-        private LockFactory $lockFactory,
+        private PlanetLocks $planetLocks,
         private ClockInterface $clock,
     ) {}
 
@@ -99,8 +98,7 @@ final readonly class AlliancePlanets
 
         // Payée par le fondateur sur sa planète active, sous son verrou
         $source = $founder->getActivePlanet();
-        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $source->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquire($source);
         try {
             $snapshot = $this->resources->settle($source);
             if (!$snapshot->amounts->covers(self::cost())) {
@@ -137,8 +135,7 @@ final readonly class AlliancePlanets
         $this->assertManager($by, $alliancePlanet);
         $planet = $alliancePlanet->getPlanet();
         $cost = $type->cost($alliancePlanet->buildingLevel($type) + 1);
-        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquire($planet);
         try {
             $snapshot = $this->resources->settle($planet);
             if (!$snapshot->amounts->covers($cost)) {

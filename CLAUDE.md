@@ -20,7 +20,7 @@ Docker Compose (`compose.yaml`, image PHP construite depuis le `Dockerfile`, cib
 | `web` | nginx → PHP-FPM | http://localhost:8100 (`HTTP_PORT`) |
 | `php` | PHP-FPM 8.5, Composer, Xdebug (`XDEBUG_MODE=off` par défaut) | — |
 | `database` | PostgreSQL 18 | port aléatoire : `docker compose port database 5432` |
-| `redis` | Redis 8 (`REDIS_URL`) : état éphémère du chat | — |
+| `redis` | Redis 8 (`REDIS_URL`) : état éphémère du chat, verrous (`LOCK_DSN`), cache applicatif (`cache.app`, fichiers en test) et sessions, partagés par les conteneurs web et le worker | — |
 | `mercure` | Hub Mercure | http://localhost:3100 (`MERCURE_PORT`) |
 | `mailer` | Mailpit (SMTP + interface) | http://localhost:8125 (`MAILPIT_PORT`) |
 | `worker` | Consomme la file Messenger `async` (e-mails, générations de galaxie, réveils des événements planifiés…) et les tâches récurrentes `scheduler_default` ; `docker compose restart worker` après une modification du code | — |
@@ -60,6 +60,7 @@ Historique des données (`/admin/historique`, rôle `Admin`, §5.6.3) : `damienh
 - Classes `final` par défaut, propriétés `readonly` quand c'est possible, injection par constructeur uniquement.
 - **Organisation de `src/`** : par type, puis par domaine (`Account`, `Admin`, `Universe`…), jamais de bundle. Types Symfony dans leurs dossiers standards (`Controller`, `Entity`, `Repository`, `Form`, `Command`, `EventListener`, `Twig`…) ; services métier dans `Service/<Domaine>`, enums dans `Enum/<Domaine>`, DTO et objets de valeur dans `Model/<Domaine>`, exceptions dans `Exception/<Domaine>`. Les tests unitaires et d'intégration suivent la même arborescence.
 - **Temps** : injecter `Psr\Clock\ClockInterface` (jamais `new \DateTimeImmutable()` ni `time()`), pour pouvoir figer l'horloge dans les tests. Tout le jeu repose sur des échéances.
+- **Verrous** (§5.2, magasin Redis) : une planète se verrouille par `PlanetLocks::acquire()` (même clé que la résolution de ses événements, `ScheduledEventResolver::planetLockKey()`), une flotte par `acquireForFleet()` ; sous le verrou, le stock de la planète est relu en base (sauf modification locale pas encore écrite) : une requête ne recalcule jamais depuis un stock que le worker a changé entre-temps. Toujours l'empire avant la planète, plusieurs planètes par identifiant croissant. Un état qu'un autre processus peut changer se relit sous le verrou (`FleetRepository::statusOf()`).
 - **Aléatoire** : injecter un `Random\Randomizer` (seed fixe en test) — génération de galaxie, précision en combat.
 - Les règles de jeu (production, coûts, trajectoires, combat) sont des **services PHP purs**, sans Doctrine ni HTTP, testables unitairement et réutilisables pour les simulations d'équilibrage.
 - Schéma de base : uniquement via migrations Doctrine générées (`doctrine:migrations:diff`), relues avant commit.
