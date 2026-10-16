@@ -1,0 +1,17 @@
+# Contexte de construction des images : ni dépendances, ni fichiers générés, ni secrets locaux
+.git
+.claude
+.idea
+.vscode
+node_modules
+vendor
+var
+drivers
+public/assets
+public/bundles
+assets/vendor
+.env.local
+.env.*.local
+.env.local.php
+compose.override.yaml
+.env.server

@@ -38,3 +38,6 @@
 
 # Pilote de Chrome installé par bdi (CI) pour Panther
 /drivers/
+
+# Secrets d'un environnement serveur (copie remplie de .env.server.dist)
+/.env.server
