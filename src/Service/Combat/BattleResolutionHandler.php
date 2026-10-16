@@ -86,7 +86,8 @@ final readonly class BattleResolutionHandler implements ScheduledEventHandler
                 $present[(int) $fleet->getId()] = $fleet;
             }
         }
-        foreach ($this->fleets->findStoppedInGalaxy($battle->getLocation()->galaxyId) as $fleet) {
+        $location = $battle->getLocation();
+        foreach ($this->fleets->findStoppedNear($location->galaxyId, $location->toPosition()->global(), Battles::SAME_PLACE_TOLERANCE) as $fleet) {
             if ($this->onSite($fleet, $battle)) {
                 $present[(int) $fleet->getId()] ??= $fleet;
             }

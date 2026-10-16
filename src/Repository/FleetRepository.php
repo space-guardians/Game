@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\Empire;
 use App\Entity\Fleet;
+use App\Entity\GlobalPosition;
 use App\Enum\Fleet\FleetStatus;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -30,6 +31,15 @@ final class FleetRepository extends ServiceEntityRepository
     public function countOwnedBy(Empire $empire): int
     {
         return $this->count(['empire' => $empire]);
+    }
+
+    /** État enregistré en base, sans l'entité déjà chargée ; null si la flotte n'existe plus (détruite) */
+    public function statusOf(Fleet $fleet): ?FleetStatus
+    {
+        /** @var array{status: FleetStatus}|null $row */
+        $row = $this->createQueryBuilder('f')->select('f.status')->where('f.id = :id')->setParameter('id', $fleet->getId())->getQuery()->getOneOrNullResult();
+
+        return $row['status'] ?? null;
     }
 
     /**
@@ -77,18 +87,28 @@ final class FleetRepository extends ServiceEntityRepository
     }
 
     /**
-     * Flottes à l'arrêt (stationnées ou en panne) d'une galaxie ; le lieu exact est comparé par l'appelant.
+     * Flottes à l'arrêt (stationnées ou en panne) dans le carré de côté 2 × $radius centré sur ce point de la galaxie
+     * (repère global : ancre + position locale) ; la distance exacte est comparée par l'appelant. Le filtre est fait en
+     * base : une galaxie peut compter des milliers de flottes, inutile de toutes les charger à chaque bataille.
      *
      * @return list<Fleet>
      */
-    public function findStoppedInGalaxy(int $galaxyId): array
+    public function findStoppedNear(int $galaxyId, GlobalPosition $center, float $radius): array
     {
         /** @var list<Fleet> */
         return $this->createQueryBuilder('f')
-            ->andWhere('f.status != :inFlight')
             ->andWhere('f.location.galaxyId = :galaxy')
-            ->setParameter('inFlight', FleetStatus::InFlight)
+            ->andWhere('f.status != :inFlight')
+            ->andWhere('f.location.anchorX + COALESCE(f.location.localX, 0) >= :minX')
+            ->andWhere('f.location.anchorX + COALESCE(f.location.localX, 0) <= :maxX')
+            ->andWhere('f.location.anchorY + COALESCE(f.location.localY, 0) >= :minY')
+            ->andWhere('f.location.anchorY + COALESCE(f.location.localY, 0) <= :maxY')
             ->setParameter('galaxy', $galaxyId)
+            ->setParameter('inFlight', FleetStatus::InFlight)
+            ->setParameter('minX', $center->x - $radius)
+            ->setParameter('maxX', $center->x + $radius)
+            ->setParameter('minY', $center->y - $radius)
+            ->setParameter('maxY', $center->y + $radius)
             ->orderBy('f.id', 'ASC')
             ->getQuery()
             ->getResult();

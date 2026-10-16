@@ -48,7 +48,7 @@ final readonly class Espionage
     {
         $spy = $probes->getEmpire();
         $fleets = array_values(array_filter(
-            $this->fleets->findStoppedInGalaxy($location->galaxyId),
+            $this->fleets->findStoppedNear($location->galaxyId, $location->toPosition()->global(), Battles::SAME_PLACE_TOLERANCE),
             static fn(Fleet $fleet): bool => $fleet->getEmpire() !== $spy && Battles::samePlace($fleet->getLocation(), $location),
         ));
         if (null === $planet && [] === $fleets) {

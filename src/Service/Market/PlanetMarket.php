@@ -18,11 +18,10 @@ use App\Repository\PlanetListingRepository;
 use App\Repository\ShipyardOrderRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Messaging\GameReports;
-use App\Service\Scheduling\ScheduledEventResolver;
 use App\Service\Universe\ColonyLimit;
+use App\Service\Universe\PlanetLocks;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
-use Symfony\Component\Lock\LockFactory;
 
 /**
  * Vente et échange de planètes (§4.15). Mise sur le marché, une planète est gelée (`Planet::freeze()` : ni production
@@ -42,7 +41,7 @@ final readonly class PlanetMarket
         private PlanetResources $resources,
         private ColonyLimit $colonyLimit,
         private EntityManagerInterface $entityManager,
-        private LockFactory $lockFactory,
+        private PlanetLocks $planetLocks,
         private GameReports $reports,
         private ClockInterface $clock,
     ) {}
@@ -243,14 +242,16 @@ final readonly class PlanetMarket
      */
     private function locked(array $planets, \Closure $operation): mixed
     {
-        $ids = array_unique(array_map(static fn(Planet $planet): int => (int) $planet->getId(), $planets));
-        sort($ids);
+        // Toujours dans le même ordre (identifiant croissant) : deux échanges croisés ne s'attendent pas l'un l'autre
+        $sorted = [];
+        foreach ($planets as $planet) {
+            $sorted[(int) $planet->getId()] = $planet;
+        }
+        ksort($sorted);
         $locks = [];
         try {
-            foreach ($ids as $id) {
-                $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey($id), ttl: 30.0);
-                $lock->acquire(true);
-                $locks[] = $lock;
+            foreach ($sorted as $planet) {
+                $locks[] = $this->planetLocks->acquire($planet);
             }
 
             return $operation();

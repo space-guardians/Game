@@ -19,9 +19,8 @@ use App\Repository\BuildingTypeRepository;
 use App\Service\Event\GameEvents;
 use App\Service\Research\PrerequisiteChecker;
 use App\Service\Scheduling\EventScheduler;
-use App\Service\Scheduling\ScheduledEventResolver;
+use App\Service\Universe\PlanetLocks;
 use Doctrine\ORM\EntityManagerInterface;
-use Symfony\Component\Lock\LockFactory;
 
 /**
  * Lance ou annule la construction du niveau suivant d'un bâtiment (§4.3) : prérequis remplis (§4.4), une seule à la fois par planète, coût
@@ -39,7 +38,7 @@ final readonly class BuildingConstruction
         private EconomySettings $settings,
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
-        private LockFactory $lockFactory,
+        private PlanetLocks $planetLocks,
         private CancellationRefund $refund,
         private PrerequisiteChecker $prerequisites,
         private GameEvents $events,
@@ -52,8 +51,7 @@ final readonly class BuildingConstruction
      */
     public function start(Planet $planet, BuildingType $type): BuildingQueueItem
     {
-        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquire($planet);
 
         try {
             $current = $this->queue->findActiveFor($planet);
@@ -104,8 +102,7 @@ final readonly class BuildingConstruction
      */
     public function cancel(Planet $planet): CancellationResult
     {
-        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquire($planet);
 
         try {
             $item = $this->queue->findActiveFor($planet) ?? throw NoCancellableConstruction::none();

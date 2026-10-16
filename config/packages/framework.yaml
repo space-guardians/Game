@@ -3,7 +3,9 @@ framework:
     secret: '%env(APP_SECRET)%'
 
     # Note that the session will be started ONLY if you read or write from it.
-    session: true
+    session:
+        # Dans Redis : un joueur garde sa session quel que soit le conteneur web qui répond (§5.2)
+        handler_id: '%env(REDIS_URL)%'
 
     #esi: true
     #fragments: true

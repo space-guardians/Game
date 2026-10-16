@@ -11,10 +11,9 @@ use App\Exception\Fleet\InvalidFleetComposition;
 use App\Model\Economy\Resources;
 use App\Repository\FleetRepository;
 use App\Service\Economy\PlanetResources;
-use App\Service\Scheduling\ScheduledEventResolver;
+use App\Service\Universe\PlanetLocks;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Clock\ClockInterface;
-use Symfony\Component\Lock\LockFactory;
 
 /**
  * Constitution et dissolution des flottes (§4.5) : une flotte prélève ses vaisseaux dans l'inventaire de la planète,
@@ -29,7 +28,7 @@ final readonly class FleetAssembly
     public function __construct(
         private FleetRepository $fleets,
         private EntityManagerInterface $entityManager,
-        private LockFactory $lockFactory,
+        private PlanetLocks $planetLocks,
         private ClockInterface $clock,
         private PlanetResources $resources,
         private Formations $formations,
@@ -60,8 +59,7 @@ final readonly class FleetAssembly
             }
         }
 
-        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquire($planet);
 
         try {
             if ($this->fleets->countOwnedBy($empire) >= self::MAX_FLEETS) {
@@ -109,8 +107,7 @@ final readonly class FleetAssembly
         if (null === $planet || !$fleet->isAtHome()) {
             throw new InvalidFleetComposition('Une flotte se dissout stationnée sur une planète de son empire.');
         }
-        $lock = $this->lockFactory->createLock(ScheduledEventResolver::planetLockKey((int) $planet->getId()), ttl: 30.0);
-        $lock->acquire(true);
+        $lock = $this->planetLocks->acquire($planet);
 
         try {
             $this->entityManager->wrapInTransaction(function () use ($fleet, $planet): void {

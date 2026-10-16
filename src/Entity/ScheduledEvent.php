@@ -17,6 +17,8 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: ScheduledEventRepository::class)]
 #[ORM\Index(name: 'scheduled_event_due_idx', fields: ['status', 'dueAt'])]
+// Événements échus d'une planète, relus à chaque résolution (findDueForPlanet) ; l'historique résolu s'y accumule
+#[ORM\Index(name: 'scheduled_event_planet_due_idx', columns: ['planet_id', 'status', 'due_at'])]
 final class ScheduledEvent implements \Stringable
 {
     #[ORM\Id]

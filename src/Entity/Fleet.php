@@ -22,6 +22,8 @@ use Doctrine\ORM\Mapping as ORM;
  * @see §4.5, §4.6 du cahier des charges
  */
 #[ORM\Entity(repositoryClass: FleetRepository::class)]
+// Flottes à l'arrêt d'une galaxie, cherchées autour d'un lieu à chaque bataille, espionnage, scan (findStoppedNear)
+#[ORM\Index(name: 'fleet_stopped_idx', columns: ['location_galaxy_id', 'status'])]
 #[Auditable]
 final class Fleet implements \Stringable
 {
