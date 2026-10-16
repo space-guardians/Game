@@ -87,6 +87,21 @@ jobs:
         with:
           recursive: true
 
+  # Images de production (compose.prod.yaml, docs/exploitation.md) : construites à chaque PR, sans publication (#93)
+  images:
+    name: Images de production
+    needs: detect
+    if: needs.detect.outputs.docker == 'true' && needs.detect.outputs.php == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Image PHP (cible prod)
+        run: docker build --target prod --tag space-guardians/php:ci .
+      - name: Image web (cible web)
+        run: docker build --target web --tag space-guardians/web:ci .
+      - name: Fichiers publics compilés dans l'image web
+        run: docker run --rm space-guardians/web:ci sh -c 'test -f /app/public/index.php && ls /app/public/assets | grep -q .'
+
   lint:
     name: Style et lint Symfony
     needs: detect
