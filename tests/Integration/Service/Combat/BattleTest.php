@@ -265,7 +265,8 @@ final class BattleTest extends KernelTestCase
     {
         $attacker = $this->empire();
         $target = $this->planetNear($attacker);
-        $target->assignTo(EmpireFactory::createOne());
+        $owner = EmpireFactory::createOne();
+        $target->assignTo($owner);
         $target->addShips($this->type('heavy_laser'), 40);
         $this->entityManager()->flush();
         $raid = $this->fleet($attacker, $attacker->getHomePlanet(), ['light_fighter' => 3]);
@@ -279,6 +280,12 @@ final class BattleTest extends KernelTestCase
         [$lasers] = $report->groupsOf(CombatSide::Defender);
         self::assertSame(['Défenses planétaires', 'Laser lourd', 40], [$lasers['fleet'], $lasers['type'], $lasers['count']]);
         self::assertNull($this->entityManager()->find(Fleet::class, $raidId));
+        // Son propriétaire, sans flotte engagée, lit le rapport côté défenseur (#209)
+        $defendedBy = $report->getDefendedBy();
+        self::assertSame($owner->getId(), $defendedBy?->getId());
+        \assert(null !== $defendedBy);
+        self::assertSame(CombatSide::Defender, $report->sideOf($defendedBy));
+        self::assertSame([$report], self::getContainer()->get(CombatReportRepository::class)->findForEmpires([$defendedBy]));
     }
 
     public function testDestroyedDefensesAreRemovedFromThePlanetWithoutDebris(): void
