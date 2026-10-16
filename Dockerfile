@@ -22,4 +22,11 @@ ENV XDEBUG_MODE=off \
 RUN install-php-extensions xdebug \
     && mv "$PHP_INI_DIR/php.ini-development" "$PHP_INI_DIR/php.ini"
 
+# Navigateur des tests de bout en bout (Panther, make test-e2e) ; versions suivies par la branche Alpine de l'image
+# hadolint ignore=DL3018
+RUN apk add --no-cache chromium chromium-chromedriver
+
+ENV PANTHER_NO_SANDBOX=1 \
+    PANTHER_CHROME_BINARY=/usr/bin/chromium-browser
+
 COPY docker/php/conf.d/app.dev.ini $PHP_INI_DIR/conf.d/zz-app.dev.ini

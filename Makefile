@@ -6,7 +6,7 @@ BIOME   = docker run --rm -u "$$(id -u):$$(id -g)" -e HOME=/tmp -v "$(CURDIR)":/
 
 .DEFAULT_GOAL := help
 .PHONY: help hooks up down sh qa cs cs-fix twig-cs twig-cs-fix stan lint biome biome-fix db \
-        test test-unit test-integration test-functional coverage db-test fixtures
+        test test-unit test-integration test-functional test-e2e coverage db-test db-e2e fixtures
 
 help: ## Liste les commandes
 	@grep -hE '^[a-z-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2}'
@@ -25,7 +25,7 @@ sh: ## Ouvre un shell dans le conteneur PHP
 	$(PHP) sh
 
 ## —— Qualité ———————————————————————————————————————————
-qa: cs twig-cs stan lint biome test ## Lance toutes les vérifications (comme la CI)
+qa: cs twig-cs stan lint biome test test-e2e ## Lance toutes les vérifications (comme la CI)
 
 cs: ## Vérifie le style PHP (PER-CS 3.1)
 	$(PHP) vendor/bin/php-cs-fixer check --diff
@@ -70,12 +70,20 @@ test-integration: db-test ## Tests d'intégration
 test-functional: db-test ## Tests fonctionnels
 	$(PHP) vendor/bin/phpunit --testsuite functional
 
+test-e2e: db-e2e ## Tests de bout en bout dans un navigateur (Panther, captures des échecs dans var/e2e-screenshots)
+	$(PHP) vendor/bin/phpunit -c phpunit.e2e.xml
+
 coverage: db-test ## Tests avec couverture (rapport HTML dans var/reports/coverage)
 	$(DC) exec -e XDEBUG_MODE=coverage php vendor/bin/phpunit --coverage-html var/reports/coverage --coverage-text
 
 db-test: ## (Re)crée la base de test
 	$(CONSOLE) doctrine:database:create --env=test --if-not-exists
 	$(CONSOLE) doctrine:migrations:migrate --env=test --no-interaction --allow-no-migration
+
+db-e2e: ## (Re)crée la base des tests de bout en bout, vide à chaque exécution
+	$(CONSOLE) doctrine:database:drop --env=panther --force --if-exists
+	$(CONSOLE) doctrine:database:create --env=panther
+	$(CONSOLE) doctrine:migrations:migrate --env=panther --no-interaction --allow-no-migration
 
 ## —— Données ———————————————————————————————————————————
 db: ## Applique les migrations à la base de développement

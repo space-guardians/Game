@@ -1681,6 +1681,27 @@ use Symfony\Component\Config\Loader\ParamConfigurator as Param;
  *         scheb_two_factor?: SchebTwoFactorConfig,
  *         dh_auditor?: DhAuditorConfig,
  *     },
+ *     "when@panther"?: array{
+ *         imports?: ImportsConfig,
+ *         parameters?: ParametersConfig,
+ *         services?: ServicesConfig,
+ *         framework?: FrameworkConfig,
+ *         doctrine?: DoctrineConfig,
+ *         doctrine_migrations?: DoctrineMigrationsConfig,
+ *         twig?: TwigConfig,
+ *         stimulus?: StimulusConfig,
+ *         turbo?: TurboConfig,
+ *         twig_extra?: TwigExtraConfig,
+ *         security?: SecurityConfig,
+ *         monolog?: MonologConfig,
+ *         zenstruck_foundry?: ZenstruckFoundryConfig,
+ *         mercure?: MercureConfig,
+ *         twig_component?: TwigComponentConfig,
+ *         live_component?: LiveComponentConfig,
+ *         symfonycasts_reset_password?: SymfonycastsResetPasswordConfig,
+ *         scheb_two_factor?: SchebTwoFactorConfig,
+ *         dh_auditor?: DhAuditorConfig,
+ *     },
  *     "when@prod"?: array{
  *         imports?: ImportsConfig,
  *         parameters?: ParametersConfig,
@@ -1807,6 +1828,7 @@ namespace Symfony\Component\Routing\Loader\Configurator;
  * }
  * @psalm-type RoutesConfig = array{
  *     "when@dev"?: array<string, RouteConfig|ImportConfig|AliasConfig>,
+ *     "when@panther"?: array<string, RouteConfig|ImportConfig|AliasConfig>,
  *     "when@prod"?: array<string, RouteConfig|ImportConfig|AliasConfig>,
  *     "when@test"?: array<string, RouteConfig|ImportConfig|AliasConfig>,
  *     ...<string, RouteConfig|ImportConfig|AliasConfig>
