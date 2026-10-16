@@ -25,6 +25,16 @@ final readonly class ResearchRules
         return $technology->getBaseCost()->times($technology->getCostFactor() ** ($level - 1));
     }
 
+    /** Antimatière d'un niveau (§4.14) : même progression que les autres coûts */
+    public function antimatterCost(Technology $technology, int $level): float
+    {
+        if ($level < 1) {
+            throw new \InvalidArgumentException('Le premier niveau de recherche est le niveau 1.');
+        }
+
+        return $technology->getBaseCostAntimatter() * $technology->getCostFactor() ** ($level - 1);
+    }
+
     /**
      * Durée de recherche en secondes (au moins une) : (métal + cristal) / (1 000 × (1 + laboratoires)) heures, où
      * laboratoires est la somme des niveaux de tous les laboratoires de l'empire.

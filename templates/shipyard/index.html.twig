@@ -90,6 +90,12 @@
                 </dl>
                 <h3 class="sg-entity__meta">À l’unité : {{ card.duration|duration }}</h3>
                 <twig:ResourceCost :cost="card.cost" :missing="card.missing"/>
+                {% if type.costAntimatter > 0 %}
+                    <p class="sg-entity__meta">Antimatière : <span class="sg-mono sg-cost--antimatter">{{ type.costAntimatter|format_number }}</span>{% if card.antimatter_missing > 0 %} (manque <span class="sg-mono">{{ card.antimatter_missing|round(0, 'ceil')|format_number }}</span>){% endif %}</p>
+                {% endif %}
+                {% if card.blueprint_missing %}
+                    <p class="sg-entity__meta sg-entity__requires" id="plan-{{ type.code }}">Requiert le plan de ce vaisseau, à remporter en battant une civilisation « boss ».</p>
+                {% endif %}
                 {% if card.requires is not empty %}
                     <p class="sg-entity__meta sg-entity__requires">Requiert :
                         {% for prerequisite in card.requires %}

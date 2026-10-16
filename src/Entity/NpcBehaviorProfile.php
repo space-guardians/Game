@@ -89,6 +89,15 @@ class NpcBehaviorProfile implements \Stringable
     #[Assert\PositiveOrZero]
     private int $victoryDeuterium = 0;
 
+    /** Récompenses spéciales (§4.14), réservées aux « boss » en pratique : antimatière et plan d'un vaisseau réservé */
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private int $victoryAntimatter = 0;
+
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
+    private ?ShipType $victoryBlueprint = null;
+
     /** Saisie de composition illisible, signalée à la validation */
     private ?string $invalidComposition = null;
 
@@ -97,6 +106,9 @@ class NpcBehaviorProfile implements \Stringable
     {
         if (null !== $this->invalidComposition) {
             $context->buildViolation(\sprintf('Composition illisible : « %s ». Écrivez « code:quantité », séparés par des virgules.', $this->invalidComposition))->atPath('fleetCompositionText')->addViolation();
+        }
+        if (null !== $this->victoryBlueprint && !$this->victoryBlueprint->requiresBlueprint()) {
+            $context->buildViolation(\sprintf('%s se construit sans plan : choisissez un type de vaisseau réservé.', $this->victoryBlueprint->getName()))->atPath('victoryBlueprint')->addViolation();
         }
         if (NpcCategory::Boss === $this->category && $this->raidsEnabled) {
             $context->buildViolation('Une civilisation « boss » est strictement défensive : pas de raids.')->atPath('raidsEnabled')->addViolation();
@@ -263,6 +275,26 @@ class NpcBehaviorProfile implements \Stringable
     public function setVictoryDeuterium(int $amount): void
     {
         $this->victoryDeuterium = $amount;
+    }
+
+    public function getVictoryAntimatter(): int
+    {
+        return $this->victoryAntimatter;
+    }
+
+    public function setVictoryAntimatter(int $amount): void
+    {
+        $this->victoryAntimatter = $amount;
+    }
+
+    public function getVictoryBlueprint(): ?ShipType
+    {
+        return $this->victoryBlueprint;
+    }
+
+    public function setVictoryBlueprint(?ShipType $type): void
+    {
+        $this->victoryBlueprint = $type;
     }
 
     /** @param array<string, int> $composition */

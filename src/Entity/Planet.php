@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Exception\Economy\InsufficientAntimatter;
 use App\Model\Economy\Resources;
 use App\Repository\PlanetRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -44,6 +45,13 @@ final class Planet
 
     #[ORM\Column(options: ['default' => 0])]
     private float $deuterium = 0.0;
+
+    /**
+     * Antimatière (§4.14) : ressource rare, sans production ni plafond de stockage, gagnée seulement sur les « boss »,
+     * dépensée par quelques vaisseaux et technologies de haut niveau ; jamais pillée
+     */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $antimatter = 0.0;
 
     /** Dernière consolidation du stock ; null tant que la planète ne produit pas (sans propriétaire) */
     #[ORM\Column(nullable: true)]
@@ -207,6 +215,25 @@ final class Planet
     public function getResourcesUpdatedAt(): ?\DateTimeImmutable
     {
         return $this->resourcesUpdatedAt;
+    }
+
+    public function getAntimatter(): float
+    {
+        return $this->antimatter;
+    }
+
+    public function addAntimatter(float $amount): void
+    {
+        $this->antimatter += max(0.0, $amount);
+    }
+
+    /** @throws InsufficientAntimatter */
+    public function spendAntimatter(float $amount): void
+    {
+        if ($amount > $this->antimatter) {
+            throw new InsufficientAntimatter($amount - $this->antimatter);
+        }
+        $this->antimatter -= max(0.0, $amount);
     }
 
     /** Enregistre le stock calculé à l'instant donné (à la seconde : c'est la précision de la base) */

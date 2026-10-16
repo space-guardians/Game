@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\Technology;
+use App\Exception\Economy\InsufficientAntimatter;
 use App\Exception\Economy\InsufficientResources;
 use App\Exception\Research\MissingPrerequisites;
 use App\Exception\Research\NoCancellableResearch;
@@ -65,13 +66,17 @@ final class ResearchController extends AbstractController
             $levels[$technology->getCode()] = $empire->researchLevel($technology);
             $level = $empire->researchLevel($technology);
             $cost = $this->rules->cost($technology, $level + 1);
-            $affordable = null !== $stock && $stock->covers($cost);
+            $antimatter = $this->rules->antimatterCost($technology, $level + 1);
+            $antimatterMissing = max(0.0, $antimatter - $empire->getActivePlanet()->getAntimatter());
+            $affordable = null !== $stock && $stock->covers($cost) && 0.0 === $antimatterMissing;
             $cards[] = [
                 'technology' => $technology,
                 'level' => $level,
                 'cost' => $cost,
+                'antimatter' => $antimatter,
+                'antimatter_missing' => $antimatterMissing,
                 'duration' => $this->queue->duration($empire, $technology, $level + 1),
-                'missing' => $affordable || null === $stock ? null : $stock->shortfall($cost),
+                'missing' => null === $stock || $stock->covers($cost) ? null : $stock->shortfall($cost),
                 'requires' => $locked[$technology->getCode()] ?? [],
                 'state' => match (true) {
                     $current?->getTechnology() === $technology => 'researching',
@@ -148,6 +153,8 @@ final class ResearchController extends AbstractController
             $this->addFlash('error', \sprintf('%s est verrouillée : elle requiert %s.', $technology->getName(), MissingPrerequisites::describe($exception->missing)));
         } catch (InsufficientResources) {
             $this->addFlash('error', \sprintf('Ressources insuffisantes sur cette planète pour rechercher %s.', $technology->getName()));
+        } catch (InsufficientAntimatter $exception) {
+            $this->addFlash('error', $exception->getMessage());
         }
 
         return $this->redirectToRoute('app_research');

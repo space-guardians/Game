@@ -45,7 +45,7 @@ final class DefenseAdminTest extends WebTestCase
         self::assertSelectorTextContains('table', 'Canon de Gauss');
 
         $this->client->request('GET', '/admin/vaisseaux');
-        self::assertSelectorCount(11, 'table tbody tr');
+        self::assertSelectorCount(12, 'table tbody tr');
         self::assertSelectorTextNotContains('table', 'Canon de Gauss');
     }
 

@@ -79,6 +79,8 @@ final class TechnologyCrudController extends AbstractCrudController
         yield NumberField::new('baseCostMetal', 'Métal')->setNumDecimals(0);
         yield NumberField::new('baseCostCrystal', 'Cristal')->setNumDecimals(0);
         yield NumberField::new('baseCostDeuterium', 'Deutérium')->setNumDecimals(0);
+        yield NumberField::new('baseCostAntimatter', 'Antimatière')->setNumDecimals(0)->hideOnIndex()
+            ->setHelp('Ressource rare des civilisations « boss » (§4.14) ; multipliée par niveau comme les autres coûts.');
         yield NumberField::new('costFactor', 'Facteur de coût')->setNumDecimals(2);
     }
 

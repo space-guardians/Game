@@ -10,6 +10,7 @@ use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
 use App\Entity\Technology;
 use App\Enum\Scheduling\ScheduledEventStatus;
+use App\Exception\Economy\InsufficientAntimatter;
 use App\Exception\Research\NoCancellableResearch;
 use App\Factory\EmpireFactory;
 use App\Factory\PlanetFactory;
@@ -70,6 +71,28 @@ final class ResearchCancellationTest extends KernelTestCase
         $entityManager->clear();
         self::assertSame(ScheduledEventStatus::Cancelled, $entityManager->find(ScheduledEvent::class, $eventId)?->getStatus());
         self::assertSame(0, $entityManager->find(Empire::class, $empire->getId())?->researchLevel($this->energy()));
+    }
+
+    public function testAntimatterIsPaidThenRefundedAtTheSameShareWithoutStorageLimit(): void
+    {
+        $empire = $this->empire();
+        $planet = $empire->getHomePlanet();
+        // Coût en ressource rare réglé dans le panneau (§4.14)
+        $this->energy()->setBaseCostAntimatter(10);
+        try {
+            $this->queue()->start($planet, $this->energy());
+            self::fail('Sans antimatière, la recherche est refusée.');
+        } catch (InsufficientAntimatter $exception) {
+            self::assertSame(10.0, $exception->missing);
+        }
+        $planet->addAntimatter(25);
+
+        $this->queue()->start($planet, $this->energy());
+        self::assertSame(15.0, $planet->getAntimatter());
+        $this->clock->sleep(720);
+        $this->queue()->cancel($empire);
+
+        self::assertSame(20.0, $planet->getAntimatter());
     }
 
     public function testRefundBeyondStorageIsLost(): void

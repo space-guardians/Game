@@ -97,6 +97,8 @@ final class DefenseTypeCrudController extends AbstractCrudController
         yield NumberField::new('costMetal', 'Métal')->setNumDecimals(0)->hideOnIndex();
         yield NumberField::new('costCrystal', 'Cristal')->setNumDecimals(0)->hideOnIndex();
         yield NumberField::new('costDeuterium', 'Deutérium')->setNumDecimals(0)->hideOnIndex();
+        yield NumberField::new('costAntimatter', 'Antimatière')->setNumDecimals(0)->hideOnIndex()
+            ->setHelp('Ressource rare, gagnée seulement sur les civilisations « boss » (§4.14).');
 
         yield FormField::addFieldset('Combat');
         yield IntegerField::new('attack', 'Attaque');

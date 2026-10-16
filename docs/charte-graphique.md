@@ -60,6 +60,7 @@ Le joueur est aux commandes d'un ancien ordre de Gardiens. L'interface est un HU
   --sg-deut:      #4FE0C2;
   --sg-energy:    #FFD84D;
   --sg-debris:    #FFB168;
+  --sg-antimatter: #E58CFF; /* ressource rare des « boss » (§4.14) */
 
   /* États */
   --sg-danger:  #FF8A8A;  --sg-danger-bg:  #1F0C10;  --sg-danger-line:  #8A2F38;

@@ -64,6 +64,15 @@ final class ShipType implements \Stringable
     #[Assert\PositiveOrZero]
     private float $costDeuterium = 0.0;
 
+    /** Antimatière par vaisseau (§4.14), ressource rare des « boss » ; 0 pour la plupart des types */
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private float $costAntimatter = 0.0;
+
+    /** Type réservé : se construit seulement avec son plan, gagné sur un « boss » (EmpireBlueprint, §4.14) */
+    #[ORM\Column(options: ['default' => false])]
+    private bool $requiresBlueprint = false;
+
     /** Dégâts infligés par tir */
     #[ORM\Column]
     #[Assert\PositiveOrZero]
@@ -240,6 +249,31 @@ final class ShipType implements \Stringable
     public function setCostDeuterium(float $costDeuterium): void
     {
         $this->costDeuterium = $costDeuterium;
+    }
+
+    public function getCostAntimatter(): float
+    {
+        return $this->costAntimatter;
+    }
+
+    public function setCostAntimatter(float $costAntimatter): void
+    {
+        $this->costAntimatter = $costAntimatter;
+    }
+
+    public function requiresBlueprint(): bool
+    {
+        return $this->requiresBlueprint;
+    }
+
+    public function isRequiresBlueprint(): bool
+    {
+        return $this->requiresBlueprint;
+    }
+
+    public function setRequiresBlueprint(bool $requiresBlueprint): void
+    {
+        $this->requiresBlueprint = $requiresBlueprint;
     }
 
     public function getAttack(): int

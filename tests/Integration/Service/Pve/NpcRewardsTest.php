@@ -21,12 +21,14 @@ use App\Model\Economy\Resources;
 use App\Model\Fleet\MissionStep;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\ConversationRepository;
+use App\Repository\EmpireBlueprintRepository;
 use App\Repository\NpcBehaviorProfileRepository;
 use App\Repository\ShipTypeRepository;
 use App\Service\Combat\BattleResolutionHandler;
 use App\Service\Fleet\FleetDispatch;
 use App\Service\Messaging\GameReports;
 use App\Service\Pve\NpcCivilisations;
+use App\Service\Pve\NpcRewards;
 use App\Service\Scheduling\ScheduledEventResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -100,5 +102,37 @@ final class NpcRewardsTest extends KernelTestCase
         self::getContainer()->get(GameReports::class)->send();
         $subjects = array_map(static fn($place): ?string => $place->getConversation()->getSubject(), self::getContainer()->get(ConversationRepository::class)->findPlacesOf($player, category: MessageCategory::Combat));
         self::assertContains('Victoire sur Pillards', $subjects);
+    }
+
+    public function testBossGivesAntimatterAndItsBlueprintOnlyOnce(): void
+    {
+        $player = EmpireFactory::createOne(['name' => 'Ana']);
+        $system = $player->getHomePlanet()->getSystem();
+        $profile = self::getContainer()->get(NpcBehaviorProfileRepository::class)->findOneByCode('boss_guardian');
+        \assert(null !== $profile);
+        // Contenu de départ (§4.14) : antimatière et plan du croiseur d'antimatière
+        self::assertSame(150, $profile->getVictoryAntimatter());
+        self::assertSame('antimatter_cruiser', $profile->getVictoryBlueprint()?->getCode());
+        $planet = PlanetFactory::createOne(['system' => StarSystemFactory::new(['galaxy' => $system->getGalaxy(), 'position' => new GlobalPosition($system->getPosition()->x + 600, $system->getPosition()->y)])]);
+        self::getContainer()->get(NpcCivilisations::class)->found($profile, 'Gardiens', $planet);
+        $rewards = self::getContainer()->get(NpcRewards::class);
+
+        // Deux victoires, chacune résolue (et enregistrée) avec sa bataille
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $rewards->victory($planet, $player, $this->clock->now());
+        $entityManager->flush();
+        $rewards->victory($planet, $player, $this->clock->now());
+        $entityManager->flush();
+
+        self::assertSame(300.0, $player->getHomePlanet()->getAntimatter());
+        $blueprints = self::getContainer()->get(EmpireBlueprintRepository::class);
+        self::assertCount(1, $blueprints->findOwnedBy($player));
+        self::assertTrue($blueprints->has($player, $profile->getVictoryBlueprint()));
+        $reports = self::getContainer()->get(GameReports::class);
+        $reports->send();
+        $places = self::getContainer()->get(ConversationRepository::class)->findPlacesOf($player, category: MessageCategory::Combat);
+        $bodies = implode("\n", array_map(static fn($place): string => implode("\n", array_map(static fn($message): string => $message->getBody(), $place->getConversation()->getMessages()->toArray())), $places));
+        self::assertStringContainsString('150 antimatière', $bodies);
+        self::assertSame(1, substr_count($bodies, 'Vous remportez le plan du vaisseau « Croiseur d’antimatière »'));
     }
 }

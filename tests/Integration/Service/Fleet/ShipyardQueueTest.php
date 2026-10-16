@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace App\Tests\Integration\Service\Fleet;
 
 use App\Entity\BuildingType;
+use App\Entity\EmpireBlueprint;
 use App\Entity\Planet;
 use App\Entity\ScheduledEvent;
 use App\Entity\ShipType;
+use App\Exception\Economy\InsufficientAntimatter;
 use App\Exception\Economy\InsufficientResources;
+use App\Exception\Fleet\MissingBlueprint;
 use App\Exception\Fleet\ShipyardQueueFull;
 use App\Exception\Research\MissingPrerequisites;
 use App\Factory\EmpireFactory;
@@ -125,6 +128,42 @@ final class ShipyardQueueTest extends KernelTestCase
 
         // Le lot entier est payé à la commande : 34 × 3 000 = 102 000 de métal pour 100 000 en stock
         $this->queue()->order($planet, $this->ship('light_fighter'), 34);
+    }
+
+    public function testReservedShipNeedsItsBlueprintAndPaysAntimatter(): void
+    {
+        $planet = $this->planet(shipyard: 10);
+        $empire = $planet->getOwner();
+        \assert(null !== $empire);
+        $containment = self::getContainer()->get(TechnologyRepository::class)->findOneByCode('antimatter_containment');
+        \assert(null !== $containment);
+        $empire->setResearchLevel($containment, 1);
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $entityManager->flush();
+        $cruiser = $this->ship('antimatter_cruiser');
+
+        // Prérequis remplis, mais pas de plan : il se remporte sur un « boss » (§4.14)
+        try {
+            $this->queue()->order($planet, $cruiser, 1);
+            self::fail('Le croiseur d’antimatière se construit sur plan.');
+        } catch (MissingBlueprint $exception) {
+            self::assertSame('Croiseur d’antimatière se construit sur plan : remportez-le en battant une civilisation « boss ».', $exception->getMessage());
+        }
+
+        $entityManager->persist(new EmpireBlueprint($empire, $cruiser, $this->clock->now()));
+        $entityManager->flush();
+        try {
+            $this->queue()->order($planet, $cruiser, 1);
+            self::fail('Il coûte 30 d’antimatière.');
+        } catch (InsufficientAntimatter $exception) {
+            self::assertSame(30.0, $exception->missing);
+        }
+
+        $planet->addAntimatter(40);
+        $order = $this->queue()->order($planet, $cruiser, 1);
+
+        self::assertSame(1, $order->getQuantity());
+        self::assertSame(10.0, $planet->getAntimatter());
     }
 
     public function testQueueIsLimited(): void

@@ -40,7 +40,7 @@ final class ResearchTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.sg-sidenav [aria-current="page"]', 'Recherche');
-        self::assertCount(10, $crawler->filter('.sg-entity'));
+        self::assertCount(11, $crawler->filter('.sg-entity'));
         $energy = $crawler->filter('.sg-entity')->first();
         self::assertStringContainsString('Énergie', $energy->text());
         self::assertStringContainsString('Verrouillé', $energy->filter('.sg-chip')->text());
@@ -58,7 +58,7 @@ final class ResearchTest extends WebTestCase
 
         $crawler = $this->client->request('GET', '/recherche');
 
-        self::assertCount(10, $crawler->filter('.sg-techtree .sg-technode'));
+        self::assertCount(11, $crawler->filter('.sg-techtree .sg-technode'));
         self::assertSelectorTextContains('.sg-technode[data-code="energy"]', 'Acquise');
         self::assertSelectorExists('.sg-technode--acquired[data-code="energy"][href="#techno-energy"]');
         self::assertSelectorExists('.sg-technode--available[data-code="computer"]');
@@ -67,8 +67,8 @@ final class ResearchTest extends WebTestCase
         // Énergie 1 remplit la propulsion à combustion (énergie 1) mais pas le bouclier (énergie 3)
         self::assertSelectorExists('.sg-techtree__link.is-met[data-from="energy"][data-to="combustion_drive"]');
         self::assertSelectorExists('.sg-techtree__link:not(.is-met)[data-from="energy"][data-to="shielding"]');
-        // Liens entre technologies seulement : combustion, impulsion, bouclier, hyperespace (2), astrophysique (2)
-        self::assertCount(7, $crawler->filter('.sg-techtree__link'));
+        // Liens entre technologies seulement : combustion, impulsion, bouclier, hyperespace (2), astrophysique (2), confinement d'antimatière (2)
+        self::assertCount(9, $crawler->filter('.sg-techtree__link'));
     }
 
     public function testResearchingNodeShowsProgress(): void

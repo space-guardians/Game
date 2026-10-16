@@ -19,6 +19,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\FormField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
@@ -110,6 +111,10 @@ final class ShipTypeCrudController extends AbstractCrudController
         yield NumberField::new('costMetal', 'Métal')->setNumDecimals(0)->hideOnIndex();
         yield NumberField::new('costCrystal', 'Cristal')->setNumDecimals(0)->hideOnIndex();
         yield NumberField::new('costDeuterium', 'Deutérium')->setNumDecimals(0)->hideOnIndex();
+        yield NumberField::new('costAntimatter', 'Antimatière')->setNumDecimals(0)->hideOnIndex()
+            ->setHelp('Ressource rare, gagnée seulement sur les civilisations « boss » (§4.14) ; 0 pour la plupart des vaisseaux.');
+        yield BooleanField::new('requiresBlueprint', 'Construit sur plan')->renderAsSwitch(false)
+            ->setHelp('Type réservé : seul un empire qui a remporté son plan sur un « boss » peut le construire.');
 
         yield FormField::addFieldset('Combat');
         yield IntegerField::new('attack', 'Attaque');

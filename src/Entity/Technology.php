@@ -43,6 +43,11 @@ final class Technology implements \Stringable
     #[Assert\PositiveOrZero]
     private float $baseCostDeuterium = 0.0;
 
+    /** Antimatière au niveau 1 (§4.14), multipliée comme les autres coûts ; 0 sauf technologies de haut niveau */
+    #[ORM\Column(options: ['default' => 0])]
+    #[Assert\PositiveOrZero]
+    private float $baseCostAntimatter = 0.0;
+
     #[ORM\Column]
     #[Assert\GreaterThanOrEqual(1, message: 'Le facteur de coût doit être au moins 1 : un niveau ne coûte pas moins que le précédent.')]
     private float $costFactor = 2.0;
@@ -130,6 +135,16 @@ final class Technology implements \Stringable
     public function setBaseCostDeuterium(float $value): void
     {
         $this->baseCostDeuterium = $value;
+    }
+
+    public function getBaseCostAntimatter(): float
+    {
+        return $this->baseCostAntimatter;
+    }
+
+    public function setBaseCostAntimatter(float $value): void
+    {
+        $this->baseCostAntimatter = $value;
     }
 
     public function getCostFactor(): float

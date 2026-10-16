@@ -35,7 +35,7 @@ final class ShipAdminTest extends WebTestCase
         $types = self::getContainer()->get(ShipTypeRepository::class)->findShipsOrdered();
 
         self::assertSame(
-            ['small_cargo', 'large_cargo', 'colony_ship', 'recycler', 'espionage_probe', 'light_fighter', 'heavy_fighter', 'cruiser', 'battleship', 'destroyer', 'guardian'],
+            ['small_cargo', 'large_cargo', 'colony_ship', 'recycler', 'espionage_probe', 'light_fighter', 'heavy_fighter', 'cruiser', 'battleship', 'destroyer', 'antimatter_cruiser', 'guardian'],
             array_map(static fn(ShipType $type): string => $type->getCode(), $types),
         );
         foreach ($types as $type) {
@@ -63,7 +63,7 @@ final class ShipAdminTest extends WebTestCase
 
         $this->client->request('GET', '/admin/vaisseaux');
         self::assertResponseIsSuccessful();
-        self::assertSelectorCount(11, 'table tbody tr');
+        self::assertSelectorCount(12, 'table tbody tr');
 
         $this->client->request('GET', '/admin/vaisseaux/' . $id . '/edit');
         $this->client->submitForm('Sauvegarder les modifications', [

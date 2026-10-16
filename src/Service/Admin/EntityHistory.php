@@ -14,6 +14,7 @@ use App\Entity\BuildingQueueItem;
 use App\Entity\BuildingType;
 use App\Entity\ClassMatchup;
 use App\Entity\Empire;
+use App\Entity\EmpireBlueprint;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
@@ -102,6 +103,7 @@ final readonly class EntityHistory
         QuestOutcome::class => 'Issues de quêtes',
         QuestTemplate::class => 'Gabarits de quêtes',
         Research::class => 'Recherches des empires',
+        EmpireBlueprint::class => 'Plans de vaisseaux des empires',
         ResearchQueueItem::class => 'Recherches en cours',
         ShipClass::class => 'Classes de vaisseaux',
         ShipType::class => 'Types de vaisseaux',
