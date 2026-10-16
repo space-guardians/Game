@@ -41,3 +41,5 @@
 
 # Secrets d'un environnement serveur (copie remplie de .env.server.dist)
 /.env.server
+# Dernière version déployée sur un serveur (docker/deploy/deploy.sh)
+/.deployed

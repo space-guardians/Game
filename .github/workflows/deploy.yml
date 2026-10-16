@@ -1,0 +1,97 @@
+name: Déploiement
+
+# Livraison automatique (docs/exploitation.md, #93) : staging → préproduction, main → production. Seulement après une
+# CI verte sur le commit poussé ; la production attend en plus l'approbation exigée par son environnement GitHub.
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [staging, main]
+
+# Un seul déploiement à la fois par environnement ; un déploiement en cours n'est jamais interrompu
+concurrency:
+  group: deploy-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  # Images du commit, publiées dans le registre GitHub (GHCR) sous son SHA
+  images:
+    name: Images
+    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      prefix: ${{ steps.names.outputs.prefix }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.workflow_run.head_sha }}
+      - id: names
+        env:
+          REPOSITORY: ${{ github.repository }}
+        run: echo "prefix=ghcr.io/${REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+      - name: Connexion au registre
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: echo "$GH_TOKEN" | docker login ghcr.io --username "$ACTOR" --password-stdin
+      - name: Construction et publication
+        env:
+          PREFIX: ${{ steps.names.outputs.prefix }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          for target in php web; do
+            build_target=$([ "$target" = php ] && echo prod || echo web)
+            docker build --target "$build_target" --tag "$PREFIX/$target:$SHA" .
+            docker push "$PREFIX/$target:$SHA"
+          done
+
+  deploy:
+    name: Mise en ligne
+    needs: images
+    runs-on: ubuntu-latest
+    # Jeton prêté au serveur pour tirer les images
+    permissions:
+      contents: read
+      packages: read
+    # Environnements GitHub : secrets et variables du serveur ; « prod » protégé par une approbation manuelle
+    environment:
+      name: ${{ github.event.workflow_run.head_branch == 'main' && 'prod' || 'preprod' }}
+      url: ${{ vars.PUBLIC_URL }}
+    env:
+      SHA: ${{ github.event.workflow_run.head_sha }}
+      PREFIX: ${{ needs.images.outputs.prefix }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+      DEPLOY_PROJECT: ${{ vars.DEPLOY_PROJECT }}
+    steps:
+      - name: Clé SSH du serveur
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy
+          chmod 600 ~/.ssh/deploy
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+      - name: Déploiement sur le serveur
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        # Le serveur s'identifie au registre le temps du tirage (jeton de ce job), se place sur le commit et lance
+        # deploy.sh : tests de fumée, retour à la version précédente en cas d'échec
+        run: |
+          server() { ssh -i ~/.ssh/deploy "$DEPLOY_USER@$DEPLOY_HOST" "$@"; }
+          printf '%s' "$GH_TOKEN" | server docker login ghcr.io --username "$ACTOR" --password-stdin
+          trap 'server docker logout ghcr.io' EXIT
+          server "cd '$DEPLOY_PATH' && git fetch --quiet origin && git checkout --quiet --detach '$SHA' && sh docker/deploy/deploy.sh '$SHA' '$DEPLOY_PROJECT' '$PREFIX'"
+      - name: Vérification depuis l'extérieur
+        env:
+          PUBLIC_URL: ${{ vars.PUBLIC_URL }}
+        run: curl --fail --silent --show-error --max-time 15 "$PUBLIC_URL/sante"
