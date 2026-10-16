@@ -28,6 +28,14 @@
                 <span class="sg-resource__amount sg-mono">{{ balance < 0 ? '−' }}{{ balance|abs|round(0, 'floor')|format_number }}</span>
                 <span class="sg-resource__rate sg-mono">{{ resources.output.energyProduced|round(0, 'floor')|format_number }} produits</span>
             </div>
+            {# Ressource rare des « boss » (§4.14) : affichée seulement quand la planète en détient #}
+            {% if planet.antimatter > 0 %}
+                <div class="sg-resource sg-resource--antimatter">
+                    <span class="sg-resource__label">Antimatière</span>
+                    <span class="sg-resource__amount sg-mono">{{ planet.antimatter|round(0, 'floor')|format_number }}</span>
+                    <span class="sg-resource__rate sg-mono">ressource rare</span>
+                </div>
+            {% endif %}
         </div>
     {% endif %}
 

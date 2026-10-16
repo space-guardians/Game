@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Controller;
 
 use App\Entity\ShipType;
+use App\Exception\Economy\InsufficientAntimatter;
 use App\Exception\Economy\InsufficientResources;
+use App\Exception\Fleet\MissingBlueprint;
 use App\Exception\Fleet\ShipyardQueueFull;
 use App\Exception\Research\MissingPrerequisites;
+use App\Repository\EmpireBlueprintRepository;
 use App\Repository\ShipTypeRepository;
 use App\Repository\ShipyardOrderRepository;
 use App\Service\Account\GameContext;
@@ -33,6 +36,7 @@ final class ShipyardController extends AbstractController
         private readonly ShipyardOrderRepository $orders,
         private readonly ShipyardQueue $queue,
         private readonly PrerequisiteChecker $prerequisites,
+        private readonly EmpireBlueprintRepository $blueprints,
         private readonly ClockInterface $clock,
     ) {}
 
@@ -46,21 +50,27 @@ final class ShipyardController extends AbstractController
         $planet = $empire->getActivePlanet();
         $stock = $this->context->activeResources()?->amounts;
         $locked = $this->prerequisites->missingForShips($planet);
+        $blueprints = $this->blueprints->codesOwnedBy($empire);
 
         $cards = [];
         foreach ($this->shipTypes->findAllOrdered() as $type) {
             $cost = $type->getCost();
             $affordable = null !== $stock && $stock->covers($cost);
+            // Ressource rare et plan (§4.14) : un type réservé reste verrouillé tant que l'empire n'a pas son plan
+            $antimatterMissing = max(0.0, $type->getCostAntimatter() - $planet->getAntimatter());
+            $blueprintMissing = $type->requiresBlueprint() && !isset($blueprints[$type->getCode()]);
             $cards[] = [
                 'type' => $type,
                 'owned' => $planet->shipCount($type),
                 'cost' => $cost,
                 'duration' => $this->queue->unitSeconds($planet, $type),
                 'missing' => $affordable || null === $stock ? null : $stock->shortfall($cost),
+                'antimatter_missing' => $antimatterMissing,
+                'blueprint_missing' => $blueprintMissing,
                 'requires' => $locked[$type->getCode()] ?? [],
                 'state' => match (true) {
-                    isset($locked[$type->getCode()]) => 'locked',
-                    $affordable => 'ready',
+                    isset($locked[$type->getCode()]), $blueprintMissing => 'locked',
+                    $affordable && 0.0 === $antimatterMissing => 'ready',
                     default => 'short',
                 },
             ];
@@ -106,6 +116,8 @@ final class ShipyardController extends AbstractController
             $this->addFlash('error', $exception->getMessage());
         } catch (InsufficientResources) {
             $this->addFlash('error', \sprintf('Ressources insuffisantes pour %d × %s.', $quantity, $type->getName()));
+        } catch (InsufficientAntimatter|MissingBlueprint $exception) {
+            $this->addFlash('error', $exception->getMessage());
         }
 
         return $this->redirectToRoute('app_shipyard');

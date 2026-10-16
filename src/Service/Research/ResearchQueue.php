@@ -9,6 +9,7 @@ use App\Entity\Planet;
 use App\Entity\ResearchQueueItem;
 use App\Entity\Technology;
 use App\Enum\Economy\BuildingEffect;
+use App\Exception\Economy\InsufficientAntimatter;
 use App\Exception\Economy\InsufficientResources;
 use App\Exception\Research\MissingPrerequisites;
 use App\Exception\Research\NoCancellableResearch;
@@ -58,6 +59,7 @@ final readonly class ResearchQueue
      * @throws ResearchInProgress
      * @throws MissingPrerequisites
      * @throws InsufficientResources
+     * @throws InsufficientAntimatter
      */
     public function start(Planet $planet, Technology $technology): ResearchQueueItem
     {
@@ -82,13 +84,19 @@ final readonly class ResearchQueue
             if (!$snapshot->amounts->covers($cost)) {
                 throw new InsufficientResources($snapshot->amounts->shortfall($cost));
             }
+            $antimatter = $this->rules->antimatterCost($technology, $targetLevel);
+            if ($antimatter > $planet->getAntimatter()) {
+                throw new InsufficientAntimatter($antimatter - $planet->getAntimatter());
+            }
 
             $startedAt = $snapshot->at;
             $endsAt = $startedAt->modify(\sprintf('+%d seconds', $this->duration($empire, $technology, $targetLevel)));
 
-            return $this->entityManager->wrapInTransaction(function () use ($empire, $planet, $technology, $targetLevel, $cost, $snapshot, $startedAt, $endsAt): ResearchQueueItem {
+            return $this->entityManager->wrapInTransaction(function () use ($empire, $planet, $technology, $targetLevel, $cost, $antimatter, $snapshot, $startedAt, $endsAt): ResearchQueueItem {
                 $planet->storeResources($snapshot->amounts->minus($cost), $startedAt);
+                $planet->spendAntimatter($antimatter);
                 $item = new ResearchQueueItem($empire, $planet, $technology, $targetLevel, $cost, $startedAt, $endsAt);
+                $item->recordPaidAntimatter($antimatter);
                 $this->entityManager->persist($item);
                 $this->entityManager->flush();
                 // Code et niveau recopiés : la recherche quitte la file à sa fin, la notification en a besoin ensuite
@@ -137,6 +145,8 @@ final readonly class ResearchQueue
 
                 return $this->entityManager->wrapInTransaction(function () use ($planet, $item, $stock, $now, $share, $refund, $snapshot): CancellationResult {
                     $planet->storeResources($stock, $now);
+                    // Antimatière : remboursée au même prorata, sans plafond de stockage
+                    $planet->addAntimatter($item->getPaidAntimatter() * $share);
                     $item->getEvent()?->cancel($now);
                     $this->entityManager->remove($item);
                     $this->entityManager->flush();

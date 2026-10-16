@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Game;
 
+use App\Entity\Empire;
+use App\Entity\EmpireBlueprint;
 use App\Factory\EmpireFactory;
 use App\Model\Economy\Resources;
 use App\Repository\BuildingTypeRepository;
+use App\Repository\ShipTypeRepository;
 use App\Repository\TechnologyRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -39,10 +42,10 @@ final class ShipyardTest extends WebTestCase
 
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('.sg-sidenav [aria-current="page"]', 'Chantier spatial');
-        // 11 vaisseaux, puis 8 défenses dans leur propre section
-        self::assertCount(11, $crawler->filter('#vaisseaux .sg-entity'));
+        // 12 vaisseaux, puis 8 défenses dans leur propre section
+        self::assertCount(12, $crawler->filter('#vaisseaux .sg-entity'));
         self::assertCount(8, $crawler->filter('#defenses .sg-entity'));
-        self::assertCount(19, $crawler->filter('.sg-entity--locked'));
+        self::assertCount(20, $crawler->filter('.sg-entity--locked'));
         self::assertSelectorTextContains('#vaisseau-rocket_launcher .sg-entity__requires', 'Chantier spatial 1');
         self::assertSelectorTextNotContains('#vaisseau-rocket_launcher', 'Vitesse');
         self::assertSelectorTextContains('#vaisseau-light_fighter .sg-entity__requires', 'Chantier spatial 1');
@@ -82,6 +85,30 @@ final class ShipyardTest extends WebTestCase
         self::assertSelectorTextContains('.sg-alert', 'Commandez entre 1 et');
     }
 
+    public function testReservedShipShowsItsBlueprintAndAntimatterCost(): void
+    {
+        $empire = $this->login(shipyard: 1);
+
+        $this->client->request('GET', '/chantier-spatial');
+        self::assertSelectorTextContains('#vaisseau-antimatter_cruiser', 'Antimatière : 30 (manque 30)');
+        self::assertSelectorTextContains('#plan-antimatter_cruiser', 'Requiert le plan de ce vaisseau, à remporter en battant une civilisation « boss ».');
+        // Ressource rare absente de la barre tant que la planète n'en a pas
+        self::assertSelectorNotExists('.sg-topbar .sg-resource--antimatter');
+
+        // Plan et antimatière remportés sur un boss (§4.14)
+        $entityManager = self::getContainer()->get(EntityManagerInterface::class);
+        $cruiser = self::getContainer()->get(ShipTypeRepository::class)->findOneByCode('antimatter_cruiser');
+        \assert(null !== $cruiser);
+        $entityManager->persist(new EmpireBlueprint($empire, $cruiser, new \DateTimeImmutable('2026-10-06 10:00:00')));
+        $empire->getHomePlanet()->addAntimatter(12);
+        $entityManager->flush();
+
+        $this->client->request('GET', '/chantier-spatial');
+        self::assertSelectorNotExists('#plan-antimatter_cruiser');
+        self::assertSelectorTextContains('#vaisseau-antimatter_cruiser', 'Antimatière : 30 (manque 18)');
+        self::assertSelectorTextContains('.sg-topbar .sg-resource--antimatter', 'Antimatière 12');
+    }
+
     public function testLockedShipCannotBeOrdered(): void
     {
         $this->login(shipyard: 1);
@@ -94,7 +121,7 @@ final class ShipyardTest extends WebTestCase
         self::assertSelectorTextContains('.sg-alert', 'Croiseur est verrouillé');
     }
 
-    private function login(int $shipyard): void
+    private function login(int $shipyard): Empire
     {
         $empire = EmpireFactory::createOne(['foundedAt' => new \DateTimeImmutable('2026-10-06 10:00:00')]);
         $planet = $empire->getHomePlanet();
@@ -113,5 +140,7 @@ final class ShipyardTest extends WebTestCase
         $empire->setResearchLevel($combustion, 1);
         self::getContainer()->get(EntityManagerInterface::class)->flush();
         $this->client->loginUser($empire->getUser());
+
+        return $empire;
     }
 }

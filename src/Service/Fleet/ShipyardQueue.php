@@ -9,10 +9,13 @@ use App\Entity\Planet;
 use App\Entity\ShipType;
 use App\Entity\ShipyardOrder;
 use App\Enum\Economy\BuildingEffect;
+use App\Exception\Economy\InsufficientAntimatter;
 use App\Exception\Economy\InsufficientResources;
+use App\Exception\Fleet\MissingBlueprint;
 use App\Exception\Fleet\ShipyardQueueFull;
 use App\Exception\Research\MissingPrerequisites;
 use App\Model\Economy\EconomySettings;
+use App\Repository\EmpireBlueprintRepository;
 use App\Repository\ShipyardOrderRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Research\PrerequisiteChecker;
@@ -42,6 +45,7 @@ final readonly class ShipyardQueue
         private EventScheduler $scheduler,
         private EntityManagerInterface $entityManager,
         private PlanetLocks $planetLocks,
+        private EmpireBlueprintRepository $blueprints,
     ) {}
 
     /**
@@ -50,6 +54,8 @@ final readonly class ShipyardQueue
      * @throws MissingPrerequisites
      * @throws ShipyardQueueFull
      * @throws InsufficientResources
+     * @throws InsufficientAntimatter
+     * @throws MissingBlueprint
      */
     public function order(Planet $planet, ShipType $type, int $quantity, ?Empire $orderedBy = null): ShipyardOrder
     {
@@ -63,6 +69,11 @@ final readonly class ShipyardQueue
             if ([] !== $missing) {
                 throw new MissingPrerequisites($missing);
             }
+            // Type réservé : le plan de l'empire propriétaire (ou du membre qui commande sur une planète d'alliance)
+            $builder = $planet->getOwner() ?? $orderedBy;
+            if ($type->requiresBlueprint() && (null === $builder || !$this->blueprints->has($builder, $type))) {
+                throw new MissingBlueprint($type);
+            }
             $pending = $this->orders->findForPlanet($planet);
             if (\count($pending) >= self::MAX_ORDERS) {
                 throw new ShipyardQueueFull(self::MAX_ORDERS);
@@ -73,6 +84,10 @@ final readonly class ShipyardQueue
             if (!$snapshot->amounts->covers($cost)) {
                 throw new InsufficientResources($snapshot->amounts->shortfall($cost));
             }
+            $antimatter = $type->getCostAntimatter() * $quantity;
+            if ($antimatter > $planet->getAntimatter()) {
+                throw new InsufficientAntimatter($antimatter - $planet->getAntimatter());
+            }
 
             $now = $snapshot->at;
             $busyUntil = [];
@@ -82,8 +97,9 @@ final readonly class ShipyardQueue
             [$slot, $startsAt] = $this->rules->nextSlot($this->slots($planet), $busyUntil, $now);
             $endsAt = $startsAt->modify(\sprintf('+%d seconds', $this->unitSeconds($planet, $type) * $quantity));
 
-            return $this->entityManager->wrapInTransaction(function () use ($planet, $type, $quantity, $slot, $cost, $snapshot, $now, $startsAt, $endsAt): ShipyardOrder {
+            return $this->entityManager->wrapInTransaction(function () use ($planet, $type, $quantity, $slot, $cost, $antimatter, $snapshot, $now, $startsAt, $endsAt): ShipyardOrder {
                 $planet->storeResources($snapshot->amounts->minus($cost), $now);
+                $planet->spendAntimatter($antimatter);
                 $order = new ShipyardOrder($planet, $type, $quantity, $slot, $cost, $now, $startsAt, $endsAt);
                 $this->entityManager->persist($order);
                 $this->entityManager->flush();

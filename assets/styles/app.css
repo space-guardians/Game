@@ -842,6 +842,11 @@ a:hover {
     color: var(--sg-energy);
 }
 
+.sg-resource--antimatter .sg-resource__amount,
+.sg-cost--antimatter {
+    color: var(--sg-antimatter);
+}
+
 .sg-resource.is-deficit .sg-resource__amount,
 .sg-table .is-deficit {
     color: var(--sg-danger);

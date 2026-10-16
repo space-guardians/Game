@@ -7,11 +7,13 @@ namespace App\Controller\Admin;
 use App\Entity\NpcBehaviorProfile;
 use App\Enum\Admin\AdminRole;
 use App\Enum\Pve\NpcCategory;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Attribute\AdminRoute;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\BooleanField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IntegerField;
@@ -71,5 +73,10 @@ final class NpcBehaviorProfileCrudController extends AbstractCrudController
         yield IntegerField::new('victoryMetal', 'Récompense de victoire : métal')->hideOnIndex();
         yield IntegerField::new('victoryCrystal', 'Récompense de victoire : cristal')->hideOnIndex();
         yield IntegerField::new('victoryDeuterium', 'Récompense de victoire : deutérium')->hideOnIndex();
+        yield IntegerField::new('victoryAntimatter', 'Récompense de victoire : antimatière')->hideOnIndex()
+            ->setHelp('Ressource rare (§4.14), à réserver aux « boss ».');
+        yield AssociationField::new('victoryBlueprint', 'Récompense de victoire : plan de vaisseau')->hideOnIndex()->setRequired(false)
+            ->setQueryBuilder(static fn(QueryBuilder $builder): QueryBuilder => $builder->andWhere('entity.requiresBlueprint = true'))
+            ->setHelp('Type « construit sur plan » que l’empire vainqueur peut ensuite construire ; remporté une seule fois.');
     }
 }

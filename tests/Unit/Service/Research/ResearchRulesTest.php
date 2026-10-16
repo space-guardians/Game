@@ -24,6 +24,20 @@ final class ResearchRulesTest extends TestCase
         self::assertEquals(new Resources(12250, 24500, 12250), $rules->cost($astrophysics, 3));
     }
 
+    public function testAntimatterCostGrowsLikeTheOtherCosts(): void
+    {
+        $containment = new Technology('antimatter_containment', 'Confinement d’antimatière');
+        $containment->setBaseCostAntimatter(20);
+        $containment->setCostFactor(2);
+
+        $rules = new ResearchRules();
+
+        self::assertSame(20.0, $rules->antimatterCost($containment, 1));
+        self::assertSame(80.0, $rules->antimatterCost($containment, 3));
+        // Sans coût de base, aucune technologie ordinaire n'en demande
+        self::assertSame(0.0, $rules->antimatterCost(new Technology('energy', 'Énergie'), 5));
+    }
+
     public function testDurationDependsOnLaboratoriesAndUniverseSpeed(): void
     {
         $rules = new ResearchRules();

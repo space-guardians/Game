@@ -45,7 +45,7 @@ final class TechTreeAdminTest extends WebTestCase
 
         $this->client->request('GET', '/admin/technologies');
         self::assertResponseIsSuccessful();
-        self::assertSelectorCount(10, 'table tbody tr');
+        self::assertSelectorCount(11, 'table tbody tr');
 
         $this->client->request('GET', '/admin/technologies/' . $this->technology('astrophysics')->getId());
         self::assertSelectorTextContains('h1', 'Astrophysique');

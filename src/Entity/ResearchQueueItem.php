@@ -34,6 +34,10 @@ final class ResearchQueueItem implements \Stringable
     #[ORM\Column]
     private float $paidDeuterium;
 
+    /** Antimatière payée (§4.14), remboursée au prorata comme le reste en cas d'annulation */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $paidAntimatter = 0.0;
+
     /** Événement qui terminera la recherche */
     #[ORM\OneToOne]
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
@@ -92,6 +96,16 @@ final class ResearchQueueItem implements \Stringable
     public function getPaid(): Resources
     {
         return new Resources($this->paidMetal, $this->paidCrystal, $this->paidDeuterium);
+    }
+
+    public function getPaidAntimatter(): float
+    {
+        return $this->paidAntimatter;
+    }
+
+    public function recordPaidAntimatter(float $amount): void
+    {
+        $this->paidAntimatter = $amount;
     }
 
     public function getStartedAt(): \DateTimeImmutable

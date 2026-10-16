@@ -73,11 +73,17 @@ final class NpcProfileAdminTest extends WebTestCase
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorTextContains('body', 'Composition illisible : « croiseurs ».');
 
-        $this->client->submitForm('Sauvegarder les modifications', ['NpcBehaviorProfile[fleetCompositionText]' => 'cruiser:8', 'NpcBehaviorProfile[victoryMetal]' => '9000']);
+        // Récompenses spéciales (§4.14) : seuls les types construits sur plan sont proposés
+        $blueprints = $this->client->getCrawler()->filter('#NpcBehaviorProfile_victoryBlueprint option')->each(static fn($option): string => $option->text());
+        self::assertContains('Croiseur d’antimatière', $blueprints);
+        self::assertNotContains('Croiseur', $blueprints);
+
+        $this->client->submitForm('Sauvegarder les modifications', ['NpcBehaviorProfile[fleetCompositionText]' => 'cruiser:8', 'NpcBehaviorProfile[victoryMetal]' => '9000', 'NpcBehaviorProfile[victoryAntimatter]' => '5']);
         self::assertResponseRedirects();
         $saved = self::getContainer()->get(NpcBehaviorProfileRepository::class)->find($minor->getId());
         self::assertSame(['cruiser' => 8], $saved?->getFleetComposition());
         self::assertSame(9000, $saved->getVictoryMetal());
+        self::assertSame(5, $saved->getVictoryAntimatter());
     }
 
     public function testNpcEmpiresAreNotListedAmongPlayers(): void
