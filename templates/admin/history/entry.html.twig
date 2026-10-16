@@ -5,7 +5,7 @@
 {# Une suppression n'enregistre que le résumé de l'objet ; les autres opérations le placent sous « @source » #}
 {% set removed = entry.type == 'remove' %}
 {% set source = removed ? entry.diffs : entry.getDiffs(true)['@source'] ?? null %}
-{% set title = (types[entry.type] ?? entry.type) ~ ' — ' ~ (source.label ?? audited.label ~ ' #' ~ entry.objectId) %}
+{% set title = (types[entry.type] ?? entry.type) ~ ' — ' ~ ((source.label ?? audited.label) ~ ' #' ~ entry.objectId) %}
 
 {% block page_title title %}
 {% block content_title title %}
@@ -29,7 +29,7 @@
     {% set diffs = entry.diffs %}
     <h2 class="h5">Valeurs avant / après</h2>
     {% if removed %}
-        <p>Objet supprimé : <code>{{ source.label ?? audited.label ~ ' #' ~ entry.objectId }}</code></p>
+        <p>Objet supprimé : <code>{{ (source.label ?? audited.label) ~ ' #' ~ entry.objectId }}</code></p>
     {% elseif diffs is empty %}
         <p class="text-muted">Aucune valeur de champ enregistrée.</p>
     {% else %}
