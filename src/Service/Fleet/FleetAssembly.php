@@ -114,6 +114,7 @@ final readonly class FleetAssembly
                 foreach ($fleet->getShips() as $ships) {
                     $planet->addShips($ships->getType(), $ships->getQuantity());
                 }
+                $planet->addAntimatter($fleet->unloadAntimatter());
                 $cargo = $fleet->unload()->plus(new Resources(0, 0, $fleet->drain()));
                 if ($cargo->metal + $cargo->crystal + $cargo->deuterium > 0) {
                     $snapshot = $this->resources->settle($planet);

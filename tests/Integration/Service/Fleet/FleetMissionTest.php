@@ -50,6 +50,35 @@ final class FleetMissionTest extends KernelTestCase
         $this->clock = self::mockTime('2026-10-06 10:00:00');
     }
 
+    public function testAntimatterIsCarriedFromHomeAndDeliveredByTransport(): void
+    {
+        $empire = $this->empire();
+        $home = $empire->getHomePlanet();
+        $colony = $this->colonyOf($empire);
+        $fleet = $this->fleet($empire, ['small_cargo' => 2]);
+        $step = [new MissionStep(SpacePosition::planet($colony), FleetAction::Transport, 'colonie')];
+
+        // Ressource rare des « boss » (§4.14) : on n'emporte que ce que la planète détient
+        try {
+            $this->dispatch()->dispatch($fleet, $step, 100, new Resources(), 0.0, 40.0);
+            self::fail('La planète mère n’a pas d’antimatière.');
+        } catch (InvalidFleetMission $exception) {
+            self::assertSame('La planète n’a pas l’antimatière à charger.', $exception->getMessage());
+        }
+        $home->addAntimatter(100);
+
+        $movement = $this->dispatch()->dispatch($fleet, $step, 100, new Resources(1000), 0.0, 40.0);
+        self::assertSame(60.0, $home->getAntimatter());
+        self::assertSame(40.0, $fleet->getCargoAntimatter());
+
+        $this->clock->sleep($movement->getDurationSeconds());
+        $this->resolve((int) $movement->getEvent()?->getId());
+        self::assertSame(40.0, $this->reloadPlanet($colony)->getAntimatter());
+        self::assertSame(0.0, $this->reload($fleet)->getCargoAntimatter());
+        $transports = $this->gameMessages($empire, MessageCategory::Transport);
+        self::assertStringContainsString('1 000 métal, 0 cristal, 0 deutérium, 40 antimatière', $transports[\sprintf('Transport livré : %s', $colony)][0]);
+    }
+
     public function testTransportThenReturnRunsOrdersOneAfterAnother(): void
     {
         $empire = $this->empire();

@@ -78,7 +78,7 @@ final class MarketController extends AbstractController
         $empire = $this->empire();
 
         return $this->act($request, function () use ($empire, $request): string {
-            $listing = $this->market->post($empire, $this->merchant($request), $this->resources($request, 'offered'), $this->resources($request, 'asked'));
+            $listing = $this->market->post($empire, $this->merchant($request), $this->resources($request, 'offered'), $this->resources($request, 'asked'), $this->antimatter($request, 'offered'), $this->antimatter($request, 'asked'));
 
             return \sprintf('Annonce publiée chez %s. Livrez vos ressources par une mission « Livraison au marchand ».', $listing->getMerchant()->getName());
         });
@@ -92,7 +92,7 @@ final class MarketController extends AbstractController
         return $this->act($request, function () use ($listing, $empire): string {
             $this->market->accept($listing, $empire);
 
-            return \sprintf('Engagement pris : livrez %s chez %s.', self::amounts($listing->getAsked()), $listing->getMerchant()->getName());
+            return \sprintf('Engagement pris : livrez %s chez %s.', self::amounts($listing->getAsked(), $listing->getAskedAntimatter()), $listing->getMerchant()->getName());
         });
     }
 
@@ -195,15 +195,21 @@ final class MarketController extends AbstractController
         return new Resources($amount('metal'), $amount('crystal'), $amount('deuterium'));
     }
 
+    /** Antimatière saisie avec les ressources (§4.14) */
+    private function antimatter(Request $request, string $key): float
+    {
+        return max(0.0, floor((float) ($request->request->all($key)['antimatter'] ?? 0)));
+    }
+
     private function empire(): Empire
     {
         return $this->context->empire() ?? throw $this->createAccessDeniedException();
     }
 
-    private static function amounts(Resources $resources): string
+    private static function amounts(Resources $resources, float $antimatter = 0.0): string
     {
         $parts = [];
-        foreach (['métal' => $resources->metal, 'cristal' => $resources->crystal, 'deutérium' => $resources->deuterium] as $label => $amount) {
+        foreach (['métal' => $resources->metal, 'cristal' => $resources->crystal, 'deutérium' => $resources->deuterium, 'antimatière' => $antimatter] as $label => $amount) {
             if ($amount > 0) {
                 $parts[] = number_format($amount, 0, ',', ' ') . ' ' . $label;
             }

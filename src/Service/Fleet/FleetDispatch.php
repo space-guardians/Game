@@ -53,11 +53,12 @@ final readonly class FleetDispatch
 
     /**
      * @param list<MissionStep> $steps
-     * @param float             $fuel  deutérium à mettre dans les réservoirs, pris sur la planète de départ
+     * @param float             $fuel       deutérium à mettre dans les réservoirs, pris sur la planète de départ
+     * @param float             $antimatter antimatière à charger (§4.14), prise sur la planète de départ
      *
      * @throws InvalidFleetMission
      */
-    public function dispatch(Fleet $fleet, array $steps, int $speedPercent, Resources $cargo, float $fuel = 0.0): FleetMovement
+    public function dispatch(Fleet $fleet, array $steps, int $speedPercent, Resources $cargo, float $fuel = 0.0, float $antimatter = 0.0): FleetMovement
     {
         // Mode vacances (§4.13) : les flottes restent à quai
         if ($fleet->getEmpire()->isOnVacation()) {
@@ -143,7 +144,8 @@ final readonly class FleetDispatch
         }
 
         $planet = $fleet->getPlanet();
-        $loading = $cargo->metal + $cargo->crystal + $cargo->deuterium > 0 || $fuel > 0;
+        $antimatter = max(0.0, $antimatter);
+        $loading = $cargo->metal + $cargo->crystal + $cargo->deuterium > 0 || $fuel > 0 || $antimatter > 0;
         $lock = $this->planetLocks->acquireForFleet($fleet);
 
         try {
@@ -154,8 +156,12 @@ final readonly class FleetDispatch
             if ($loading && (null === $planet || !$fleet->isAtHome())) {
                 throw new InvalidFleetMission('Une flotte ne charge des ressources que sur une planète de son empire.');
             }
-            if ($loading && $cargo->metal + $cargo->crystal + $cargo->deuterium > $fleet->cargo()) {
+            if ($loading && $cargo->metal + $cargo->crystal + $cargo->deuterium + $antimatter > $fleet->freeCargo()) {
                 throw new InvalidFleetMission(\sprintf('Cargaison trop lourde : la flotte emporte au plus %d.', $fleet->cargo()));
+            }
+            // Stock relu sous le verrou de la planète ; vérifié avant la transaction, qu'un refus laisse intacte
+            if ($antimatter > 0 && $antimatter > (float) $planet?->getAntimatter() + 1e-6) {
+                throw new InvalidFleetMission('La planète n’a pas l’antimatière à charger.');
             }
             if ($fuel < 0 || $fleet->getFuel() + $fuel > $fleet->tankCapacity() + 1e-6) {
                 throw new InvalidFleetMission(\sprintf('Réservoirs trop petits : ils contiennent au plus %d de deutérium.', $fleet->tankCapacity()));
@@ -165,10 +171,10 @@ final readonly class FleetDispatch
                 throw new InvalidFleetMission('Réservoirs vides : chargez du carburant pour partir.');
             }
 
-            return $this->entityManager->wrapInTransaction(function () use ($fleet, $steps, $speedPercent, $cargo, $fuel, $planet, $loading): FleetMovement {
+            return $this->entityManager->wrapInTransaction(function () use ($fleet, $steps, $speedPercent, $cargo, $fuel, $antimatter, $planet, $loading): FleetMovement {
                 $now = $this->clock->now();
                 if ($loading) {
-                    $this->load($fleet, $planet, $cargo, $fuel);
+                    $this->load($fleet, $planet, $cargo, $fuel, $antimatter);
                 }
 
                 $fleet->replaceOrders();
@@ -212,15 +218,17 @@ final readonly class FleetDispatch
         }
     }
 
-    private function load(Fleet $fleet, Planet $planet, Resources $cargo, float $fuel): void
+    private function load(Fleet $fleet, Planet $planet, Resources $cargo, float $fuel, float $antimatter): void
     {
         $snapshot = $this->resources->settle($planet);
         $taken = $cargo->plus(new Resources(0, 0, $fuel));
         if (!$snapshot->amounts->covers($taken)) {
             throw new InvalidFleetMission('La planète n’a pas les ressources à charger (cargaison et carburant).');
         }
+        $planet->spendAntimatter($antimatter);
         $planet->storeResources($snapshot->amounts->minus($taken), $snapshot->at);
         $fleet->load($cargo);
+        $fleet->loadAntimatter($antimatter);
         $fleet->refuel($fuel);
     }
 }

@@ -254,7 +254,8 @@ final readonly class Explorations
 
         $before = $fleet->getCargo();
         // Événement de jeu en cours (§4.16) sur la planète mère de l'empire : butin d'exploration augmenté
-        $after = $this->rules->cargoAfter($before, $fleet->cargo(), $outcome, $this->gameEvents->explorationLoot($fleet->getEmpire()->getHomePlanet()));
+        // L'antimatière à bord garde sa place : le butin se loge dans le reste des soutes
+        $after = $this->rules->cargoAfter($before, (int) floor($fleet->cargo() - $fleet->getCargoAntimatter()), $outcome, $this->gameEvents->explorationLoot($fleet->getEmpire()->getHomePlanet()));
         $fleet->unload();
         $fleet->load($after);
         $changes = [];

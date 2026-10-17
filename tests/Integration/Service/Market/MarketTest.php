@@ -77,6 +77,34 @@ final class MarketTest extends KernelTestCase
         self::assertEquals(new Resources(0.0, 500.0), $holdings->forEmpire($this->reloadMerchant($merchant), $this->reloadEmpire($ana))->getResources());
     }
 
+    public function testAntimatterIsTradedLikeTheOtherResources(): void
+    {
+        $ana = $this->empire('Ana');
+        $merchant = $this->merchantNear($ana);
+        $bob = $this->empire('Bob', $ana->getHomePlanet()->getSystem()->getGalaxy());
+        // Ressource rare des « boss » (§4.14) contre du métal
+        $ana->getHomePlanet()->addAntimatter(50);
+        self::getContainer()->get(EntityManagerInterface::class)->flush();
+        $listing = $this->market()->post($ana, $merchant, new Resources(), new Resources(2000.0), 30.0);
+        self::assertSame(30.0, $listing->getOfferedAntimatter());
+        $this->market()->accept($listing, $bob);
+
+        // Sans l'antimatière à bord, la livraison ne règle rien
+        $empty = $this->travel($this->fleet($this->reloadEmpire($ana)), [FleetAction::MarketDeliver], new Resources(100.0));
+        self::assertNotNull($empty->getOrders()[0]?->getFailure());
+        $delivery = $this->travel($this->fleet($this->reloadEmpire($ana)), [FleetAction::MarketDeliver], new Resources(), 30.0);
+        self::assertNull($delivery->getOrders()[0]?->getFailure());
+        self::assertSame(0.0, $delivery->getCargoAntimatter());
+
+        $fleet = $this->travel($this->fleet($this->reloadEmpire($bob)), [FleetAction::MarketDeliver, FleetAction::MarketCollect], new Resources(2000.0));
+
+        self::assertSame(MarketListingStatus::Completed, $this->listing($listing)->getStatus());
+        self::assertSame(30.0, $fleet->getCargoAntimatter());
+        $holdings = self::getContainer()->get(MerchantHoldingRepository::class);
+        self::assertTrue($holdings->forEmpire($this->reloadMerchant($merchant), $this->reloadEmpire($bob))->isEmpty());
+        self::assertEquals(new Resources(2000.0), $holdings->forEmpire($this->reloadMerchant($merchant), $this->reloadEmpire($ana))->getResources());
+    }
+
     public function testDeliveryCoversOnlyWhatTheCargoAffordsAndCollectionOnlyWhatIsHeldForYou(): void
     {
         $ana = $this->empire('Ana');
@@ -158,11 +186,11 @@ final class MarketTest extends KernelTestCase
      *
      * @param list<FleetAction> $actions
      */
-    private function travel(Fleet $fleet, array $actions, Resources $cargo): Fleet
+    private function travel(Fleet $fleet, array $actions, Resources $cargo, float $antimatter = 0.0): Fleet
     {
         $merchant = self::getContainer()->get(EntityManagerInterface::class)->getRepository(Merchant::class)->findOneBy([]);
         \assert(null !== $merchant);
-        $movement = self::getContainer()->get(FleetDispatch::class)->dispatch($fleet, array_map(static fn(FleetAction $action): MissionStep => new MissionStep($merchant->position(), $action, $merchant->getName()), $actions), 100, $cargo);
+        $movement = self::getContainer()->get(FleetDispatch::class)->dispatch($fleet, array_map(static fn(FleetAction $action): MissionStep => new MissionStep($merchant->position(), $action, $merchant->getName()), $actions), 100, $cargo, 0.0, $antimatter);
         while (null !== $movement) {
             $this->clock->sleep($movement->getDurationSeconds());
             self::assertSame(1, self::getContainer()->get(ScheduledEventResolver::class)->resolve((int) $movement->getEvent()?->getId()));
