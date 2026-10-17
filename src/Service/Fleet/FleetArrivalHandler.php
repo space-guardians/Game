@@ -15,9 +15,12 @@ use App\Enum\Combat\InterceptionOutcome;
 use App\Enum\Fleet\FleetAction;
 use App\Enum\Messaging\MessageCategory;
 use App\Enum\Notification\NotificationType;
+use App\Model\Combat\Interception;
 use App\Model\Economy\Resources;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\BattleRepository;
+use App\Repository\FleetMovementRepository;
+use App\Repository\PlayerQuestRepository;
 use App\Service\Alliance\TeleportGates;
 use App\Service\Combat\Allegiances;
 use App\Service\Combat\DebrisFields;
@@ -25,6 +28,7 @@ use App\Service\Combat\Interceptions;
 use App\Service\Economy\PlanetResources;
 use App\Service\Espionage\Espionage;
 use App\Service\Exploration\Explorations;
+use App\Service\Market\Escorts;
 use App\Service\Market\Market;
 use App\Service\Messaging\GameReports;
 use App\Service\Notification\Notifications;
@@ -63,6 +67,9 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         private GameReports $reports,
         private Market $market,
         private Notifications $notifications,
+        private FleetMovementRepository $movementRepository,
+        private PlayerQuestRepository $quests,
+        private Escorts $escorts,
     ) {}
 
     public static function type(): string
@@ -94,27 +101,50 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         }
         $origin = $movement->getOrigin();
         $speedPercent = $movement->getSpeedPercent();
+        // Convoi escorté (§4.15) : ses escortes voyagent avec lui et arrivent avec lui
+        $carried = $this->movementRepository->findCarriedBy($movement);
+        $questId = $this->quests->underwayIdForConvoy($fleet);
+        foreach ($carried as $escortMovement) {
+            $this->entityManager->remove($escortMovement);
+        }
         $this->entityManager->remove($movement);
         $this->entityManager->flush();
 
-        // Entrée dans un système gardé par des flottes hostiles stationnées au niveau du système (§4.6.2)
-        switch ($this->intercept($fleet, $order, $origin, $arrival)) {
+        // Entrée dans un système gardé par des flottes hostiles stationnées au niveau du système (§4.6.2), escorte comprise
+        $escorts = array_map(static fn(FleetMovement $escortMovement): Fleet => $escortMovement->getFleet(), $carried);
+        $interception = $this->intercept($fleet, $escorts, $order, $origin, $arrival);
+        $planet = null === $destination->planetId ? null : $this->entityManager->find(Planet::class, $destination->planetId);
+        foreach ($carried as $escortMovement) {
+            $this->arriveEscort($escortMovement, $interception->passed, $planet, $arrival);
+        }
+        // Contrat chargé après le combat seulement : il ne renvoie pas aux flottes anéanties
+        $quest = null === $questId ? null : $this->quests->find($questId);
+        switch ($interception->outcome) {
             case InterceptionOutcome::Destroyed:
+                if (null !== $quest) {
+                    $this->escorts->arrived($quest, $arrival);
+                }
+
                 return;
             case InterceptionOutcome::Stopped:
                 $order->fail(\sprintf('Interceptée à l’entrée du système par des flottes hostiles : %s n’a pas été atteint.', $order->getDestinationLabel()), $arrival);
                 $fleet->station();
                 $this->entityManager->flush();
+                if (null !== $quest) {
+                    $this->escorts->arrived($quest, $arrival);
+                }
 
                 return;
             default:
                 break;
         }
 
-        $planet = null === $destination->planetId ? null : $this->entityManager->find(Planet::class, $destination->planetId);
         $fleet->arriveAt($destination, $planet);
 
         $hold = $this->act($fleet, $order, $planet, $arrival, $speedPercent);
+        if (null !== $quest) {
+            $this->escorts->arrived($quest, $arrival);
+        }
         if (!$fleet->isEmpty()) {
             $failure = $order->getFailure();
             $this->notifications->notify($fleet->getEmpire(), NotificationType::FleetArrived, null === $failure
@@ -149,17 +179,44 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
     }
 
     /**
-     * Interception à l'entrée du système de destination. Une attaque qui vise les flottes du système lui-même y livre
-     * directement sa bataille programmée : pas d'interception préalable.
+     * Interception à l'entrée du système de destination, avec les escortes qui voyagent avec la flotte. Une attaque qui
+     * vise les flottes du système lui-même y livre directement sa bataille programmée : pas d'interception préalable.
+     *
+     * @param list<Fleet> $escorts
      */
-    private function intercept(Fleet $fleet, FleetOrder $order, SpaceLocation $origin, \DateTimeImmutable $arrival): InterceptionOutcome
+    private function intercept(Fleet $fleet, array $escorts, FleetOrder $order, SpaceLocation $origin, \DateTimeImmutable $arrival): Interception
     {
         $destination = $order->getDestination();
         if (FleetAction::JoinBattle === $order->getAction() && null === $destination->planetId && null === $destination->localX) {
-            return InterceptionOutcome::None;
+            return new Interception(InterceptionOutcome::None, true);
         }
 
-        return $this->interceptions->enter($fleet, $origin, $destination, $arrival);
+        return $this->interceptions->enterTogether($fleet, $escorts, $origin, $destination, $arrival);
+    }
+
+    /**
+     * Arrivée d'une escorte avec son convoi (§4.15) : à destination si le groupe a passé les gardes, arrêtée au niveau
+     * du système sinon ; elle y reste stationnée.
+     */
+    private function arriveEscort(FleetMovement $movement, bool $passed, ?Planet $planet, \DateTimeImmutable $arrival): void
+    {
+        $fleet = $movement->getFleet();
+        $order = $movement->getOrder();
+        if (!$this->entityManager->contains($fleet) || $fleet->isEmpty()) {
+            // Anéantie avec le convoi : déjà supprimée par le combat
+            return;
+        }
+        if ($passed) {
+            $fleet->arriveAt($order->getDestination(), $planet);
+            $order->complete($arrival);
+        } else {
+            $order->fail(\sprintf('Interceptée à l’entrée du système par des flottes hostiles : %s n’a pas été atteint.', $order->getDestinationLabel()), $arrival);
+        }
+        $fleet->station();
+        $this->notifications->notify($fleet->getEmpire(), NotificationType::FleetArrived, $passed
+            ? \sprintf('Flotte « %s » arrivée avec le convoi escorté : %s.', $fleet->getName(), $order->getDestinationLabel())
+            : \sprintf('Flotte « %s » interceptée avec le convoi escorté avant %s.', $fleet->getName(), $order->getDestinationLabel()), 'app_fleet');
+        $this->entityManager->flush();
     }
 
     /**

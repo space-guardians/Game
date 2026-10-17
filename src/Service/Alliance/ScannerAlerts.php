@@ -21,7 +21,7 @@ use Twig\Environment;
  */
 final class ScannerAlerts implements ResetInterface
 {
-    /** @var list<array{alliance: Alliance, planet: string, empire: string, ships: int, destination: string, arrivesAt: \DateTimeImmutable}> */
+    /** @var list<array{alliance: Alliance, planet: string, empire: string, ships: int, destination: string|null, arrivesAt: \DateTimeImmutable|null}> */
     private array $pending = [];
 
     public function __construct(
@@ -31,7 +31,8 @@ final class ScannerAlerts implements ResetInterface
         private readonly LoggerInterface $logger,
     ) {}
 
-    public function detected(AlliancePlanet $alliancePlanet, Fleet $fleet, string $destination, \DateTimeImmutable $arrivesAt): void
+    /** Destination et arrivée nulles quand elles sont secrètes (convoi escorté, §4.15) */
+    public function detected(AlliancePlanet $alliancePlanet, Fleet $fleet, ?string $destination, ?\DateTimeImmutable $arrivesAt): void
     {
         $this->pending[] = [
             'alliance' => $alliancePlanet->getAlliance(),

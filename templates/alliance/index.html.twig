@@ -198,7 +198,11 @@
                                                 <td class="sg-mono">{{ contact.distance|number_format(0, ',', ' ') }}</td>
                                                 <td>
                                                     {% if contact.inFlight %}
-                                                        vers {{ contact.destination }}, arrivée <span class="sg-mono">{{ contact.arrivesAt|date('d/m H:i') }}</span>
+                                                        {% if contact.destination %}
+                                                            vers {{ contact.destination }}, arrivée <span class="sg-mono">{{ contact.arrivesAt|date('d/m H:i') }}</span>
+                                                        {% else %}
+                                                            destination inconnue (convoi escorté)
+                                                        {% endif %}
                                                     {% else %}
                                                         à l’arrêt
                                                     {% endif %}

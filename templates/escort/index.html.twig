@@ -1,0 +1,140 @@
+{# Écran « Escortes » (§4.15) : contrats ouverts (départ seulement), publication, contrats postés ou escortés #}
+{% extends 'layout/app.html.twig' %}
+
+{% macro amounts(resources) %}
+    {%- set parts = [] -%}
+    {%- for key, label in {metal: 'métal', crystal: 'cristal', deuterium: 'deutérium'} -%}
+        {%- if attribute(resources, key) > 0 -%}{%- set parts = parts|merge([attribute(resources, key)|round(0, 'floor')|format_number ~ ' ' ~ label]) -%}{%- endif -%}
+    {%- endfor -%}
+    {{- parts is empty ? '—' : parts|join(', ') -}}
+{% endmacro %}
+
+{% macro resource_inputs(prefix, legend) %}
+    <fieldset class="sg-market__resources">
+        <legend class="sg-field__label">{{ legend }}</legend>
+        {% for key, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+            <label class="sg-field">
+                <span class="sg-field__label">{{ label }}</span>
+                <input class="sg-input sg-mono" type="number" min="0" step="1" name="{{ prefix }}[{{ key }}]" value="0">
+            </label>
+        {% endfor %}
+    </fieldset>
+{% endmacro %}
+
+{% import _self as escort %}
+
+{% block title %}Escortes — Space Guardians{% endblock %}
+{% block kicker %}{{ empire.name }}{% endblock %}
+{% block heading %}Escortes{% endblock %}
+
+{% block content %}
+    <section class="sg-panel sg-cut-14" aria-labelledby="open-title">
+        <h2 id="open-title" class="sg-section-title">Convois à escorter</h2>
+        <p class="sg-field__help">
+            Seuls le point et l’heure de départ sont publics : la destination et l’heure d’arrivée ne se révèlent qu’aux
+            escortes engagées. Stationnez une flotte au point de départ pour vous engager ; à l’heure dite, elle part, voyage
+            et combat avec le convoi. S’il arrive sans perte, la récompense est partagée entre ses escortes au prorata des
+            vaisseaux engagés.
+        </p>
+        {% if open is empty %}
+            <p class="sg-empty">Aucun convoi à escorter pour l’instant.</p>
+        {% else %}
+            <table class="sg-table" id="convois">
+                <thead><tr><th scope="col">Posteur</th><th scope="col">Départ</th><th scope="col">Convoi</th><th scope="col">Récompense</th><th scope="col">Escortes</th><th scope="col">S’engager</th></tr></thead>
+                <tbody>
+                    {% for quest in open %}
+                        <tr id="convoi-{{ quest.id }}">
+                            <td>{{ quest.poster.name }}</td>
+                            <td><span class="sg-mono">{{ quest.departureLabel }}</span>, le <span class="sg-mono">{{ quest.departsAt|date('d/m à H:i') }}</span></td>
+                            <td class="sg-mono">{{ quest.convoy ? quest.convoy.shipCount|format_number ~ ' vaisseau(x)' : '—' }}</td>
+                            <td class="sg-mono">{{ escort.amounts(quest.reward) }}</td>
+                            <td class="sg-mono">{{ quest.escorts|length }} / {{ max_escorts }}</td>
+                            <td>
+                                {% if quest.isKnownTo(empire) %}
+                                    <span class="sg-entity__meta">Engagé : destination <span class="sg-mono">{{ quest.destinationLabel }}</span></span>
+                                {% elseif candidates[quest.id] is empty %}
+                                    <span class="sg-entity__meta">Stationnez une flotte en <span class="sg-mono">{{ quest.departureLabel }}</span></span>
+                                {% else %}
+                                    <form method="post" action="{{ path('app_escorts_accept', {id: quest.id}) }}">
+                                        <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                                        <select class="sg-input" name="fleet" aria-label="Flotte d’escorte">
+                                            {% for fleet in candidates[quest.id] %}<option value="{{ fleet.id }}">{{ fleet.name }} ({{ fleet.shipCount }})</option>{% endfor %}
+                                        </select>
+                                        <twig:Btn type="submit" label="Escorter" variant="primary" size="sm"/>
+                                    </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </section>
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="post-title">
+        <h2 id="post-title" class="sg-section-title">Publier un contrat d’escorte</h2>
+        {% if convoys is empty %}
+            <p class="sg-empty">Il faut une flotte stationnée sur l’une de vos planètes pour en faire un convoi.</p>
+        {% else %}
+            <form method="post" action="{{ path('app_escorts_post') }}" class="sg-market__form" id="publier-contrat">
+                <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                <label class="sg-field">
+                    <span class="sg-field__label">Convoi (flotte stationnée chez vous)</span>
+                    <select class="sg-input" name="fleet">
+                        {% for fleet in convoys %}<option value="{{ fleet.id }}">{{ fleet.name }} — {{ fleet.planet }} ({{ fleet.shipCount }} vaisseau(x))</option>{% endfor %}
+                    </select>
+                </label>
+                <fieldset class="sg-market__resources">
+                    <legend class="sg-field__label">Destination secrète</legend>
+                    <label class="sg-field"><span class="sg-field__label">Galaxie</span><input class="sg-input sg-mono" type="number" min="1" name="galaxy" required></label>
+                    <label class="sg-field"><span class="sg-field__label">Système</span><input class="sg-input sg-mono" type="number" min="1" name="system" required></label>
+                    <label class="sg-field"><span class="sg-field__label">Position (vide : système)</span><input class="sg-input sg-mono" type="number" min="1" name="position"></label>
+                    <label class="sg-field">
+                        <span class="sg-field__label">Action</span>
+                        <select class="sg-input" name="action">
+                            <option value="transport">Transport de ressources</option>
+                            <option value="station">Stationner</option>
+                        </select>
+                    </label>
+                </fieldset>
+                <label class="sg-field">
+                    <span class="sg-field__label">Départ (entre {{ min_notice }} min et {{ max_notice }} jours)</span>
+                    <input class="sg-input sg-mono" type="datetime-local" name="departs_at" value="{{ earliest|date('Y-m-d\\TH:i') }}" required>
+                </label>
+                {{ escort.resource_inputs('cargo', 'Cargaison chargée au départ') }}
+                {{ escort.resource_inputs('reward', 'Récompense des escortes (bloquée dès la publication)') }}
+                <twig:Btn type="submit" label="Publier le contrat" variant="primary" size="sm"/>
+            </form>
+        {% endif %}
+    </section>
+
+    <section class="sg-panel sg-cut-14" aria-labelledby="mine-title">
+        <h2 id="mine-title" class="sg-section-title">Mes contrats et mes escortes</h2>
+        {% if involved is empty %}
+            <p class="sg-empty">Aucun contrat pour l’instant.</p>
+        {% else %}
+            <ul class="sg-conversations" id="mes-contrats">
+                {% for quest in involved %}
+                    {% set poster = quest.poster is same as(empire) %}
+                    <li class="sg-conversation" id="contrat-{{ quest.id }}">
+                        <span class="sg-conversation__title">
+                            {{ poster ? 'Votre convoi' : 'Escorte du convoi de ' ~ quest.poster.name }} :
+                            <span class="sg-mono">{{ quest.departureLabel }}</span> → <span class="sg-mono">{{ quest.destinationLabel }}</span>
+                        </span>
+                        <twig:Chip label="{{ quest.status.label }}" tone="{{ quest.status.value in ['open', 'underway'] ? 'cyan' : (quest.status.value == 'succeeded' ? 'green' : 'neutral') }}"/>
+                        <span class="sg-entity__meta">
+                            Départ le <span class="sg-mono">{{ quest.departsAt|date('d/m à H:i') }}</span>{% if quest.arrivesAt %}, arrivée le <span class="sg-mono">{{ quest.arrivesAt|date('d/m à H:i') }}</span>{% endif %}
+                            · récompense <span class="sg-mono">{{ escort.amounts(quest.reward) }}</span> · {{ quest.escorts|length }} escorte(s)
+                        </span>
+                        {% if quest.status.value == 'open' %}
+                            <form method="post" action="{{ path(poster ? 'app_escorts_cancel' : 'app_escorts_leave', {id: quest.id}) }}">
+                                <input type="hidden" name="_token" value="{{ csrf_token(token) }}">
+                                <twig:Btn type="submit" label="{{ poster ? 'Annuler le contrat' : 'Ne plus escorter' }}" variant="ghost" size="sm"/>
+                            </form>
+                        {% endif %}
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endif %}
+    </section>
+{% endblock %}

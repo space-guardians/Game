@@ -14,6 +14,7 @@ use App\Repository\AllianceMemberRepository;
 use App\Repository\AlliancePlanetRepository;
 use App\Repository\FleetMovementRepository;
 use App\Repository\FleetRepository;
+use App\Repository\PlayerQuestRepository;
 use App\Service\Fleet\TrajectoryPlanner;
 use Psr\Clock\ClockInterface;
 
@@ -32,6 +33,7 @@ final readonly class AllianceScanner
         private FleetMovementRepository $movements,
         private ScannerAlerts $alerts,
         private ClockInterface $clock,
+        private PlayerQuestRepository $quests,
     ) {}
 
     public function range(AlliancePlanet $alliancePlanet): float
@@ -61,6 +63,8 @@ final readonly class AllianceScanner
                 $contacts[] = new ScanContact($fleet->getEmpire()->getName(), $fleet->getName(), $fleet->shipCount(), (int) round($distance), false);
             }
         }
+        // Convois escortés et leurs escortes : destination et arrivée secrètes (§4.15)
+        $secret = $this->quests->secretFleetIds();
         foreach ($this->movements->findInGalaxy($galaxyId) as $movement) {
             $fleet = $movement->getFleet();
             // En transit par une porte de téléportation : hors de l'espace, invisible
@@ -71,7 +75,8 @@ final readonly class AllianceScanner
             $position = $trajectory->pointAt($this->rules->travelled($movement->getDepartedAt(), $movement->getArrivesAt(), $movement->getReach(), $now))['position'];
             $distance = $position->distanceTo($center);
             if ($distance <= $range) {
-                $contacts[] = new ScanContact($fleet->getEmpire()->getName(), $fleet->getName(), $fleet->shipCount(), (int) round($distance), true, $movement->getOrder()->getDestinationLabel(), $movement->getArrivesAt());
+                $hidden = isset($secret[(int) $fleet->getId()]);
+                $contacts[] = new ScanContact($fleet->getEmpire()->getName(), $fleet->getName(), $fleet->shipCount(), (int) round($distance), true, $hidden ? null : $movement->getOrder()->getDestinationLabel(), $hidden ? null : $movement->getArrivesAt());
             }
         }
         usort($contacts, static fn(ScanContact $a, ScanContact $b): int => $a->distance <=> $b->distance);
@@ -93,13 +98,14 @@ final readonly class AllianceScanner
         $fleet = $movement->getFleet();
         $order = $movement->getOrder();
         $trajectory = $this->planner->plan($origin, $order->getDestination()->toPosition());
+        $hidden = isset($this->quests->secretFleetIds()[(int) $fleet->getId()]);
         foreach ($scanning as $alliancePlanet) {
             $range = $this->range($alliancePlanet);
             if ($range <= 0.0 || !$this->foreign($fleet, $alliancePlanet)
                 || $this->rules->closestApproach($trajectory, SpacePosition::planet($alliancePlanet->getPlanet())->global()) > $range) {
                 continue;
             }
-            $this->alerts->detected($alliancePlanet, $fleet, $order->getDestinationLabel(), $movement->getArrivesAt());
+            $this->alerts->detected($alliancePlanet, $fleet, $hidden ? null : $order->getDestinationLabel(), $hidden ? null : $movement->getArrivesAt());
         }
     }
 

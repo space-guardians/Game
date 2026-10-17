@@ -3,7 +3,7 @@
     <template>
         <div class="sg-toast" data-controller="toast">
             <twig:AlertBanner variant="attack">
-                Scanner de {{ planet }} : flotte de {{ empire }} ({{ ships }} vaisseau{{ ships > 1 ? 'x' }}) en route vers {{ destination }}, arrivée le {{ arrivesAt|date('d/m H:i') }}.
+                Scanner de {{ planet }} : flotte de {{ empire }} ({{ ships }} vaisseau{{ ships > 1 ? 'x' }}) en route {% if destination %}vers {{ destination }}, arrivée le {{ arrivesAt|date('d/m H:i') }}{% else %}vers une destination inconnue (convoi escorté){% endif %}.
             </twig:AlertBanner>
         </div>
     </template>
