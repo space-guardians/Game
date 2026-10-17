@@ -31,11 +31,14 @@ final readonly class NpcCivilisations
     public const array DEFENSES = [
         'minor' => ['rocket_launcher' => 20],
         'boss' => ['rocket_launcher' => 200],
+        'trader' => ['rocket_launcher' => 30],
     ];
 
     public const array FLEET = [
         'minor' => ['light_fighter' => 15, 'cruiser' => 3, 'small_cargo' => 5],
         'boss' => ['light_fighter' => 150, 'cruiser' => 60],
+        // Guilde marchande : composition de chaque convoi, aucune flotte stationnée à la fondation
+        'trader' => ['small_cargo' => 10, 'large_cargo' => 2],
     ];
 
     public function __construct(
@@ -75,6 +78,24 @@ final readonly class NpcCivilisations
         return $fleet;
     }
 
+    /**
+     * Flotte de la civilisation stationnée sur la planète, réservoirs pleins : ses missions reposent sur les mêmes règles
+     * de carburant que celles des joueurs.
+     *
+     * @param array<string, int> $composition
+     */
+    public function fleet(Empire $npc, string $name, Planet $planet, array $composition): Fleet
+    {
+        $fleet = new Fleet($npc, $name, $planet, $this->clock->now());
+        foreach ($composition as $code => $quantity) {
+            $type = $this->shipTypes->findOneByCode($code) ?? throw new \LogicException(\sprintf('Type de vaisseau « %s » introuvable.', $code));
+            $fleet->addShips($type, $quantity);
+        }
+        $fleet->refuel($fleet->tankCapacity());
+
+        return $fleet;
+    }
+
     /** @throws \DomainException planète déjà occupée */
     public function found(NpcBehaviorProfile $profile, string $name, Planet $planet): Empire
     {
@@ -84,20 +105,16 @@ final readonly class NpcCivilisations
         $now = $this->clock->now();
         $npc = Empire::npc($name, $planet, $profile, $now);
         $planet->storeResources(new Resources(self::STARTING_STOCK, self::STARTING_STOCK, self::STARTING_STOCK), $now);
-        $category = NpcCategory::Boss === $profile->getCategory() ? 'boss' : 'minor';
+        $category = $profile->getCategory()->value;
         foreach ($profile->getDefenseComposition() ?: self::DEFENSES[$category] as $code => $quantity) {
             $type = $this->shipTypes->findOneByCode($code) ?? throw new \LogicException(\sprintf('Type de défense « %s » introuvable.', $code));
             $planet->addShips($type, $quantity);
         }
-        $fleet = new Fleet($npc, \sprintf('Flotte de %s', $name), $planet, $now);
-        foreach ($profile->getFleetComposition() ?: self::FLEET[$category] as $code => $quantity) {
-            $type = $this->shipTypes->findOneByCode($code) ?? throw new \LogicException(\sprintf('Type de vaisseau « %s » introuvable.', $code));
-            $fleet->addShips($type, $quantity);
-        }
-        // Réservoirs pleins : ses missions reposent sur les mêmes règles de carburant que celles des joueurs
-        $fleet->refuel($fleet->tankCapacity());
         $this->entityManager->persist($npc);
-        $this->entityManager->persist($fleet);
+        // Une guilde marchande n'a pas de flotte stationnée : sa composition est celle de ses convois (NpcConvoys)
+        if (NpcCategory::Trader !== $profile->getCategory()) {
+            $this->entityManager->persist($this->fleet($npc, \sprintf('Flotte de %s', $name), $planet, $profile->getFleetComposition() ?: self::FLEET[$category]));
+        }
         $this->entityManager->flush();
 
         return $npc;
