@@ -32,6 +32,10 @@ class MerchantHolding
     #[ORM\Column]
     private float $deuterium = 0.0;
 
+    /** Antimatière gardée pour l'empire (§4.14) */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $antimatter = 0.0;
+
     public function __construct(
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -62,9 +66,28 @@ class MerchantHolding
         return new Resources($this->metal, $this->crystal, $this->deuterium);
     }
 
+    public function getAntimatter(): float
+    {
+        return $this->antimatter;
+    }
+
     public function isEmpty(): bool
     {
-        return $this->getResources()->isZero();
+        return $this->getResources()->isZero() && $this->antimatter <= 0;
+    }
+
+    public function creditAntimatter(float $amount): void
+    {
+        $this->antimatter += max(0.0, $amount);
+    }
+
+    /** @throws \InvalidArgumentException si le marchand n'en garde pas autant pour cet empire */
+    public function withdrawAntimatter(float $amount): void
+    {
+        if ($amount > $this->antimatter + 1e-6) {
+            throw new \InvalidArgumentException('Le marchand ne garde pas autant d’antimatière pour vous.');
+        }
+        $this->antimatter = max(0.0, $this->antimatter - $amount);
     }
 
     public function credit(Resources $resources): void

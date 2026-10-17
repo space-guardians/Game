@@ -53,11 +53,14 @@ final class MarketTest extends WebTestCase
             'merchant' => (string) $merchant->getId(),
             'offered[metal]' => '900',
             'asked[crystal]' => '400',
+            'asked[antimatter]' => '12',
         ]));
         self::assertResponseRedirects('/marche');
         $this->client->followRedirect();
         self::assertSelectorTextContains('.sg-alert', 'Annonce publiée chez Comptoir');
         self::assertSelectorTextContains('#annonces', 'Votre annonce');
+        // Antimatière (§4.14) demandée en plus du cristal
+        self::assertSelectorTextContains('#annonces', '400 cristal, 12 antimatière');
         self::assertSelectorTextContains('#mes-transactions', 'À livrer : 900 métal.');
 
         // L'acheteur s'engage, puis voit ce qu'il doit livrer
@@ -67,7 +70,7 @@ final class MarketTest extends WebTestCase
         \assert($listing instanceof MarketListing);
         $this->client->submit($crawler->filter(\sprintf('#annonce-%d', $listing->getId()))->selectButton('Accepter')->form());
         $this->client->followRedirect();
-        self::assertSelectorTextContains('.sg-alert', 'Engagement pris : livrez 400 cristal');
+        self::assertSelectorTextContains('.sg-alert', 'Engagement pris : livrez 400 cristal, 12 antimatière');
         self::assertSelectorTextContains('#mes-transactions', 'En attente des livraisons');
         self::assertSelectorTextContains('#mes-transactions', 'Ana : pas encore livré.');
         self::assertSelectorTextContains('#annonces, .sg-empty', 'Aucune annonce ouverte.');

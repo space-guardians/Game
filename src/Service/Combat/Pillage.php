@@ -44,8 +44,7 @@ final readonly class Pillage
         $capacities = [];
         foreach ($attackers as $fleet) {
             if (!$fleet->isEmpty()) {
-                $cargo = $fleet->getCargo();
-                $capacities[(int) $fleet->getId()] = max(0.0, $fleet->cargo() - ($cargo->metal + $cargo->crystal + $cargo->deuterium));
+                $capacities[(int) $fleet->getId()] = $fleet->freeCargo();
             }
         }
         // Stock consolidé à l'heure du combat, puis butin

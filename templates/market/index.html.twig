@@ -1,18 +1,20 @@
 {# Écran « Marché » (§4.15, §5.4) : annonces de ressources et de planètes, publication, transactions en cours, historique #}
 {% extends 'layout/app.html.twig' %}
 
-{% macro amounts(resources) %}
+{% macro amounts(resources, antimatter = 0) %}
     {%- set parts = [] -%}
     {%- for key, label in {metal: 'métal', crystal: 'cristal', deuterium: 'deutérium'} -%}
         {%- if attribute(resources, key) > 0 -%}{%- set parts = parts|merge([attribute(resources, key)|round(0, 'floor')|format_number ~ ' ' ~ label]) -%}{%- endif -%}
     {%- endfor -%}
+    {#- Ressource rare des « boss » (§4.14) -#}
+    {%- if antimatter > 0 -%}{%- set parts = parts|merge([antimatter|round(0, 'floor')|format_number ~ ' antimatière']) -%}{%- endif -%}
     {{- parts is empty ? '—' : parts|join(', ') -}}
 {% endmacro %}
 
 {% macro resource_inputs(prefix, legend) %}
     <fieldset class="sg-market__resources">
         <legend class="sg-field__label">{{ legend }}</legend>
-        {% for key, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium'} %}
+        {% for key, label in {metal: 'Métal', crystal: 'Cristal', deuterium: 'Deutérium', antimatter: 'Antimatière'} %}
             <label class="sg-field">
                 <span class="sg-field__label">{{ label }}</span>
                 <input class="sg-input sg-mono" type="number" min="0" step="1" name="{{ prefix }}[{{ key }}]" value="0">
@@ -52,8 +54,8 @@
                         <tr id="annonce-{{ listing.id }}">
                             <td>{{ listing.seller.name }}</td>
                             <td>{{ listing.merchant.name }} <span class="sg-mono">({{ listing.merchant.system.galaxy.number }}:{{ listing.merchant.system.number }})</span></td>
-                            <td class="sg-mono">{{ market.amounts(listing.offered) }}</td>
-                            <td class="sg-mono">{{ market.amounts(listing.asked) }}</td>
+                            <td class="sg-mono">{{ market.amounts(listing.offered, listing.offeredAntimatter) }}</td>
+                            <td class="sg-mono">{{ market.amounts(listing.asked, listing.askedAntimatter) }}</td>
                             <td>
                                 {% if listing.seller is same as(empire) %}
                                     <twig:Chip label="Votre annonce" tone="neutral"/>
@@ -159,11 +161,11 @@
                 <li class="sg-conversation">
                     <span class="sg-conversation__title">
                         {{ seller ? 'Vente' : 'Achat' }} chez {{ listing.merchant.name }} :
-                        <span class="sg-mono">{{ market.amounts(listing.offered) }}</span> contre <span class="sg-mono">{{ market.amounts(listing.asked) }}</span>
+                        <span class="sg-mono">{{ market.amounts(listing.offered, listing.offeredAntimatter) }}</span> contre <span class="sg-mono">{{ market.amounts(listing.asked, listing.askedAntimatter) }}</span>
                     </span>
                     <twig:Chip label="{{ listing.status.label }}" tone="{{ listing.status.value == 'accepted' ? 'gold' : 'cyan' }}"/>
                     <span class="sg-entity__meta">
-                        {% if listing.deliveredBy(empire) %}Votre part est livrée.{% else %}À livrer : <span class="sg-mono">{{ market.amounts(listing.dueFrom(empire)) }}</span>.{% endif %}
+                        {% if listing.deliveredBy(empire) %}Votre part est livrée.{% else %}À livrer : <span class="sg-mono">{{ market.amounts(listing.dueFrom(empire), listing.antimatterDueFrom(empire)) }}</span>.{% endif %}
                         {% if listing.buyer %}{{ seller ? listing.buyer.name : listing.seller.name }} : {{ listing.deliveredBy(seller ? listing.buyer : listing.seller) ? 'livré' : 'pas encore livré' }}.{% endif %}
                     </span>
                     {% if seller and listing.status.value == 'open' %}
@@ -201,7 +203,7 @@
                 {% for holding in holdings %}
                     <li class="sg-conversation">
                         <span class="sg-conversation__title">{{ holding.merchant.name }} <span class="sg-mono">({{ holding.merchant.system.galaxy.number }}:{{ holding.merchant.system.number }})</span></span>
-                        <span class="sg-mono">{{ market.amounts(holding.resources) }}</span>
+                        <span class="sg-mono">{{ market.amounts(holding.resources, holding.antimatter) }}</span>
                     </li>
                 {% endfor %}
             </ul>
@@ -219,7 +221,7 @@
                     <li class="sg-conversation">
                         <span class="sg-conversation__title">
                             {{ listing.seller is same as(empire) ? 'Vente' : 'Achat' }} chez {{ listing.merchant.name }} :
-                            <span class="sg-mono">{{ market.amounts(listing.offered) }}</span> contre <span class="sg-mono">{{ market.amounts(listing.asked) }}</span>
+                            <span class="sg-mono">{{ market.amounts(listing.offered, listing.offeredAntimatter) }}</span> contre <span class="sg-mono">{{ market.amounts(listing.asked, listing.askedAntimatter) }}</span>
                         </span>
                         <twig:Chip label="{{ listing.status.label }}" tone="neutral"/>
                         <span class="sg-entity__meta sg-mono">{{ listing.closedAt ? listing.closedAt|date('d/m H:i') }}</span>

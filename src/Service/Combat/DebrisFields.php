@@ -78,8 +78,7 @@ final readonly class DebrisFields
                 $recyclers += $ships->getType()->getCargo() * $ships->getQuantity();
             }
         }
-        $cargo = $fleet->getCargo();
-        $free = $fleet->cargo() - ($cargo->metal + $cargo->crystal + $cargo->deuterium);
+        $free = $fleet->freeCargo();
         $collected = $field->take($this->rules->collectable($field->getResources(), max(0.0, min($recyclers, $free))), $at);
         if ($collected->metal + $collected->crystal <= 0) {
             return 'Soutes pleines : rien n’a pu être récupéré.';

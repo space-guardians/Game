@@ -42,16 +42,21 @@ final readonly class Market
         private ClockInterface $clock,
     ) {}
 
-    /** @throws InvalidMarketAction */
-    public function post(Empire $seller, Merchant $merchant, Resources $offered, Resources $asked): MarketListing
+    /**
+     * @param float $offeredAntimatter antimatière proposée (§4.14), en plus ou à la place des ressources classiques
+     * @param float $askedAntimatter   antimatière demandée en contrepartie
+     *
+     * @throws InvalidMarketAction
+     */
+    public function post(Empire $seller, Merchant $merchant, Resources $offered, Resources $asked, float $offeredAntimatter = 0.0, float $askedAntimatter = 0.0): MarketListing
     {
-        if ($offered->isZero() || $asked->isZero()) {
+        if (($offered->isZero() && $offeredAntimatter <= 0) || ($asked->isZero() && $askedAntimatter <= 0)) {
             throw new InvalidMarketAction('Indiquez les ressources proposées et la contrepartie demandée.');
         }
         if ($this->listings->countOpenBy($seller) >= self::MAX_LISTINGS) {
             throw new InvalidMarketAction(\sprintf('Vous avez déjà %d annonces en cours : attendez qu’elles aboutissent.', self::MAX_LISTINGS));
         }
-        $listing = new MarketListing($seller, $merchant, $offered, $asked, $this->clock->now());
+        $listing = new MarketListing($seller, $merchant, $offered, $asked, $this->clock->now(), $offeredAntimatter, $askedAntimatter);
         $this->entityManager->persist($listing);
         $this->entityManager->flush();
 
@@ -76,7 +81,7 @@ final readonly class Market
                 $listing->getSeller(),
                 MessageCategory::Transport,
                 \sprintf('Annonce acceptée chez %s', $listing->getMerchant()->getName()),
-                \sprintf('%s s’engage à livrer %s contre vos %s. %s', $buyer->getName(), self::amounts($listing->getAsked()), self::amounts($listing->getOffered()), $listing->isDeliveredBy($listing->getSeller()) ? 'Vous avez déjà livré : la transaction sera validée à sa livraison.' : 'Livrez votre part au marchand pour valider la transaction.'),
+                \sprintf('%s s’engage à livrer %s contre vos %s. %s', $buyer->getName(), self::amounts($listing->getAsked(), $listing->getAskedAntimatter()), self::amounts($listing->getOffered(), $listing->getOfferedAntimatter()), $listing->isDeliveredBy($listing->getSeller()) ? 'Vous avez déjà livré : la transaction sera validée à sa livraison.' : 'Livrez votre part au marchand pour valider la transaction.'),
             );
         });
     }
@@ -100,7 +105,9 @@ final readonly class Market
                 throw new InvalidMarketAction('Un acheteur s’est déjà engagé : l’annonce ne peut plus être retirée.');
             }
             if ($refund) {
-                $this->holdings->forEmpire($listing->getMerchant(), $seller)->credit($listing->getOffered());
+                $holding = $this->holdings->forEmpire($listing->getMerchant(), $seller);
+                $holding->credit($listing->getOffered());
+                $holding->creditAntimatter($listing->getOfferedAntimatter());
             }
             $this->entityManager->flush();
         });
@@ -127,12 +134,14 @@ final readonly class Market
             $settled = 0;
             foreach ($due as $listing) {
                 $amount = $listing->dueFrom($empire);
-                if (!$fleet->getCargo()->covers($amount)) {
+                $antimatter = $listing->antimatterDueFrom($empire);
+                if (!$fleet->getCargo()->covers($amount) || $fleet->getCargoAntimatter() + 1e-6 < $antimatter) {
                     continue;
                 }
                 $fleet->unloadPart($amount);
+                $fleet->unloadAntimatterPart($antimatter);
                 ++$settled;
-                $this->reports->report($empire, MessageCategory::Transport, \sprintf('Livraison au marchand : %s', $merchant->getName()), \sprintf('La flotte « %s » a livré %s pour l’annonce n°%d.', $fleet->getName(), self::amounts($amount), $listing->getId()));
+                $this->reports->report($empire, MessageCategory::Transport, \sprintf('Livraison au marchand : %s', $merchant->getName()), \sprintf('La flotte « %s » a livré %s pour l’annonce n°%d.', $fleet->getName(), self::amounts($amount, $antimatter), $listing->getId()));
                 if ($listing->markDelivered($empire)) {
                     $this->complete($listing, $at);
                 }
@@ -163,17 +172,19 @@ final readonly class Market
             if (null === $holding || $holding->isEmpty()) {
                 return \sprintf('%s ne garde aucune ressource pour vous.', $merchant->getName());
             }
-            $cargo = $fleet->getCargo();
-            $free = $fleet->cargo() - ($cargo->metal + $cargo->crystal + $cargo->deuterium);
+            $free = $fleet->freeCargo();
             $held = $holding->getResources();
-            $total = $held->metal + $held->crystal + $held->deuterium;
+            $total = $held->metal + $held->crystal + $held->deuterium + $holding->getAntimatter();
             $share = min(1.0, max(0.0, $free) / $total);
             $taken = new Resources(floor($held->metal * $share), floor($held->crystal * $share), floor($held->deuterium * $share));
-            if ($taken->isZero()) {
+            $antimatter = floor($holding->getAntimatter() * $share);
+            if ($taken->isZero() && $antimatter <= 0) {
                 return 'Soutes pleines : rien n’a pu être retiré.';
             }
             $holding->withdraw($taken);
+            $holding->withdrawAntimatter($antimatter);
             $fleet->load($taken);
+            $fleet->loadAntimatter($antimatter);
             $this->entityManager->flush();
 
             return null;
@@ -187,14 +198,18 @@ final readonly class Market
         $buyer = $listing->getBuyer();
         \assert(null !== $buyer);
         $merchant = $listing->getMerchant();
-        $this->holdings->forEmpire($merchant, $listing->getSeller())->credit($listing->getAsked());
-        $this->holdings->forEmpire($merchant, $buyer)->credit($listing->getOffered());
-        foreach ([[$listing->getSeller(), $listing->getAsked()], [$buyer, $listing->getOffered()]] as [$party, $share]) {
+        $sellerHolding = $this->holdings->forEmpire($merchant, $listing->getSeller());
+        $sellerHolding->credit($listing->getAsked());
+        $sellerHolding->creditAntimatter($listing->getAskedAntimatter());
+        $buyerHolding = $this->holdings->forEmpire($merchant, $buyer);
+        $buyerHolding->credit($listing->getOffered());
+        $buyerHolding->creditAntimatter($listing->getOfferedAntimatter());
+        foreach ([[$listing->getSeller(), $listing->getAsked(), $listing->getAskedAntimatter()], [$buyer, $listing->getOffered(), $listing->getOfferedAntimatter()]] as [$party, $share, $antimatter]) {
             $this->reports->report(
                 $party,
                 MessageCategory::Transport,
                 \sprintf('Transaction validée chez %s', $merchant->getName()),
-                \sprintf('Les deux parties ont livré leur dû (annonce n°%d) : %s vous attendent chez %s. Envoyez une flotte en « Retrait chez le marchand » pour les récupérer.', $listing->getId(), self::amounts($share), $merchant->getName()),
+                \sprintf('Les deux parties ont livré leur dû (annonce n°%d) : %s vous attendent chez %s. Envoyez une flotte en « Retrait chez le marchand » pour les récupérer.', $listing->getId(), self::amounts($share, $antimatter), $merchant->getName()),
             );
         }
     }
@@ -217,8 +232,10 @@ final readonly class Market
         }
     }
 
-    private static function amounts(Resources $resources): string
+    private static function amounts(Resources $resources, float $antimatter = 0.0): string
     {
-        return \sprintf('%s métal, %s cristal, %s deutérium', number_format($resources->metal, 0, ',', ' '), number_format($resources->crystal, 0, ',', ' '), number_format($resources->deuterium, 0, ',', ' '));
+        $amounts = \sprintf('%s métal, %s cristal, %s deutérium', number_format($resources->metal, 0, ',', ' '), number_format($resources->crystal, 0, ',', ' '), number_format($resources->deuterium, 0, ',', ' '));
+
+        return $antimatter > 0 ? \sprintf('%s, %s antimatière', $amounts, number_format($antimatter, 0, ',', ' ')) : $amounts;
     }
 }

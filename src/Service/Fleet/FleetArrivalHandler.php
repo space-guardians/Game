@@ -185,9 +185,12 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
      * Rapport automatique de livraison (§4.12.2) : à l'empire de la flotte, et au propriétaire de la planète s'il est un
      * autre empire.
      */
-    private function reportTransport(Fleet $fleet, Planet $planet, Resources $delivered): void
+    private function reportTransport(Fleet $fleet, Planet $planet, Resources $delivered, float $antimatter): void
     {
         $amounts = \sprintf('%s métal, %s cristal, %s deutérium', number_format($delivered->metal, 0, ',', ' '), number_format($delivered->crystal, 0, ',', ' '), number_format($delivered->deuterium, 0, ',', ' '));
+        if ($antimatter > 0) {
+            $amounts .= \sprintf(', %s antimatière', number_format($antimatter, 0, ',', ' '));
+        }
         $this->reports->report(
             $fleet->getEmpire(),
             MessageCategory::Transport,
@@ -237,7 +240,9 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
                 $snapshot = $this->resources->settle($planet, $arrival);
                 $delivered = $fleet->unload();
                 $planet->storeResources($snapshot->amounts->plus($delivered), $arrival);
-                $this->reportTransport($fleet, $planet, $delivered);
+                $antimatter = $fleet->unloadAntimatter();
+                $planet->addAntimatter($antimatter);
+                $this->reportTransport($fleet, $planet, $delivered, $antimatter);
                 break;
             case FleetAction::Station:
                 break;
@@ -369,6 +374,7 @@ final readonly class FleetArrivalHandler implements ScheduledEventHandler
         $planet->assignTo($fleet->getEmpire());
         // La production de la colonie démarre à sa fondation, avec la cargaison de la flotte pour premier stock
         $planet->storeResources($fleet->unload(), $arrival);
+        $planet->addAntimatter($fleet->unloadAntimatter());
         $fleet->removeShips($colonyShip, 1);
 
         return null;

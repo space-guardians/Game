@@ -45,6 +45,13 @@ class MarketListing
     #[ORM\Column]
     private float $askedDeuterium;
 
+    /** Antimatière (§4.14) proposée par le vendeur et demandée en contrepartie, en plus des ressources classiques */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $offeredAntimatter = 0.0;
+
+    #[ORM\Column(options: ['default' => 0])]
+    private float $askedAntimatter = 0.0;
+
     #[ORM\Column(length: 20, enumType: MarketListingStatus::class)]
     private MarketListingStatus $status = MarketListingStatus::Open;
 
@@ -76,10 +83,14 @@ class MarketListing
         Resources $asked,
         #[ORM\Column]
         private \DateTimeImmutable $createdAt,
+        float $offeredAntimatter = 0.0,
+        float $askedAntimatter = 0.0,
     ) {
-        if ($offered->isZero() || $asked->isZero()) {
+        if (($offered->isZero() && $offeredAntimatter <= 0) || ($asked->isZero() && $askedAntimatter <= 0)) {
             throw new \InvalidArgumentException('Une annonce propose des ressources contre d’autres ressources.');
         }
+        $this->offeredAntimatter = max(0.0, $offeredAntimatter);
+        $this->askedAntimatter = max(0.0, $askedAntimatter);
         $this->offeredMetal = $offered->metal;
         $this->offeredCrystal = $offered->crystal;
         $this->offeredDeuterium = $offered->deuterium;
@@ -113,6 +124,26 @@ class MarketListing
     public function getAsked(): Resources
     {
         return new Resources($this->askedMetal, $this->askedCrystal, $this->askedDeuterium);
+    }
+
+    public function getOfferedAntimatter(): float
+    {
+        return $this->offeredAntimatter;
+    }
+
+    public function getAskedAntimatter(): float
+    {
+        return $this->askedAntimatter;
+    }
+
+    /** Antimatière que cet empire doit livrer au marchand */
+    public function antimatterDueFrom(Empire $party): float
+    {
+        return match ($party) {
+            $this->seller => $this->offeredAntimatter,
+            $this->buyer => $this->askedAntimatter,
+            default => throw new \LogicException('Cet empire ne prend pas part à la transaction.'),
+        };
     }
 
     public function getStatus(): MarketListingStatus

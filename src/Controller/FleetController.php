@@ -192,6 +192,7 @@ final class FleetController extends AbstractController
                     $request->request->getInt('speed', 100),
                     $this->cargo($request->request->all('cargo')),
                     max(0.0, (float) $request->request->get('fuel', 0)),
+                    max(0.0, floor((float) $request->request->get('antimatter', 0))),
                 );
                 $this->activity->record($fleet->getEmpire()->getUser(), ActivityAction::FleetDispatch);
                 $this->entityManager->flush();

@@ -107,6 +107,13 @@
                         <input class="sg-input sg-mono" type="number" min="0" id="cargaison-{{ key }}" name="cargo[{{ key }}]" value="{{ submitted.cargo[key] ?? 0 }}">
                     </div>
                 {% endfor %}
+                {# Ressource rare des « boss » (§4.14) : seulement si la planète en a #}
+                {% if fleet.planet.antimatter > 0 %}
+                    <div class="sg-field">
+                        <label class="sg-field__label" for="cargaison-antimatter">Antimatière <span class="sg-mono">(disponible : {{ fleet.planet.antimatter|round(0, 'floor')|format_number }})</span></label>
+                        <input class="sg-input sg-mono" type="number" min="0" id="cargaison-antimatter" name="antimatter" value="{{ submitted.antimatter ?? 0 }}">
+                    </div>
+                {% endif %}
             </div>
         {% else %}
             <p class="sg-field__help">Une flotte ne charge des ressources que stationnée sur une planète de son empire.</p>

@@ -68,6 +68,10 @@ final class Fleet implements \Stringable
     #[ORM\Column]
     private float $cargoDeuterium = 0.0;
 
+    /** Antimatière à bord (§4.14) : occupe les soutes comme le reste, jamais pillée, perdue avec la flotte */
+    #[ORM\Column(options: ['default' => 0])]
+    private float $cargoAntimatter = 0.0;
+
     /** Deutérium dans les réservoirs, brûlé par les trajets (§4.6.3) ; distinct de la cargaison */
     #[ORM\Column]
     private float $fuel = 0.0;
@@ -255,7 +259,7 @@ final class Fleet implements \Stringable
     public function load(Resources $resources): void
     {
         $cargo = $this->getCargo()->plus($resources);
-        $total = $cargo->metal + $cargo->crystal + $cargo->deuterium;
+        $total = $cargo->metal + $cargo->crystal + $cargo->deuterium + $this->cargoAntimatter;
         if ($total > $this->cargo() + 1e-6) {
             throw new \InvalidArgumentException(\sprintf('Cargaison trop lourde : %d pour une capacité de %d.', (int) ceil($total), $this->cargo()));
         }
@@ -280,6 +284,46 @@ final class Fleet implements \Stringable
         $this->cargoMetal = $this->cargoCrystal = $this->cargoDeuterium = 0.0;
 
         return $cargo;
+    }
+
+    public function getCargoAntimatter(): float
+    {
+        return $this->cargoAntimatter;
+    }
+
+    /** @throws \InvalidArgumentException si les soutes n'ont pas la place */
+    public function loadAntimatter(float $amount): void
+    {
+        if ($amount > $this->freeCargo() + 1e-6) {
+            throw new \InvalidArgumentException(\sprintf('Cargaison trop lourde : %d pour une capacité de %d.', (int) ceil($this->cargo() - $this->freeCargo() + $amount), $this->cargo()));
+        }
+        $this->cargoAntimatter += max(0.0, $amount);
+    }
+
+    /** @throws \InvalidArgumentException si la cargaison n'en contient pas autant */
+    public function unloadAntimatterPart(float $amount): void
+    {
+        if ($amount > $this->cargoAntimatter + 1e-6) {
+            throw new \InvalidArgumentException('La cargaison ne contient pas autant d’antimatière.');
+        }
+        $this->cargoAntimatter = max(0.0, $this->cargoAntimatter - $amount);
+    }
+
+    /** Décharge toute l'antimatière à bord */
+    public function unloadAntimatter(): float
+    {
+        $amount = $this->cargoAntimatter;
+        $this->cargoAntimatter = 0.0;
+
+        return $amount;
+    }
+
+    /** Place libre dans les soutes, antimatière comprise */
+    public function freeCargo(): float
+    {
+        $cargo = $this->getCargo();
+
+        return max(0.0, $this->cargo() - ($cargo->metal + $cargo->crystal + $cargo->deuterium + $this->cargoAntimatter));
     }
 
     /** @return Collection<int, FleetOrder> */

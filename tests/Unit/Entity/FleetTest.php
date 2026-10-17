@@ -17,6 +17,7 @@ use App\Entity\User;
 use App\Enum\Account\StartingOrientation;
 use App\Enum\Fleet\FormationColumn;
 use App\Enum\Fleet\FormationRow;
+use App\Model\Economy\Resources;
 use App\Model\Fleet\FormationCell;
 use PHPUnit\Framework\TestCase;
 
@@ -71,6 +72,39 @@ final class FleetTest extends TestCase
         $this->expectException(\InvalidArgumentException::class);
 
         $fleet->removeShips($this->type('light_fighter'), 1);
+    }
+
+    public function testAntimatterTakesCargoSpaceLikeOtherResources(): void
+    {
+        $fleet = $this->fleet();
+        $fleet->addShips($this->type('small_cargo', cargo: 1000), 1);
+        $fleet->load(new Resources(600));
+
+        $fleet->loadAntimatter(300);
+
+        self::assertSame(300.0, $fleet->getCargoAntimatter());
+        self::assertSame(100.0, $fleet->freeCargo());
+        // Plus de place pour le métal au-delà des 100 restants
+        try {
+            $fleet->load(new Resources(200));
+            self::fail('Les soutes sont presque pleines.');
+        } catch (\InvalidArgumentException) {
+        }
+        $this->expectException(\InvalidArgumentException::class);
+        $fleet->loadAntimatter(150);
+    }
+
+    public function testAntimatterUnloadsApartFromTheOtherResources(): void
+    {
+        $fleet = $this->fleet();
+        $fleet->addShips($this->type('small_cargo', cargo: 1000), 1);
+        $fleet->load(new Resources(100));
+        $fleet->loadAntimatter(50);
+
+        $fleet->unloadAntimatterPart(20);
+        self::assertEquals(new Resources(100), $fleet->unload());
+        self::assertSame(30.0, $fleet->unloadAntimatter());
+        self::assertSame(1000.0, $fleet->freeCargo());
     }
 
     public function testNameIsTrimmed(): void
