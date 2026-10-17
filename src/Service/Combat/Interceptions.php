@@ -10,6 +10,7 @@ use App\Entity\SpaceLocation;
 use App\Entity\StarSystem;
 use App\Enum\Combat\CombatSide;
 use App\Enum\Combat\InterceptionOutcome;
+use App\Model\Combat\Interception;
 use App\Model\Fleet\SpacePosition;
 use App\Repository\FleetRepository;
 use Doctrine\ORM\EntityManagerInterface;
@@ -35,34 +36,49 @@ final readonly class Interceptions
      */
     public function enter(Fleet $fleet, SpaceLocation $from, SpaceLocation $destination, \DateTimeImmutable $at): InterceptionOutcome
     {
+        return $this->enterTogether($fleet, [], $from, $destination, $at)->outcome;
+    }
+
+    /**
+     * Entrée d'une flotte et de celles qui voyagent avec elle (escorte d'un convoi, §4.15) : elles combattent ensemble ;
+     * si les gardes tiennent, les survivantes sont toutes arrêtées au niveau du système.
+     *
+     * @param list<Fleet> $companions
+     */
+    public function enterTogether(Fleet $fleet, array $companions, SpaceLocation $from, SpaceLocation $destination, \DateTimeImmutable $at): Interception
+    {
         $systemId = $destination->systemId;
         // Hors système, ou déjà à l'intérieur : rien à franchir
         if (null === $systemId || $from->systemId === $systemId) {
-            return InterceptionOutcome::None;
+            return new Interception(InterceptionOutcome::None, true);
         }
         $guards = array_values(array_filter(
             $this->fleets->findGuarding($systemId),
-            fn(Fleet $guard): bool => $guard !== $fleet && !$this->allegiances->allied($guard->getEmpire(), $fleet->getEmpire()),
+            fn(Fleet $guard): bool => $guard !== $fleet && !\in_array($guard, $companions, true) && !$this->allegiances->allied($guard->getEmpire(), $fleet->getEmpire()),
         ));
         $system = $this->entityManager->find(StarSystem::class, $systemId);
         if ([] === $guards || !$system instanceof StarSystem) {
-            return InterceptionOutcome::None;
+            return new Interception(InterceptionOutcome::None, true);
         }
 
         $location = SpaceLocation::of(SpacePosition::system($system));
         $battle = new Battle($location, \sprintf('système %d:%d (interception)', $system->getGalaxy()->getNumber(), $system->getNumber()), $at, $at);
         $this->entityManager->persist($battle);
-        $result = $this->fight->fight($battle, [$fleet], $guards, $at);
-
-        if ($fleet->isEmpty()) {
-            return InterceptionOutcome::Destroyed;
+        $result = $this->fight->fight($battle, [$fleet, ...$companions], $guards, $at);
+        $passed = $result->isDestroyed(CombatSide::Defender);
+        if (!$passed) {
+            // Arrêtées à la lisière du système, au niveau du système
+            foreach ([$fleet, ...$companions] as $stopped) {
+                if (!$stopped->isEmpty()) {
+                    $stopped->arriveAt($location, null);
+                }
+            }
         }
-        if ($result->isDestroyed(CombatSide::Defender)) {
-            return InterceptionOutcome::Broken;
-        }
-        // Arrêtée à la lisière du système, au niveau du système
-        $fleet->arriveAt($location, null);
 
-        return InterceptionOutcome::Stopped;
+        return new Interception(match (true) {
+            $fleet->isEmpty() => InterceptionOutcome::Destroyed,
+            $passed => InterceptionOutcome::Broken,
+            default => InterceptionOutcome::Stopped,
+        }, $passed);
     }
 }

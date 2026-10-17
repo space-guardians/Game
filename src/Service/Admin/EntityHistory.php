@@ -15,6 +15,7 @@ use App\Entity\BuildingType;
 use App\Entity\ClassMatchup;
 use App\Entity\Empire;
 use App\Entity\EmpireBlueprint;
+use App\Entity\EscortAssignment;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
@@ -33,6 +34,7 @@ use App\Entity\NpcBehaviorProfile;
 use App\Entity\PlanetBuilding;
 use App\Entity\PlanetListing;
 use App\Entity\PlanetShip;
+use App\Entity\PlayerQuest;
 use App\Entity\Prerequisite;
 use App\Entity\QuestOutcome;
 use App\Entity\QuestTemplate;
@@ -83,6 +85,8 @@ final readonly class EntityHistory
         GameEvent::class => 'Événements de jeu',
         Merchant::class => 'Marchands',
         MerchantHolding::class => 'Ressources gardées par les marchands',
+        PlayerQuest::class => 'Contrats d’escorte',
+        EscortAssignment::class => 'Escortes des contrats',
         MarketListing::class => 'Annonces du marché',
         PlanetListing::class => 'Planètes sur le marché',
         BuildingQueueItem::class => 'Constructions en cours',

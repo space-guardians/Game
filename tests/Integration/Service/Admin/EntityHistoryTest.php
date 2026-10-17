@@ -15,6 +15,7 @@ use App\Entity\BuildingType;
 use App\Entity\ClassMatchup;
 use App\Entity\Empire;
 use App\Entity\EmpireBlueprint;
+use App\Entity\EscortAssignment;
 use App\Entity\Fleet;
 use App\Entity\FleetMovement;
 use App\Entity\FleetOrder;
@@ -34,6 +35,7 @@ use App\Entity\Planet;
 use App\Entity\PlanetBuilding;
 use App\Entity\PlanetListing;
 use App\Entity\PlanetShip;
+use App\Entity\PlayerQuest;
 use App\Entity\Prerequisite;
 use App\Entity\QuestOutcome;
 use App\Entity\QuestTemplate;
@@ -81,7 +83,7 @@ final class EntityHistoryTest extends KernelTestCase
     {
         $classes = array_map(static fn(AuditedEntity $entity): string => $entity->class, $this->history->entities());
 
-        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Empire::class, Galaxy::class, GalaxyShapeTemplate::class, BuildingType::class, PlanetBuilding::class, BuildingQueueItem::class, Technology::class, Research::class, EmpireBlueprint::class, ResearchQueueItem::class, Prerequisite::class, ShipClass::class, ShipType::class, PlanetShip::class, ShipyardOrder::class, Fleet::class, FleetShip::class, FleetMovement::class, FleetOrder::class, Formation::class, FormationSlot::class, QuestTemplate::class, QuestOutcome::class, ClassMatchup::class, Alliance::class, AllianceMember::class, AlliancePact::class, AlliancePlanet::class, AllianceBuilding::class, TeleportLink::class, Merchant::class, MerchantHolding::class, MarketListing::class, PlanetListing::class, GameEvent::class, NpcBehaviorProfile::class, GameSetting::class, MessageReport::class], $classes);
+        self::assertEqualsCanonicalizing([User::class, AdminUser::class, Empire::class, Galaxy::class, GalaxyShapeTemplate::class, BuildingType::class, PlanetBuilding::class, BuildingQueueItem::class, Technology::class, Research::class, EmpireBlueprint::class, ResearchQueueItem::class, Prerequisite::class, ShipClass::class, ShipType::class, PlanetShip::class, ShipyardOrder::class, Fleet::class, FleetShip::class, FleetMovement::class, FleetOrder::class, Formation::class, FormationSlot::class, QuestTemplate::class, QuestOutcome::class, ClassMatchup::class, Alliance::class, AllianceMember::class, AlliancePact::class, AlliancePlanet::class, AllianceBuilding::class, TeleportLink::class, Merchant::class, MerchantHolding::class, MarketListing::class, PlayerQuest::class, EscortAssignment::class, PlanetListing::class, GameEvent::class, NpcBehaviorProfile::class, GameSetting::class, MessageReport::class], $classes);
         self::assertNotContains(Planet::class, $classes);
         self::assertNotContains(StarSystem::class, $classes);
     }

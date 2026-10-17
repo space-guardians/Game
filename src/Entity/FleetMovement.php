@@ -43,6 +43,14 @@ final class FleetMovement implements \Stringable
     #[ORM\JoinColumn(onDelete: 'SET NULL')]
     private ?Planet $teleportExit = null;
 
+    /**
+     * Escorte d'un convoi (§4.15) : déplacement porté par celui du convoi, sans événement propre. Elle part, voyage et
+     * arrive avec lui ; c'est l'arrivée du convoi qui la fait arriver (FleetArrivalHandler).
+     */
+    #[ORM\ManyToOne]
+    #[ORM\JoinColumn(onDelete: 'SET NULL')]
+    private ?FleetMovement $carriedBy = null;
+
     public function __construct(
         #[ORM\ManyToOne]
         #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -128,6 +136,16 @@ final class FleetMovement implements \Stringable
     public function getTeleportExit(): ?Planet
     {
         return $this->teleportExit;
+    }
+
+    public function carriedBy(self $convoy): void
+    {
+        $this->carriedBy = $convoy;
+    }
+
+    public function getCarriedBy(): ?self
+    {
+        return $this->carriedBy;
     }
 
     public function getEvent(): ?ScheduledEvent

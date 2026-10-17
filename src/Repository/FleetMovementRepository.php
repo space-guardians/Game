@@ -19,6 +19,16 @@ final class FleetMovementRepository extends ServiceEntityRepository
         parent::__construct($registry, FleetMovement::class);
     }
 
+    /**
+     * Déplacements des escortes portés par celui d'un convoi (§4.15).
+     *
+     * @return list<FleetMovement>
+     */
+    public function findCarriedBy(FleetMovement $convoy): array
+    {
+        return $this->findBy(['carriedBy' => $convoy], ['id' => 'ASC']);
+    }
+
     public function findActiveFor(Fleet $fleet): ?FleetMovement
     {
         return $this->findOneBy(['fleet' => $fleet]);

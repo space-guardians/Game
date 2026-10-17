@@ -76,6 +76,12 @@
             </a>
         </li>
         <li>
+            <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_escorts' ? ' is-active' }}" href="{{ path('app_escorts') }}"{% if current starts with 'app_escorts' %} aria-current="page"{% endif %}>
+                <twig:Icon name="shield" size="18"/>
+                Escortes
+            </a>
+        </li>
+        <li>
             <a class="sg-sidenav__item sg-cut-8{{ current starts with 'app_ranking' ? ' is-active' }}" href="{{ path('app_ranking') }}"{% if current starts with 'app_ranking' %} aria-current="page"{% endif %}>
                 <twig:Icon name="trophy" size="18"/>
                 Classement

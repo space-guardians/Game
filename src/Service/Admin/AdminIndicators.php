@@ -12,6 +12,7 @@ use App\Service\Economy\BuildingCompletedHandler;
 use App\Service\Exploration\ExplorationExpiryHandler;
 use App\Service\Fleet\FleetArrivalHandler;
 use App\Service\Fleet\ShipyardOrderCompletedHandler;
+use App\Service\Market\EscortDepartureHandler;
 use App\Service\Research\ResearchCompletedHandler;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
@@ -33,6 +34,7 @@ final readonly class AdminIndicators
         FleetArrivalHandler::TYPE => 'Flottes en vol',
         ExplorationExpiryHandler::TYPE => 'Décisions d’exploration attendues',
         BattleResolutionHandler::TYPE => 'Batailles programmées',
+        EscortDepartureHandler::TYPE => 'Départs de convois escortés',
     ];
 
     /**
