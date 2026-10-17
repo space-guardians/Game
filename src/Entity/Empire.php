@@ -51,6 +51,10 @@ final class Empire
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $npcLastRaidAt = null;
 
+    /** Guilde marchande (§4.15) : publication de son dernier convoi à escorter */
+    #[ORM\Column(nullable: true)]
+    private ?\DateTimeImmutable $npcLastConvoyAt = null;
+
     /** Dernier recalcul de la flotte d'une civilisation « boss » (§4.14) */
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $npcFleetRecalculatedAt = null;
@@ -181,6 +185,16 @@ final class Empire
     public function npcFleetRecalculated(\DateTimeImmutable $at): void
     {
         $this->npcFleetRecalculatedAt = $at;
+    }
+
+    public function getNpcLastConvoyAt(): ?\DateTimeImmutable
+    {
+        return $this->npcLastConvoyAt;
+    }
+
+    public function npcConvoyed(\DateTimeImmutable $at): void
+    {
+        $this->npcLastConvoyAt = $at;
     }
 
     public function npcRaided(\DateTimeImmutable $at): void

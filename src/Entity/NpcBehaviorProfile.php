@@ -48,6 +48,11 @@ class NpcBehaviorProfile implements \Stringable
     #[Assert\Range(min: 1, max: 720)]
     private int $raidIntervalHours = 24;
 
+    /** Guilde marchande (§4.15) : intervalle entre deux convois à escorter */
+    #[ORM\Column(options: ['default' => 6])]
+    #[Assert\Positive]
+    private int $convoyIntervalHours = 6;
+
     /** Distance maximale d'une cible de raid, dans le repère global */
     #[ORM\Column]
     #[Assert\Positive]
@@ -110,6 +115,9 @@ class NpcBehaviorProfile implements \Stringable
         if (null !== $this->victoryBlueprint && !$this->victoryBlueprint->requiresBlueprint()) {
             $context->buildViolation(\sprintf('%s se construit sans plan : choisissez un type de vaisseau réservé.', $this->victoryBlueprint->getName()))->atPath('victoryBlueprint')->addViolation();
         }
+        if (NpcCategory::Trader === $this->category && $this->raidsEnabled) {
+            $context->buildViolation('Une guilde marchande ne lance pas de raids : elle fait escorter ses convois.')->atPath('raidsEnabled')->addViolation();
+        }
         if (NpcCategory::Boss === $this->category && $this->raidsEnabled) {
             $context->buildViolation('Une civilisation « boss » est strictement défensive : pas de raids.')->atPath('raidsEnabled')->addViolation();
         }
@@ -168,6 +176,16 @@ class NpcBehaviorProfile implements \Stringable
     public function setRaidIntervalHours(int $hours): void
     {
         $this->raidIntervalHours = $hours;
+    }
+
+    public function getConvoyIntervalHours(): int
+    {
+        return $this->convoyIntervalHours;
+    }
+
+    public function setConvoyIntervalHours(int $hours): void
+    {
+        $this->convoyIntervalHours = $hours;
     }
 
     public function getRaidRange(): float

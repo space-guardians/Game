@@ -8,6 +8,7 @@ use App\Entity\Empire;
 use App\Entity\EmpireBlueprint;
 use App\Entity\Planet;
 use App\Enum\Messaging\MessageCategory;
+use App\Enum\Pve\NpcCategory;
 use App\Repository\EmpireBlueprintRepository;
 use App\Service\Economy\PlanetResources;
 use App\Service\Messaging\GameReports;
@@ -32,7 +33,8 @@ final readonly class NpcRewards
     {
         $owner = $planet->getOwner();
         $profile = $owner?->getNpcProfile();
-        if (null === $owner || null === $profile || $victor->isNpc()) {
+        // Guilde marchande : ses champs de récompense paient ses convois escortés (NpcConvoys), pas sa défaite
+        if (null === $owner || null === $profile || $victor->isNpc() || NpcCategory::Trader === $profile->getCategory()) {
             return;
         }
         $reward = $profile->getVictoryReward();
